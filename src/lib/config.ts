@@ -1,0 +1,31 @@
+export const APP_NAME = "Nexus";
+export const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : process.env.FLY_APP_NAME
+        ? `https://${process.env.FLY_APP_NAME}.fly.dev`
+        : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "http://localhost:3000");
+
+/** Fee sobre la carga de créditos, no sobre la inferencia. */
+export const CREDIT_PURCHASE_FEE = 0.049;
+
+export const FREE_MODEL_RPD_NO_CREDITS = 50;
+export const FREE_MODEL_RPD_WITH_CREDITS = 1000;
+export const FREE_MODEL_CREDITS_THRESHOLD_USD = 10;
+export const SIGNUP_BONUS_MICROS = 1_000_000; // $1
+
+export const KEY_PREFIX = "sk-nx-";
+export const MANAGEMENT_KEY_PREFIX = "sk-nx-mgmt-";
+
+export const CREDIT_PACKS = [
+  { id: "10", usd: 10, label: "$10" },
+  { id: "25", usd: 25, label: "$25" },
+  { id: "50", usd: 50, label: "$50" },
+  { id: "100", usd: 100, label: "$100" },
+  { id: "500", usd: 500, label: "$500" },
+] as const;

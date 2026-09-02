@@ -1,0 +1,17 @@
+.git
+.agents
+.claude
+.cursor
+agent-transcripts
+data
+*.md
+!README.md
+Dockerfile
+.dockerignore
+fly.toml
+.env*
+.neon
+node_modules
+.next
+coverage
+_models_raw.json

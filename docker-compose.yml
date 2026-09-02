@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nexus
+    ports:
+      - "5432:5432"
+    volumes:
+      - nexus_pg:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  gateway:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: npx tsx services/gateway.ts
+    environment:
+      GATEWAY_PORT: "4001"
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/nexus
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-cambia-esta-clave-de-32-chars-minimo}
+    ports:
+      - "4001:4001"
+    depends_on:
+      - redis
+      - postgres
+    profiles: ["stack"]
+
+  worker:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: npx tsx services/worker.ts
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/nexus
+    depends_on:
+      - redis
+      - postgres
+    profiles: ["stack"]
+
+volumes:
+  nexus_pg:

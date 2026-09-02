@@ -1,0 +1,46 @@
+export type ModelEndpoint = {
+  name: string;
+  adapter: string;
+  providerModel: string;
+  pricing: { prompt: number; completion: number };
+  latencyMs: number;
+  throughputTps: number;
+  zdr: boolean;
+  uptime: number;
+  quantization: string;
+};
+
+export type CatalogModel = {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  created: number;
+  contextLength: number;
+  architecture: {
+    modality: string;
+    inputModalities: string[];
+    outputModalities: string[];
+    tokenizer: string;
+  };
+  pricing: {
+    prompt: number;
+    completion: number;
+    request: number;
+    image: number;
+    webSearch: number;
+    inputCacheRead: number;
+    inputCacheWrite: number;
+  };
+  topProvider: {
+    contextLength: number;
+    maxCompletionTokens: number;
+    isModerated: boolean;
+  };
+  supportedParameters: string[];
+  knowledgeCutoff: string | null;
+  huggingFaceId: string | null;
+  canonicalSlug: string;
+  free: boolean;
+  endpoints: ModelEndpoint[];
+};

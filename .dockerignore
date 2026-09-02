@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+data
+.vercel
+.env*
+!.env.example
+*.log
+agent-transcripts
+terminals
+.agents
+.claude
+.cursor
