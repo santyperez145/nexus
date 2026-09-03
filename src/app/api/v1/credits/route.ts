@@ -1,22 +1,26 @@
 import { desc, eq } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { billingUserId } from "@/lib/gateway/billing";
 import { db, schema } from "@/lib/db";
+import { assertWorkspaceManager } from "@/lib/gateway/tenant";
 import { microsToUsd } from "@/lib/money";
 import { manualCreditsEnabled } from "@/lib/config";
 
 export async function GET(req: Request) {
   try {
     const auth = await authenticateRequest(req);
-    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, auth.userId)).limit(1);
+    await assertWorkspaceManager(auth, auth.workspaceId);
+    const payerId = billingUserId(auth);
+    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, payerId)).limit(1);
     const ledger = await db
       .select()
       .from(schema.creditLedger)
-      .where(eq(schema.creditLedger.userId, auth.userId))
+      .where(eq(schema.creditLedger.userId, payerId))
       .orderBy(desc(schema.creditLedger.createdAt));
     const [subscription] = await db
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.userId, auth.userId))
+      .where(eq(schema.subscriptions.userId, payerId))
       .orderBy(desc(schema.subscriptions.updatedAt))
       .limit(1);
     const purchased = ledger

@@ -63,7 +63,10 @@ export type ChatRequest = {
 };
 
 export type AuthContext = {
+  /** Human or API-key actor used for ownership and audit attribution. */
   userId: string;
+  /** Server-derived wallet owner. Shared workspaces bill their owning account. */
+  billingUserId?: string;
   apiKeyId?: string;
   workspaceId?: string | null;
   workspaceIds?: string[];

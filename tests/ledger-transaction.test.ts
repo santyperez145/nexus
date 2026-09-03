@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import type { AuthContext } from "../src/lib/gateway/types";
+import { sha256 } from "../src/lib/crypto";
 
 const dataDir = mkdtempSync(join(tmpdir(), "nexus-ledger-test-"));
 process.env.ENABLE_PGLITE = "true";
@@ -19,6 +20,7 @@ let billing: typeof import("../src/lib/gateway/billing");
 const userId = "usr_ledger_atomic";
 const keyId = "key_ledger_atomic";
 const workspaceId = "ws_ledger_atomic";
+const sharedToken = "sk-nx-shared-billing-test";
 const auth: AuthContext = {
   userId,
   apiKeyId: keyId,
@@ -68,6 +70,8 @@ before(async () => {
     id: "usr_org_owner",
     name: "Org Owner",
     email: "org-owner@nexus.test",
+    creditMicros: 1_000_000,
+    notifyLowBalance: false,
   });
   await database.db.insert(database.schema.organizations).values({
     id: "org_shared",
@@ -87,6 +91,21 @@ before(async () => {
     organizationId: "org_shared",
     name: "Shared workspace",
     slug: "shared-workspace",
+  });
+  await database.db.insert(database.schema.workspaceBudgets).values({
+    id: "budget_shared_org",
+    workspaceId: "ws_shared_org",
+    interval: "monthly",
+    limitMicros: 1_000_000,
+  });
+  await database.db.insert(database.schema.apiKeys).values({
+    id: "key_shared_org",
+    userId,
+    workspaceId: "ws_shared_org",
+    name: "Member workspace key",
+    keyHash: sha256(sharedToken),
+    keyPrefix: "sk-nx-share",
+    scopes: ["inference:write"],
   });
 });
 
@@ -161,5 +180,48 @@ describe("organization workspace RBAC", () => {
       ),
       true,
     );
+  });
+
+  it("charges a shared workspace to its server-derived billing owner", async () => {
+    const [memberBefore] = await database.db
+      .select({ creditMicros: database.schema.users.creditMicros })
+      .from(database.schema.users)
+      .where(eq(database.schema.users.id, userId));
+    const { authenticateRequest } = await import("../src/lib/gateway/api-auth");
+    const sharedAuth = await authenticateRequest(
+      new Request("https://nexus.test/api/v1/chat/completions", {
+        method: "POST",
+        headers: { authorization: `Bearer ${sharedToken}` },
+      }),
+    );
+    assert.equal(sharedAuth.userId, userId);
+    assert.equal(sharedAuth.billingUserId, "usr_org_owner");
+    const reservation = await billing.reserveCredits(sharedAuth, "gen_shared_billing", 120_000);
+    await billing.settleUsage({
+      auth: sharedAuth,
+      generationId: reservation.generationId,
+      promptTokens: 1_000,
+      completionTokens: 0,
+      pricing: { prompt: 0.0001, completion: 0 },
+      isFree: false,
+      isByok: false,
+      reservation,
+    });
+
+    const [memberAfter] = await database.db
+      .select({ creditMicros: database.schema.users.creditMicros })
+      .from(database.schema.users)
+      .where(eq(database.schema.users.id, userId));
+    const [ownerAfter] = await database.db
+      .select({ creditMicros: database.schema.users.creditMicros })
+      .from(database.schema.users)
+      .where(eq(database.schema.users.id, "usr_org_owner"));
+    const ownerLedger = await database.db
+      .select()
+      .from(database.schema.creditLedger)
+      .where(eq(database.schema.creditLedger.userId, "usr_org_owner"));
+    assert.equal(memberAfter.creditMicros, memberBefore.creditMicros);
+    assert.equal(ownerAfter.creditMicros, 900_000);
+    assert.ok(ownerLedger.some((entry) => entry.generationId === "gen_shared_billing"));
   });
 });

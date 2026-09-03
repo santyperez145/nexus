@@ -14,6 +14,10 @@ import { chargeAmountCents, getStripe } from "@/lib/stripe";
 import { creditPurchaseOnce } from "@/lib/billing/stripe-credit";
 import type { AuthContext } from "./types";
 
+export function billingUserId(auth: AuthContext) {
+  return auth.billingUserId ?? auth.userId;
+}
+
 function computeMicros(opts: {
   promptTokens: number;
   completionTokens: number;
@@ -94,10 +98,11 @@ export async function assertCredits(
     ? Math.max(1, Math.floor(estimatedMicros * BYOK_FEE))
     : estimatedMicros;
   if (need <= 0) return;
+  const payerId = billingUserId(auth);
   const [row] = await db
     .select({ creditMicros: schema.users.creditMicros })
     .from(schema.users)
-    .where(eq(schema.users.id, auth.userId))
+    .where(eq(schema.users.id, payerId))
     .limit(1);
   if (!row || row.creditMicros < need) {
     throw Object.assign(new Error("Insufficient credits"), { status: 402, code: "insufficient_credits" });
@@ -136,9 +141,10 @@ export async function reserveCredits(
     ? Math.max(1, Math.floor(estimatedMicros * BYOK_FEE))
     : estimatedMicros;
   if (need <= 0) return { generationId, reservedMicros: 0 };
+  const payerId = billingUserId(auth);
 
   await withTransaction(async (tx) => {
-    await debitIfEnough(tx, auth.userId, need);
+    await debitIfEnough(tx, payerId, need);
 
     let keyLimitHeld = false;
     if (auth.apiKeyId) {
@@ -216,7 +222,7 @@ export async function reserveCredits(
     await tx.insert(schema.creditHolds).values({
       id: id("hold"),
       generationId,
-      userId: auth.userId,
+      userId: payerId,
       apiKeyId: auth.apiKeyId,
       workspaceId: auth.workspaceId,
       reservedMicros: need,
@@ -225,7 +231,7 @@ export async function reserveCredits(
     });
     await tx.insert(schema.creditLedger).values({
       id: id("led"),
-      userId: auth.userId,
+      userId: payerId,
       type: "reserve",
       micros: -need,
       generationId,
@@ -239,6 +245,7 @@ export async function reserveCredits(
 
 export async function releaseReserve(auth: AuthContext, reservation: CreditReservation) {
   if (auth.guest || reservation.reservedMicros <= 0) return;
+  const payerId = billingUserId(auth);
   const released = await withTransaction(async (tx) => {
     const rows = await tx
       .update(schema.creditHolds)
@@ -246,14 +253,14 @@ export async function releaseReserve(auth: AuthContext, reservation: CreditReser
       .where(
         and(
           eq(schema.creditHolds.generationId, reservation.generationId),
-          eq(schema.creditHolds.userId, auth.userId),
+          eq(schema.creditHolds.userId, payerId),
           eq(schema.creditHolds.status, "open"),
         ),
       )
       .returning();
     const hold = rows[0];
     if (!hold) return 0;
-    await creditBalance(tx, auth.userId, hold.reservedMicros);
+    await creditBalance(tx, payerId, hold.reservedMicros);
     if (hold.keyLimitHeld && hold.apiKeyId) {
       await tx.execute(
         sql`UPDATE "api_key" SET usage_micros = GREATEST(0, usage_micros - ${hold.reservedMicros}) WHERE id = ${hold.apiKeyId}`,
@@ -266,7 +273,7 @@ export async function releaseReserve(auth: AuthContext, reservation: CreditReser
     }
     await tx.insert(schema.creditLedger).values({
       id: id("led"),
-      userId: auth.userId,
+      userId: payerId,
       type: "reserve_release",
       micros: hold.reservedMicros,
       generationId: reservation.generationId,
@@ -299,6 +306,7 @@ export async function settleUsage(opts: {
   const micros = computed.micros;
   const reservation = opts.reservation;
   const reserved = reservation?.reservedMicros ?? 0;
+  const payerId = billingUserId(opts.auth);
 
   const billedMicros = await withTransaction(async (tx) => {
     if (reserved > 0 && reservation) {
@@ -308,7 +316,7 @@ export async function settleUsage(opts: {
         .where(
           and(
             eq(schema.creditHolds.generationId, reservation.generationId),
-            eq(schema.creditHolds.userId, opts.auth.userId),
+            eq(schema.creditHolds.userId, payerId),
             eq(schema.creditHolds.status, "open"),
           ),
         )
@@ -321,7 +329,7 @@ export async function settleUsage(opts: {
           .where(
             and(
               eq(schema.creditHolds.generationId, reservation.generationId),
-              eq(schema.creditHolds.userId, opts.auth.userId),
+              eq(schema.creditHolds.userId, payerId),
             ),
           )
           .limit(1);
@@ -333,8 +341,8 @@ export async function settleUsage(opts: {
       }
 
       const delta = micros - hold.reservedMicros;
-      if (delta > 0) await debitIfEnough(tx, opts.auth.userId, delta);
-      else if (delta < 0) await creditBalance(tx, opts.auth.userId, -delta);
+      if (delta > 0) await debitIfEnough(tx, payerId, delta);
+      else if (delta < 0) await creditBalance(tx, payerId, -delta);
       if (hold.keyLimitHeld && hold.apiKeyId && delta !== 0) {
         await tx.execute(
           sql`UPDATE "api_key" SET usage_micros = GREATEST(0, usage_micros + ${delta}) WHERE id = ${hold.apiKeyId}`,
@@ -359,7 +367,7 @@ export async function settleUsage(opts: {
       }
       await tx.insert(schema.creditLedger).values({
         id: id("led"),
-        userId: opts.auth.userId,
+        userId: payerId,
         type: "reserve_release",
         micros: hold.reservedMicros,
         generationId: opts.generationId,
@@ -367,7 +375,7 @@ export async function settleUsage(opts: {
       });
       await tx.insert(schema.creditLedger).values({
         id: id("led"),
-        userId: opts.auth.userId,
+        userId: payerId,
         type: computed.ledgerType,
         micros: -micros,
         generationId: opts.generationId,
@@ -380,7 +388,7 @@ export async function settleUsage(opts: {
       .insert(schema.creditLedger)
       .values({
         id: id("led"),
-        userId: opts.auth.userId,
+        userId: payerId,
         type: computed.ledgerType,
         micros: -micros,
         generationId: opts.generationId,
@@ -391,7 +399,7 @@ export async function settleUsage(opts: {
       })
       .returning();
     if (!inserted.length) return micros;
-    if (micros > 0) await debitIfEnough(tx, opts.auth.userId, micros);
+    if (micros > 0) await debitIfEnough(tx, payerId, micros);
     return micros;
   });
 
@@ -399,11 +407,11 @@ export async function settleUsage(opts: {
     const [after] = await db
       .select({ creditMicros: schema.users.creditMicros })
       .from(schema.users)
-      .where(eq(schema.users.id, opts.auth.userId))
+      .where(eq(schema.users.id, payerId))
       .limit(1);
     if (after) {
       opts.auth.creditMicros = after.creditMicros;
-      void maybeNotifyLowBalance(opts.auth.userId, after.creditMicros);
+      void maybeNotifyLowBalance(payerId, after.creditMicros);
     }
   }
 

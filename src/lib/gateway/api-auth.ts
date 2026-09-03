@@ -42,6 +42,24 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
         code: "invalid_api_key",
       });
     }
+    const [billingUser] = key.workspaceId
+      ? await db
+          .select({
+            id: schema.users.id,
+            plan: schema.users.plan,
+            creditMicros: schema.users.creditMicros,
+          })
+          .from(schema.workspaces)
+          .innerJoin(schema.users, eq(schema.users.id, schema.workspaces.userId))
+          .where(eq(schema.workspaces.id, key.workspaceId))
+          .limit(1)
+      : [user];
+    if (!billingUser) {
+      throw Object.assign(new Error("Workspace billing account not found"), {
+        status: 401,
+        code: "invalid_api_key",
+      });
+    }
     if (key.limitMicros != null && key.usageMicros >= key.limitMicros) {
       throw Object.assign(new Error("API key credit limit reached"), { status: 402, code: "insufficient_credits" });
     }
@@ -51,13 +69,14 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
       .where(eq(schema.apiKeys.id, key.id));
     ctx = {
       userId: user.id,
+      billingUserId: billingUser.id,
       apiKeyId: key.id,
       workspaceId: key.workspaceId,
       workspaceIds,
       isManagement: key.isManagement,
       scopes: key.scopes ?? defaultScopes(key.isManagement),
-      plan: user.plan,
-      creditMicros: user.creditMicros,
+      plan: billingUser.plan,
+      creditMicros: billingUser.creditMicros,
       zdr: user.zdr,
       allowTraining: user.allowTraining,
       logPrompts: user.logPrompts,
@@ -86,6 +105,7 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
       const workspaceIds = await accessibleWorkspaceIds(user.id);
       ctx = {
         userId: user.id,
+        billingUserId: user.id,
         workspaceIds,
         isManagement: true,
         scopes: ["*"],

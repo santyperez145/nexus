@@ -613,7 +613,7 @@ async function persistGeneration(opts: {
       message: error instanceof Error ? error.message : "unknown",
     });
   });
-  await maybeAutoTopup(opts.auth.userId).catch((error) => {
+  await maybeAutoTopup(opts.auth.billingUserId ?? opts.auth.userId).catch((error) => {
     console.error("Chat auto top-up failed", {
       generationId: opts.genId,
       message: error instanceof Error ? error.message : "unknown",
