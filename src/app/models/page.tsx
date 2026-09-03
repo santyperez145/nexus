@@ -1,4 +1,5 @@
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { ModelsExplorer } from "@/components/models/models-explorer";
 import { allModels } from "@/lib/catalog";
 
@@ -17,12 +18,11 @@ export default function ModelsPage() {
   }));
   return (
     <MarketingShell>
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="mb-2 text-3xl font-semibold tracking-tight">Models</h1>
-        <p className="mb-8 text-zinc-500">
+      <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
+        <MarketingPageHeader title="Models">
           Un slug, varios labs. Filtrá por modalidad; el gateway elige host por precio, latencia o{" "}
-          <code>provider.only</code>.
-        </p>
+          <code className="text-zinc-700">provider.only</code>.
+        </MarketingPageHeader>
         <ModelsExplorer models={models} />
       </div>
     </MarketingShell>

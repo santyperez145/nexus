@@ -35,14 +35,22 @@ export function NexusMark({ className, title = "Nexus" }: MarkProps) {
 export function NexusWordmark({
   className,
   markClassName,
+  tone = "dark",
 }: {
   className?: string;
   markClassName?: string;
+  tone?: "dark" | "light";
 }) {
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
-      <NexusMark className={cn("size-6 shrink-0 text-amber-400", markClassName)} />
-      <span className="font-semibold tracking-tight">Nexus</span>
+      <NexusMark
+        className={cn(
+          "size-6 shrink-0",
+          tone === "light" ? "text-amber-600" : "text-amber-400",
+          markClassName,
+        )}
+      />
+      <span className="font-[family-name:var(--font-syne)] font-semibold tracking-tight">Nexus</span>
     </span>
   );
 }

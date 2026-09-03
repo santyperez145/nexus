@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.6.0
+  version: 0.7.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference.
 servers:
   - url: /api/v1
@@ -299,6 +299,63 @@ paths:
       summary: Wiring status (no secrets)
       responses:
         "200": { description: Status }
+  /completions:
+    post:
+      summary: Completions legacy (OpenAI)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Completion }
+  /messages:
+    post:
+      summary: Anthropic Messages shim
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Messages response }
+  /responses:
+    post:
+      summary: OpenAI Responses shim
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Responses payload }
+  /videos:
+    post:
+      summary: Start video job (Fal / Replicate / local)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Job }
+    get:
+      summary: Poll video job
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Job }
+  /organization:
+    get:
+      summary: List organizations
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Orgs }
+    post:
+      summary: Create organization or add member
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Org }
+    delete:
+      summary: Remove member or org
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: success }
+  /datasets/models:
+    get:
+      summary: Model rankings dataset
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Rankings }
+  /providers/health:
+    get:
+      summary: Circuit breakers
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Health }
 components:
   securitySchemes:
     bearerAuth:

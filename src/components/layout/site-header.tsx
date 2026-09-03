@@ -16,7 +16,7 @@ export async function SiteHeader({ tone = "dark" }: { tone?: "dark" | "light" })
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link href="/" className={cn("text-[15px]", light ? "text-zinc-900" : "text-zinc-100")}>
-          <NexusWordmark />
+          <NexusWordmark tone={tone} />
         </Link>
         <nav
           className={cn(

@@ -12,10 +12,10 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen bg-[#fafaf9] text-zinc-900">
       <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4 py-12">
         <Link href="/" className="mb-8 text-[15px] text-zinc-950">
-          <NexusWordmark />
+          <NexusWordmark tone="light" />
         </Link>
         <h1 className="mb-2 text-2xl font-semibold tracking-tight text-zinc-950">{title}</h1>
         {subtitle ? <p className="mb-6 text-sm text-zinc-500">{subtitle}</p> : <div className="mb-6" />}

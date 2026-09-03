@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { allModels, usdPerMillion } from "@/lib/catalog";
 import { db, ensureDb, schema } from "@/lib/db";
 import { sql } from "drizzle-orm";
@@ -30,21 +31,20 @@ export default async function RankingsPage() {
 
   return (
     <MarketingShell>
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="mb-2 text-3xl font-semibold tracking-tight">Rankings</h1>
-        <p className="mb-8 text-zinc-500">
+      <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
+        <MarketingPageHeader title="Rankings">
           Tokens reales de esta plataforma; el precio desempata. {ranked.length} modelos en
           catálogo.
-        </p>
-        <ol className="grid gap-4">
+        </MarketingPageHeader>
+        <ol className="grid gap-0">
           {ranked.slice(0, 80).map((m, i) => {
             const u = byUsage.get(m.id);
             return (
               <li
                 key={m.id}
-                className="flex items-baseline justify-between gap-4 border-t border-zinc-200 pt-3"
+                className="flex items-baseline justify-between gap-4 border-t border-zinc-200 py-3"
               >
-                <span className="w-8 text-zinc-500">{i + 1}</span>
+                <span className="w-8 font-mono text-xs text-zinc-400">{i + 1}</span>
                 <span className="flex-1 font-mono text-sm">
                   <Link href={`/models/${m.id}`} className="text-amber-700 hover:underline">
                     {m.id}

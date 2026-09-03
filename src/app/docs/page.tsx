@@ -1,4 +1,5 @@
 import { MarketingShell } from "@/components/layout/marketing-shell";
+import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 
 const ENDPOINTS = [
   ["POST", "/api/v1/chat/completions", "Chat Completions (OpenAI)"],
@@ -36,19 +37,15 @@ const ENDPOINTS = [
 export default function DocsPage() {
   return (
     <MarketingShell>
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="mb-4 text-3xl font-semibold tracking-tight">API</h1>
-        <p className="mb-8 text-zinc-600">
-          SDK propio <code className="text-zinc-800">nexus-sdk</code> (425 modelos) o el SDK de
-          OpenAI apuntando a <code className="text-zinc-800">/api/v1</code>. Variantes{" "}
+      <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+        <MarketingPageHeader title="API">
+          SDK propio <code className="text-zinc-800">nexus-sdk</code> o el SDK de OpenAI apuntando a{" "}
+          <code className="text-zinc-800">/api/v1</code>. Variantes{" "}
           <code className="text-zinc-800">:fast</code> <code className="text-zinc-800">:cheap</code>{" "}
           <code className="text-zinc-800">:quality</code> <code className="text-zinc-800">:free</code>{" "}
           <code className="text-zinc-800">:online</code>. Routers{" "}
-          <code className="text-zinc-800">nexus/auto</code> y{" "}
-          <code className="text-zinc-800">nexus/free</code>. Alias{" "}
-          <code className="text-zinc-800">~openai/latest</code> /{" "}
-          <code className="text-zinc-800">anthropic/latest</code>.
-        </p>
+          <code className="text-zinc-800">nexus/auto</code> / <code className="text-zinc-800">nexus/free</code>.
+        </MarketingPageHeader>
         <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`import { Nexus } from "nexus-sdk";
 
