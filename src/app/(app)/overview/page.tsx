@@ -33,13 +33,34 @@ async function loadWeekSeries(userId: string) {
   }
   let weekTokens = 0;
   let weekCost = 0;
+  let weekErrors = 0;
+  const byModel = new Map<string, number>();
+  const byProvider = new Map<string, number>();
   for (const r of week) {
     const day = new Date(r.createdAt).toISOString().slice(0, 10);
     if (byDay.has(day)) byDay.set(day, (byDay.get(day) ?? 0) + 1);
     weekTokens += r.promptTokens + r.completionTokens;
     weekCost += microsToUsd(r.costMicros);
+    if (r.error) weekErrors += 1;
+    byModel.set(r.routedModel, (byModel.get(r.routedModel) ?? 0) + 1);
+    byProvider.set(r.provider, (byProvider.get(r.provider) ?? 0) + 1);
   }
-  return { week, spark: [...byDay.values()], weekTokens, weekCost, nowMs };
+  const topModels = [...byModel.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const topProviders = [...byProvider.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  return {
+    week,
+    spark: [...byDay.values()],
+    weekTokens,
+    weekCost,
+    weekErrors,
+    topModels,
+    topProviders,
+    nowMs,
+  };
 }
 
 export default async function OverviewPage() {
@@ -52,12 +73,18 @@ export default async function OverviewPage() {
     .where(eq(schema.generations.userId, userId))
     .orderBy(desc(schema.generations.createdAt))
     .limit(10);
-  const { week, spark, weekTokens, weekCost, nowMs } = await loadWeekSeries(userId);
+  const { week, spark, weekTokens, weekCost, weekErrors, topModels, topProviders, nowMs } =
+    await loadWeekSeries(userId);
   const keys = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.userId, userId));
   const labs = wiredProviders().length;
   const models = allModels().filter((m) => !m.id.startsWith("nexus/")).length;
   const unusedKeys = keys.filter((k) => !k.lastUsedAt);
-  const balance = formatUsd(microsToUsd(user?.creditMicros ?? 0), 2);
+  const balanceUsd = microsToUsd(user?.creditMicros ?? 0);
+  const balance = formatUsd(balanceUsd, 2);
+  const dailyBurn = weekCost / 7;
+  const runwayDays =
+    dailyBurn > 0.0001 ? Math.floor(balanceUsd / dailyBurn) : week.length === 0 ? null : Infinity;
+  const errorRate = week.length ? Math.round((weekErrors / week.length) * 100) : 0;
 
   return (
     <div>
@@ -110,6 +137,13 @@ export default async function OverviewPage() {
           <div className="mt-2 font-[family-name:var(--font-syne)] text-4xl font-semibold tracking-tight text-amber-300">
             {balance}
           </div>
+          <p className="mt-1 text-xs text-zinc-500">
+            {runwayDays == null
+              ? "Sin burn 7d — runway n/d"
+              : runwayDays === Infinity
+                ? "Burn ~$0 · runway ilimitado a este ritmo"
+                : `~${runwayDays}d de runway (burn 7d)`}
+          </p>
           <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
             <div>
               <div className="text-[10px] uppercase tracking-wide text-zinc-600">Keys</div>
@@ -154,8 +188,37 @@ export default async function OverviewPage() {
               <div className="text-xl font-semibold tabular-nums">{formatUsd(weekCost)}</div>
             </div>
           </div>
-          <p className="mt-1 text-xs text-zinc-600">{weekTokens.toLocaleString()} tokens</p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {weekTokens.toLocaleString()} tokens
+            {week.length ? ` · ${errorRate}% con error` : ""}
+          </p>
           <Sparkline values={spark} className="mt-4 h-12 w-full" />
+          {topModels.length ? (
+            <div className="mt-4 border-t border-white/10 pt-3">
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Top modelos</div>
+              <ul className="mt-2 space-y-1">
+                {topModels.map(([id, n]) => (
+                  <li key={id} className="flex justify-between gap-2 font-mono text-[11px] text-zinc-400">
+                    <span className="truncate text-amber-400/80">{id}</span>
+                    <span className="tabular-nums">{n}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {topProviders.length ? (
+            <div className="mt-3">
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Top providers</div>
+              <ul className="mt-2 space-y-1">
+                {topProviders.map(([id, n]) => (
+                  <li key={id} className="flex justify-between gap-2 font-mono text-[11px] text-zinc-400">
+                    <span className="truncate">{id}</span>
+                    <span className="tabular-nums">{n}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </section>
 
         <section>

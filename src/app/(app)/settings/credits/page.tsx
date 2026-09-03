@@ -89,10 +89,33 @@ function CreditsInner() {
         Pass-through del precio del laboratorio. Fee 4.9% al cargar con Stripe.
       </AppPageHeader>
       {credits ? (
-        <p className="mb-6 text-sm text-amber-300">
-          Saldo {formatUsd(credits.remaining, 2)} · cargado {formatUsd(credits.total_credits, 2)} · usado{" "}
-          {formatUsd(credits.total_usage, 2)}
-        </p>
+        <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Saldo</div>
+              <div className="mt-1 font-[family-name:var(--font-syne)] text-3xl font-semibold text-amber-300">
+                {formatUsd(credits.remaining, 2)}
+              </div>
+            </div>
+            <div className="text-right text-xs text-zinc-500">
+              <div>cargado {formatUsd(credits.total_credits, 2)}</div>
+              <div>usado {formatUsd(credits.total_usage, 2)}</div>
+            </div>
+          </div>
+          {credits.total_credits > 0 ? (
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-amber-400/70"
+                style={{
+                  width: `${Math.min(100, (credits.remaining / credits.total_credits) * 100)}%`,
+                }}
+              />
+            </div>
+          ) : null}
+          <p className="mt-2 text-xs text-zinc-600">
+            Fee 4.9% solo al cargar. Overview muestra runway (saldo ÷ burn 7d).
+          </p>
+        </div>
       ) : null}
       <div className="grid gap-3 md:grid-cols-3">
         {CREDIT_PACKS.map((p) => (
