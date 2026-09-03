@@ -25,7 +25,8 @@ npm run dev
 |---|---|
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / … | Pool de inferencia de la plataforma |
 | `STRIPE_SECRET_KEY` + webhook | Compra de créditos |
-| `DATABASE_URL` | Postgres/Neon (si no: PGlite local) |
+| `CREDENTIALS_SECRET` | Cifrado BYOK (obligatorio en prod) |
+| `DATABASE_URL` | Postgres/Neon (obligatorio en prod; local: PGlite) |
 | `REDIS_URL` o Upstash | Rate limit y circuit breaker |
 | `GATEWAY_URL` | Data plane Hono aparte (`npm run dev:gateway`) |
 | BYOK en Settings | Keys del cliente, cifradas |
@@ -38,11 +39,11 @@ Producción: [https://web-production-ef6b3.up.railway.app](https://web-productio
 
 ## SDK
 
-Paquete propio en `packages/sdk` (`nexus-sdk`). Misma idea que un unified client: un key, 425 slugs.
+Paquete propio en `packages/sdk` (`nexus-sdk`). Client tipado; regenerá IDs con `npm run sdk:sync-models`.
 
 ```bash
-npm add nexus-sdk
-# o desde este repo: npm add ./packages/sdk
+# Desde este monorepo (el nombre `nexus-sdk` en npm.org es de otro autor):
+npm add ./packages/sdk
 ```
 
 ```ts

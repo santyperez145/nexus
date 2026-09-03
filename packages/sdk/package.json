@@ -1,7 +1,7 @@
 {
   "name": "nexus-sdk",
   "version": "0.1.0",
-  "description": "Official TypeScript SDK for the Nexus model gateway. 425 models, one API.",
+  "description": "Official TypeScript SDK for the Nexus model gateway. One API for the full catalog.",
   "type": "module",
   "license": "MIT",
   "main": "./dist/index.js",

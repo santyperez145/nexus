@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit && tsc -p packages/sdk --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "catalog:build": "node scripts/build-catalog.mjs",
+    "sdk:sync-models": "tsx scripts/sync-sdk-models.ts && npm run build --prefix packages/sdk",
     "db:studio": "drizzle-kit studio",
     "dev:gateway": "tsx services/gateway.ts",
     "dev:worker": "tsx services/worker.ts",

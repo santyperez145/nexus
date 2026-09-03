@@ -74,8 +74,12 @@ function filterEndpoints(
       return true;
     });
   }
-  if (auth.zdr || !auth.allowTraining || prefs?.zdr || prefs?.data_collection === "deny") {
+  if (auth.zdr || prefs?.zdr || prefs?.data_collection === "deny") {
     list = list.filter((e) => e.zdr);
+  } else if (!auth.allowTraining) {
+    // Preferí hosts ZDR sin vaciar el plan (default allowTraining=false no debe romper el routing).
+    const zdrOnly = list.filter((e) => e.zdr);
+    if (zdrOnly.length) list = zdrOnly;
   }
   if (prefs?.order?.length) {
     const ordered = prefs.order

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { Nexus, NexusError, NEXUS_MODEL_IDS } from "../packages/sdk/src/index";
 
 describe("nexus-sdk", () => {
-  it("exposes 425 model ids including routers", () => {
-    assert.equal(NEXUS_MODEL_IDS.length, 425);
+  it("exposes catalog model ids including routers", () => {
+    assert.ok(NEXUS_MODEL_IDS.length >= 425, `expected >= 425, got ${NEXUS_MODEL_IDS.length}`);
     assert.ok(NEXUS_MODEL_IDS.includes("nexus/auto"));
     assert.ok(NEXUS_MODEL_IDS.includes("openai/gpt-4o"));
   });

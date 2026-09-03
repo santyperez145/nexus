@@ -5,7 +5,13 @@ export function sha256(value: string) {
 }
 
 function secretKey() {
-  const secret = process.env.CREDENTIALS_SECRET ?? process.env.BETTER_AUTH_SECRET ?? "nexus-dev-secret";
+  const secret = process.env.CREDENTIALS_SECRET ?? process.env.BETTER_AUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("CREDENTIALS_SECRET (or BETTER_AUTH_SECRET) is required in production");
+    }
+    return scryptSync("nexus-dev-secret", "nexus-byok", 32);
+  }
   return scryptSync(secret, "nexus-byok", 32);
 }
 
