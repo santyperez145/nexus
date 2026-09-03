@@ -22,22 +22,23 @@ function openaiKey(byok?: string) {
 
 export async function generateImage(opts: {
   prompt: string;
-  model?: string;
-  size?: string;
-  n?: number;
+  model: string;
+  size: string;
+  quality: string;
+  n: number;
   apiKey?: string;
 }) {
   const key = openaiKey(opts.apiKey);
   if (!key) return null;
-  const model = opts.model?.includes("/") ? opts.model.split("/").pop()! : (opts.model ?? "gpt-image-1");
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: model.includes("dall-e") ? model : "gpt-image-1",
+      model: opts.model,
       prompt: opts.prompt,
-      size: opts.size ?? "1024x1024",
-      n: opts.n ?? 1,
+      size: opts.size,
+      quality: opts.quality,
+      n: opts.n,
     }),
     signal: AbortSignal.timeout(60000),
   });
@@ -47,9 +48,11 @@ export async function generateImage(opts: {
 
 export async function synthesizeSpeech(opts: {
   input: string;
-  model?: string;
+  model: string;
   voice?: string;
-  format?: string;
+  format: string;
+  speed?: number;
+  instructions?: string;
   apiKey?: string;
 }) {
   const key = openaiKey(opts.apiKey);
@@ -58,10 +61,14 @@ export async function synthesizeSpeech(opts: {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: opts.model?.includes("tts") ? opts.model.split("/").pop() : "gpt-4o-mini-tts",
+      model: opts.model,
       input: opts.input,
       voice: opts.voice ?? "alloy",
-      response_format: opts.format === "wav" ? "wav" : "mp3",
+      response_format: opts.format,
+      ...(opts.speed == null ? {} : { speed: opts.speed }),
+      ...(opts.model === "gpt-4o-mini-tts" && opts.instructions
+        ? { instructions: opts.instructions }
+        : {}),
     }),
     signal: AbortSignal.timeout(60000),
   });
@@ -75,13 +82,13 @@ export async function synthesizeSpeech(opts: {
 export async function transcribeAudio(
   file: Blob,
   filename: string,
-  model?: string,
+  model: string,
   apiKey?: string,
 ) {
   const key = openaiKey(apiKey);
   if (!key) return null;
   const form = new FormData();
-  form.set("model", model?.includes("/") ? model.split("/").pop()! : "whisper-1");
+  form.set("model", model);
   form.set("file", file, filename);
   const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -93,23 +100,26 @@ export async function transcribeAudio(
   return res.json();
 }
 
-export async function startVideoJob(opts: { prompt: string; model?: string; falKey?: string; replicateToken?: string }) {
-  const fal = opts.falKey?.trim() || process.env.FAL_KEY?.trim();
-  if (fal) {
+export async function startVideoJob(opts: {
+  prompt: string;
+  model?: string;
+  provider: "fal" | "replicate";
+  apiKey: string;
+}) {
+  if (opts.provider === "fal") {
     const res = await fetch("https://fal.run/fal-ai/minimax/video-01", {
       method: "POST",
-      headers: { Authorization: `Key ${fal}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Key ${opts.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: opts.prompt }),
       signal: AbortSignal.timeout(120000),
     });
     if (res.ok) return { provider: "fal", data: await res.json() };
     return { provider: "fal", error: await res.text(), status: res.status };
   }
-  const replicate = opts.replicateToken?.trim() || process.env.REPLICATE_API_TOKEN?.trim();
-  if (replicate) {
+  if (opts.provider === "replicate") {
     const res = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${replicate}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${opts.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: opts.model ?? "minimax/video-01",
         input: { prompt: opts.prompt },

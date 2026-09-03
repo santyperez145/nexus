@@ -29,7 +29,12 @@ export default async function ModelsPage({
     contextLength: m.contextLength,
     output: m.architecture.outputModalities,
     input: m.architecture.inputModalities,
-    pricing: { prompt: m.pricing.prompt, completion: m.pricing.completion },
+    pricing: {
+      prompt: m.pricing.prompt,
+      completion: m.pricing.completion,
+      image: m.pricing.image,
+      request: m.pricing.request,
+    },
     endpoints: m.endpoints.map((e) => ({
       adapter: e.adapter,
       zdr: isEndpointZdrConfirmed(e),

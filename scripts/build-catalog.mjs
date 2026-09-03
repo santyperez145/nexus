@@ -119,7 +119,12 @@ for (const m of json.data) {
     knowledgeCutoff: m.knowledge_cutoff ?? null,
     huggingFaceId: m.hugging_face_id ?? null,
     canonicalSlug: isRouter ? id : (m.canonical_slug ?? originalId),
-    free: prompt === 0 && completion === 0,
+    free:
+      prompt === 0 &&
+      completion === 0 &&
+      num(m.pricing?.request) === 0 &&
+      num(m.pricing?.image) === 0,
+    verified: false,
     endpoints: isRouter
       ? []
       : [
@@ -128,11 +133,13 @@ for (const m of json.data) {
             adapter,
             providerModel: providerModel(originalId, adapter),
             pricing: { prompt, completion },
-            latencyMs: 400,
-            throughputTps: 90,
-            zdr: Boolean(m.top_provider?.is_moderated),
-            uptime: 0.99,
-            quantization: "fp8",
+            latencyMs: 0,
+            throughputTps: 0,
+            zdr: false,
+            uptime: 0,
+            quantization: "unknown",
+            verified: false,
+            metricsEstimated: true,
           },
         ],
   });

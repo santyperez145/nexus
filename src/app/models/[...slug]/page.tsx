@@ -4,13 +4,137 @@ import { eq, sql } from "drizzle-orm";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { Button } from "@/components/ui/button";
 import { CostEstimator } from "@/components/models/cost-estimator";
-import { allModels, findModel, usdPerMillion } from "@/lib/catalog";
+import { ModelArtwork } from "@/components/models/model-artwork";
+import { allModels, findModel, usdPerMillion, type CatalogModel } from "@/lib/catalog";
+import {
+  isModelRouteSupported,
+  modelAction,
+  modelKind,
+  modelKindLabel,
+  type ModelKind,
+} from "@/lib/catalog/presentation";
 import { db, ensureDb, schema } from "@/lib/db";
 import { formatUsd } from "@/lib/money";
 import { wiredProviders } from "@/lib/providers/registry";
 import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
+import { recentOperationalProviderIds } from "@/lib/providers/health-store";
+import { MEDIA_PRICE_VERSION, quoteImage, quoteSpeech, quoteTranscription } from "@/lib/media/pricing";
 
 export const dynamic = "force-dynamic";
+
+type Usage = { requests: number; tokens: number; avgLatency: number | null };
+
+function modelStats(model: CatalogModel, kind: ModelKind, usage: Usage, supported: boolean) {
+  const requestUsage = {
+    label: "Uso en esta instancia",
+    value: usage.requests ? usage.requests.toLocaleString() : "—",
+    detail: usage.requests
+      ? usage.tokens
+        ? `${usage.tokens.toLocaleString()} tokens${usage.avgLatency != null ? ` · ${usage.avgLatency} ms promedio` : ""}`
+        : "solicitudes liquidadas"
+      : "sin solicitudes registradas",
+  };
+  if (kind === "image") {
+    const quote = quoteImage({ model: model.id, size: "1024x1024", quality: "medium", n: 1 });
+    return [
+      { label: "Modalidad", value: "Imagen", detail: "generación" },
+      { label: "Precio base", value: quote ? formatUsd(quote.usd, 3) : "—", detail: "1024² · calidad media" },
+      { label: "Variantes", value: "1–4", detail: "por solicitud" },
+      requestUsage,
+    ];
+  }
+  if (kind === "speech") {
+    const quote = quoteSpeech({ model: model.id, characters: 1000 });
+    return [
+      { label: "Modalidad", value: "Voz", detail: "texto a audio" },
+      { label: "Precio", value: quote ? formatUsd(quote.usd, 4) : "—", detail: "por 1.000 caracteres" },
+      { label: "Límite", value: "4.096", detail: "caracteres por solicitud" },
+      requestUsage,
+    ];
+  }
+  if (kind === "transcription") {
+    const quote = quoteTranscription({ model: model.id, durationSeconds: 60 });
+    return [
+      { label: "Modalidad", value: "Audio → texto", detail: "transcripción" },
+      { label: "Precio", value: quote ? formatUsd(quote.usd, 4) : "—", detail: "por minuto medido" },
+      { label: "Archivo", value: "25 MiB", detail: "máximo por solicitud" },
+      requestUsage,
+    ];
+  }
+  if (kind === "video") {
+    return [
+      { label: "Modalidad", value: "Video", detail: "generación asíncrona" },
+      { label: "Precio base", value: supported && model.pricing.request ? formatUsd(model.pricing.request, 3) : "—", detail: "por trabajo aceptado" },
+      { label: "Resultado", value: "Asíncrono", detail: "consultable por ID" },
+      requestUsage,
+    ];
+  }
+  if (kind === "embeddings") {
+    return [
+      { label: "Modalidad", value: "Vectores", detail: "embeddings" },
+      { label: "Entrada / 1 M", value: supported ? formatUsd(usdPerMillion(model.pricing.prompt), 3) : "—", detail: "tokens estimados" },
+      { label: "Contexto", value: `${Math.round(model.contextLength / 1000)}k`, detail: "tokens" },
+      requestUsage,
+    ];
+  }
+  return [
+    { label: "Contexto", value: `${Math.round(model.contextLength / 1000)}k`, detail: "tokens" },
+    { label: "Entrada / 1 M", value: model.free ? "Gratis" : formatUsd(usdPerMillion(model.pricing.prompt), 2), detail: "tokens" },
+    { label: "Salida / 1 M", value: model.free ? "—" : formatUsd(usdPerMillion(model.pricing.completion), 2), detail: "tokens" },
+    requestUsage,
+  ];
+}
+
+function apiSample(id: string, kind: ModelKind) {
+  const common = `curl $NEXUS_URL/api/v1`;
+  if (kind === "image") {
+    return [
+      `${common}/images/generations \\`,
+      `  -H "Authorization: Bearer $NEXUS_API_KEY" \\`,
+      `  -H "Content-Type: application/json" \\`,
+      `  -d '{"model":"${id}","prompt":"Una interfaz de IA editorial","size":"1024x1024","quality":"medium"}'`,
+    ].join("\n");
+  }
+  if (kind === "speech") {
+    return [
+      `${common}/audio/speech \\`,
+      `  -H "Authorization: Bearer $NEXUS_API_KEY" \\`,
+      `  -H "Content-Type: application/json" \\`,
+      `  -d '{"model":"${id}","input":"Hola desde Nexus","voice":"alloy"}' \\`,
+      "  --output speech.mp3",
+    ].join("\n");
+  }
+  if (kind === "transcription") {
+    return [
+      `${common}/audio/transcriptions \\`,
+      `  -H "Authorization: Bearer $NEXUS_API_KEY" \\`,
+      `  -F "model=${id}" \\`,
+      `  -F "file=@audio.mp3"`,
+    ].join("\n");
+  }
+  if (kind === "embeddings") {
+    return [
+      `${common}/embeddings \\`,
+      `  -H "Authorization: Bearer $NEXUS_API_KEY" \\`,
+      `  -H "Content-Type: application/json" \\`,
+      `  -d '{"model":"${id}","input":["gateway de modelos"]}'`,
+    ].join("\n");
+  }
+  if (kind === "video") {
+    return [
+      `${common}/videos \\`,
+      `  -H "Authorization: Bearer $NEXUS_API_KEY" \\`,
+      `  -H "Content-Type: application/json" \\`,
+      `  -d '{"model":"${id}","prompt":"Una ciudad futurista al amanecer"}'`,
+    ].join("\n");
+  }
+  return [
+    `${common}/chat/completions \\`,
+    `  -H "Authorization: Bearer $NEXUS_API_KEY" \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -d '{"model":"${id}","messages":[{"role":"user","content":"Hola"}]}'`,
+  ].join("\n");
+}
 
 export default async function ModelDetailPage({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params;
@@ -18,7 +142,8 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
   const model = findModel(id);
   if (!model) notFound();
 
-  const live = new Set(wiredProviders().map((p) => p.id));
+  const configured = new Set(wiredProviders().map((p) => p.id));
+  let operational = new Set<string>();
   const related = allModels()
     .filter((m) => m.author === model.author && m.id !== model.id && !m.id.startsWith("nexus/"))
     .slice(0, 8);
@@ -26,6 +151,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
   let usage = { requests: 0, tokens: 0, avgLatency: null as number | null };
   try {
     await ensureDb();
+    operational = await recentOperationalProviderIds();
     const [agg] = await db
       .select({
         requests: sql<number>`count(*)::int`,
@@ -46,6 +172,16 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
   const maxLat = Math.max(1, ...model.endpoints.map((e) => e.latencyMs || 1));
   const vision = model.architecture.inputModalities.includes("image");
   const zdrCount = model.endpoints.filter(isEndpointZdrConfirmed).length;
+  const kind = modelKind({
+    id: model.id,
+    input: model.architecture.inputModalities,
+    output: model.architecture.outputModalities,
+  });
+  const supported = isModelRouteSupported(kind, model.id);
+  const action = modelAction(kind, model.id);
+  const isTokenPriced = kind === "text" || kind === "embeddings";
+  const stats = modelStats(model, kind, usage, supported);
+  const sample = supported ? apiSample(model.id, kind) : null;
 
   return (
     <MarketingShell>
@@ -57,20 +193,35 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
         <Link href="/models" className="relative text-sm text-zinc-500 hover:text-zinc-900">
           ← Catálogo
         </Link>
-        <h1 className="relative mt-4 text-4xl font-semibold tracking-tight text-zinc-950 md:text-5xl">
-          {model.name}
-        </h1>
-        <p className="relative mt-2 font-mono text-sm text-violet-700">{model.id}</p>
+        <div className="relative mt-5 flex items-start gap-4 sm:gap-6">
+          <ModelArtwork id={model.id} name={model.name} className="h-20 w-20 rounded-3xl sm:h-24 sm:w-24" />
+          <div className="min-w-0 pt-1">
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl md:text-5xl">
+              {model.name}
+            </h1>
+            <p className="mt-2 break-all font-mono text-sm text-violet-700">{model.id}</p>
+            <p className="mt-1 text-xs font-medium text-zinc-500">{modelKindLabel(kind)}</p>
+          </div>
+        </div>
         <div className="relative mt-3 flex flex-wrap gap-2 text-[11px]">
           <span className="rounded border border-zinc-200 bg-white px-2 py-0.5 font-mono text-zinc-600">
             {model.architecture.modality}
+          </span>
+          <span
+            className={`rounded border px-2 py-0.5 ${
+              supported
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-zinc-200 bg-zinc-50 text-zinc-600"
+            }`}
+          >
+            {supported ? "ruta Nexus" : "sólo catálogo"}
           </span>
           {vision ? (
             <span className="rounded border border-violet-200 bg-violet-50 px-2 py-0.5 text-violet-800">
               vision
             </span>
           ) : null}
-          {model.free ? (
+          {model.free && supported ? (
             <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-800">
               free
             </span>
@@ -102,54 +253,34 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
         </p>
         <div className="relative mt-6 flex flex-wrap gap-2">
           <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Link href={`/chat?model=${encodeURIComponent(model.id)}`}>Probar en chat</Link>
+            <Link href={action.href}>{action.label}</Link>
           </Button>
+          {kind === "text" ? (
+            <>
+              <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100">
+                <Link href={`/compare?a=${encodeURIComponent(model.id)}`}>Comparar</Link>
+              </Button>
+              <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100">
+                <Link href={`/arena?a=${encodeURIComponent(model.id)}`}>Arena</Link>
+              </Button>
+            </>
+          ) : null}
           <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100">
-            <Link href={`/chat?model=${encodeURIComponent(model.id)}&compare=nexus/auto`}>
-              Comparar con auto
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100">
-            <Link href={`/compare?a=${encodeURIComponent(model.id)}`}>Ficha compare</Link>
-          </Button>
-          <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100">
-            <Link href={`/arena?a=${encodeURIComponent(model.id)}`}>Arena</Link>
+            <Link href={kind === "text" ? "/docs/api" : "/docs/media"}>Ver documentación</Link>
           </Button>
         </div>
         <p className="relative mt-3 text-xs text-zinc-500">
-          Producción requiere autenticación y un provider o BYOK cableado; no genera respuestas simuladas.
+          Las solicitudes reales requieren autenticación, saldo y un proveedor configurado. Nexus no muestra resultados simulados.
         </p>
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Contexto</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
-              {(model.contextLength / 1000).toFixed(0)}k
+          {stats.map((stat) => (
+            <div key={stat.label} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{stat.label}</div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">{stat.value}</div>
+              <div className="mt-0.5 text-[11px] text-zinc-500">{stat.detail}</div>
             </div>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Prompt / 1M</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
-              {model.free ? "Gratis" : formatUsd(usdPerMillion(model.pricing.prompt), 2)}
-            </div>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Completion / 1M</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
-              {model.free ? "—" : formatUsd(usdPerMillion(model.pricing.completion), 2)}
-            </div>
-          </div>
-          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Uso instancia</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
-              {usage.requests ? usage.requests.toLocaleString() : "—"}
-            </div>
-            <div className="mt-0.5 text-[11px] text-zinc-500">
-              {usage.tokens
-                ? `${usage.tokens.toLocaleString()} tok${usage.avgLatency != null ? ` · ${usage.avgLatency} ms avg` : ""}`
-                : "sin samples aún"}
-            </div>
-          </div>
+          ))}
         </div>
 
         <dl className="mt-6 grid gap-0 overflow-hidden rounded-xl border border-zinc-200 bg-white text-sm">
@@ -173,25 +304,42 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
           </div>
         </dl>
 
-        <div className="mt-8">
-          <CostEstimator
-            promptPerM={usdPerMillion(model.pricing.prompt)}
-            completionPerM={usdPerMillion(model.pricing.completion)}
-            free={model.free}
-          />
-        </div>
+        {isTokenPriced && supported ? (
+          <div className="mt-8">
+            <CostEstimator
+              promptPerM={usdPerMillion(model.pricing.prompt)}
+              completionPerM={usdPerMillion(model.pricing.completion)}
+              free={model.free}
+            />
+          </div>
+        ) : supported ? (
+          <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-950">
+            <div className="font-medium">Precio calculado antes de ejecutar</div>
+            <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+              Nexus reserva el costo máximo de esta modalidad y liquida el importe cotizado. La respuesta incluye el costo y la versión de tarifa {MEDIA_PRICE_VERSION}.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-8 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800">
+            <div className="font-medium">Disponible como ficha de catálogo</div>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+              La fuente de catálogo declara esta modalidad, pero Nexus todavía no tiene un adaptador y una tarifa verificadas para ejecutarla. No se la presenta como gratis ni se envían solicitudes a una ruta incompatible.
+            </p>
+          </div>
+        )}
 
         <h2 className="mt-10 text-xl font-semibold text-zinc-900">
           Endpoints
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Hosts que pueden servir este slug. Wired = key en esta instancia. Barras = latencia de
-          catálogo (relativa).
+          Hosts declarados para este slug. “Operativo” exige una prueba real reciente; “configurado” sólo confirma que existe una credencial.
         </p>
         {model.endpoints.length ? (
           <div className="mt-4 space-y-2">
             {model.endpoints.map((e) => {
-              const on = live.has(e.adapter);
+              const isConfigured = configured.has(e.adapter);
+              const isOperational = operational.has(e.adapter);
+              const measured = !e.metricsEstimated && e.latencyMs > 0;
               const bar = Math.max(8, ((e.latencyMs || 1) / maxLat) * 100);
               return (
                 <div
@@ -214,21 +362,35 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                           ZDR
                         </span>
                       ) : null}
-                      <span className={on ? "text-emerald-700" : "text-zinc-400"}>
-                        {on ? "wired" : "unwired"}
+                      <span className={isOperational ? "text-emerald-700" : isConfigured ? "text-amber-700" : "text-zinc-400"}>
+                        {isOperational ? "operativo" : isConfigured ? "configurado" : "sin configurar"}
                       </span>
-                      <span className="tabular-nums text-zinc-600">{e.latencyMs} ms</span>
-                      <span className="tabular-nums text-zinc-500">{e.throughputTps} tps</span>
-                      <span className="font-mono text-zinc-400">{e.quantization || "—"}</span>
+                      {measured ? (
+                        <>
+                          <span className="tabular-nums text-zinc-600">{e.latencyMs} ms</span>
+                          <span className="tabular-nums text-zinc-500">{e.throughputTps} tps</span>
+                        </>
+                      ) : (
+                        <span className="text-zinc-400">sin telemetría medida</span>
+                      )}
+                      {e.quantization && e.quantization !== "unknown" ? (
+                        <span className="font-mono text-zinc-400">{e.quantization}</span>
+                      ) : null}
                     </div>
                   </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                    <div className="h-full rounded-full bg-violet-500/45" style={{ width: `${bar}%` }} />
-                  </div>
-                  <div className="mt-2 flex gap-4 text-xs tabular-nums text-zinc-500">
-                    <span>in {formatUsd(usdPerMillion(e.pricing.prompt), 2)}/1M</span>
-                    <span>out {formatUsd(usdPerMillion(e.pricing.completion), 2)}/1M</span>
-                  </div>
+                  {measured ? (
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                      <div className="h-full rounded-full bg-violet-500/45" style={{ width: `${bar}%` }} />
+                    </div>
+                  ) : null}
+                  {isTokenPriced ? (
+                    <div className="mt-2 flex gap-4 text-xs tabular-nums text-zinc-500">
+                      <span>entrada {formatUsd(usdPerMillion(e.pricing.prompt), 2)}/1 M</span>
+                      <span>salida {formatUsd(usdPerMillion(e.pricing.completion), 2)}/1 M</span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs text-zinc-500">La tarifa se calcula por modalidad antes de reservar saldo.</div>
+                  )}
                 </div>
               );
             })}
@@ -249,34 +411,24 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                 <Link
                   key={m.id}
                   href={`/models/${m.id}`}
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 transition-colors hover:border-zinc-300"
+                  className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 transition-colors hover:border-zinc-300"
                 >
-                  <div className="truncate font-medium text-zinc-900">{m.name}</div>
-                  <div className="truncate font-mono text-[11px] text-zinc-500">{m.id}</div>
+                  <ModelArtwork id={m.id} name={m.name} className="h-10 w-10 rounded-xl" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-zinc-900">{m.name}</div>
+                    <div className="truncate font-mono text-[11px] text-zinc-500">{m.id}</div>
+                  </div>
                 </Link>
               ))}
             </div>
           </section>
         ) : null}
 
-        <pre className="mt-10 overflow-x-auto rounded-xl border border-zinc-200 bg-white p-4 text-xs text-zinc-700">
-{`# curl
-curl $NEXUS_URL/api/v1/chat/completions \\
-  -H "Authorization: Bearer $NEXUS_API_KEY" \\
-  -H "HTTP-Referer: https://tu-app.example" \\
-  -H "X-Title: Tu App" \\
-  -d '{"model":"${model.id}","messages":[{"role":"user","content":"Hola"}]}'
-
-# demo local de desarrollo (deshabilitada en producción)
-curl $NEXUS_URL/api/v1/chat/completions \\
-  -H "X-Nexus-Guest: 1" \\
-  -d '{"model":"${model.id}","messages":[{"role":"user","content":"ping"}]}'
-
-# nexus-sdk
-import { Nexus } from "nexus-sdk";
-const nexus = new Nexus({ apiKey: process.env.NEXUS_API_KEY });
-await nexus.chat.send({ model: "${model.id}", messages: [{ role: "user", content: "Hola" }] });`}
-        </pre>
+        {sample ? (
+          <pre className="mt-10 overflow-x-auto rounded-xl border border-zinc-200 bg-white p-4 text-xs text-zinc-700">
+            {sample}
+          </pre>
+        ) : null}
       </div>
     </MarketingShell>
   );

@@ -5,8 +5,6 @@ type Host = {
   providerModel: string;
   prompt?: number;
   completion?: number;
-  latencyMs?: number;
-  throughputTps?: number;
   zdr?: boolean;
 };
 
@@ -21,12 +19,22 @@ function model(opts: {
   prompt: number;
   completion: number;
   modalities?: string[];
+  outputModalities?: string[];
+  request?: number;
+  image?: number;
   zdr?: boolean;
   free?: boolean;
   params?: string[];
 }): CatalogModel {
   const author = opts.id.split("/")[0] ?? "nexus";
-  const free = opts.free ?? (opts.prompt === 0 && opts.completion === 0);
+  const free =
+    opts.free ??
+    (opts.prompt === 0 &&
+      opts.completion === 0 &&
+      (opts.request ?? 0) === 0 &&
+      (opts.image ?? 0) === 0);
+  const inputModalities = opts.modalities ?? ["text"];
+  const outputModalities = opts.outputModalities ?? ["text"];
   const hosts: Host[] =
     opts.hosts ??
     (opts.adapter && opts.providerModel
@@ -40,8 +48,8 @@ function model(opts: {
       prompt: h.prompt ?? opts.prompt,
       completion: h.completion ?? opts.completion,
     },
-    latencyMs: h.latencyMs ?? 0,
-    throughputTps: h.throughputTps ?? 0,
+    latencyMs: 0,
+    throughputTps: 0,
     zdr: h.zdr ?? opts.zdr ?? false,
     uptime: 0,
     quantization: "unknown",
@@ -56,16 +64,16 @@ function model(opts: {
     created: 1_725_000_000,
     contextLength: opts.context ?? 128000,
     architecture: {
-      modality: (opts.modalities ?? ["text"]).includes("image") ? "text+image->text" : "text->text",
-      inputModalities: opts.modalities ?? ["text"],
-      outputModalities: ["text"],
+      modality: `${inputModalities.join("+")}->${outputModalities.join("+")}`,
+      inputModalities,
+      outputModalities,
       tokenizer: author,
     },
     pricing: {
       prompt: opts.prompt,
       completion: opts.completion,
-      request: 0,
-      image: 0,
+      request: opts.request ?? 0,
+      image: opts.image ?? 0,
       webSearch: 0,
       inputCacheRead: 0,
       inputCacheWrite: 0,
@@ -86,29 +94,29 @@ function model(opts: {
 }
 
 const llama70Hosts: Host[] = [
-  { adapter: "groq", providerModel: "llama-3.3-70b-versatile", latencyMs: 180, throughputTps: 280 },
-  { adapter: "together", providerModel: "meta-llama/Llama-3.3-70B-Instruct-Turbo", latencyMs: 320, throughputTps: 120 },
-  { adapter: "fireworks", providerModel: "accounts/fireworks/models/llama-v3p3-70b-instruct", latencyMs: 300, throughputTps: 130 },
-  { adapter: "cerebras", providerModel: "llama-3.3-70b", latencyMs: 120, throughputTps: 400 },
-  { adapter: "sambanova", providerModel: "Meta-Llama-3.3-70B-Instruct", latencyMs: 200, throughputTps: 250 },
-  { adapter: "deepinfra", providerModel: "meta-llama/Llama-3.3-70B-Instruct", latencyMs: 380, throughputTps: 90 },
-  { adapter: "hyperbolic", providerModel: "meta-llama/Llama-3.3-70B-Instruct", latencyMs: 360, throughputTps: 95 },
-  { adapter: "novita", providerModel: "meta-llama/llama-3.3-70b-instruct", latencyMs: 400, throughputTps: 80 },
-  { adapter: "nebius", providerModel: "meta-llama/Llama-3.3-70B-Instruct", latencyMs: 350, throughputTps: 100 },
-  { adapter: "nvidia", providerModel: "meta/llama-3.3-70b-instruct", latencyMs: 340, throughputTps: 110 },
+  { adapter: "groq", providerModel: "llama-3.3-70b-versatile" },
+  { adapter: "together", providerModel: "meta-llama/Llama-3.3-70B-Instruct-Turbo" },
+  { adapter: "fireworks", providerModel: "accounts/fireworks/models/llama-v3p3-70b-instruct" },
+  { adapter: "cerebras", providerModel: "llama-3.3-70b" },
+  { adapter: "sambanova", providerModel: "Meta-Llama-3.3-70B-Instruct" },
+  { adapter: "deepinfra", providerModel: "meta-llama/Llama-3.3-70B-Instruct" },
+  { adapter: "hyperbolic", providerModel: "meta-llama/Llama-3.3-70B-Instruct" },
+  { adapter: "novita", providerModel: "meta-llama/llama-3.3-70b-instruct" },
+  { adapter: "nebius", providerModel: "meta-llama/Llama-3.3-70B-Instruct" },
+  { adapter: "nvidia", providerModel: "meta/llama-3.3-70b-instruct" },
 ];
 
 const llama8Hosts: Host[] = [
-  { adapter: "groq", providerModel: "llama-3.1-8b-instant", latencyMs: 80, throughputTps: 500, prompt: 0, completion: 0 },
+  { adapter: "groq", providerModel: "llama-3.1-8b-instant", prompt: 0, completion: 0 },
   { adapter: "together", providerModel: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo" },
   { adapter: "fireworks", providerModel: "accounts/fireworks/models/llama-v3p1-8b-instruct" },
-  { adapter: "cerebras", providerModel: "llama3.1-8b", latencyMs: 60, throughputTps: 800 },
+  { adapter: "cerebras", providerModel: "llama3.1-8b" },
   { adapter: "deepinfra", providerModel: "meta-llama/Meta-Llama-3.1-8B-Instruct" },
   { adapter: "hyperbolic", providerModel: "meta-llama/Meta-Llama-3.1-8B-Instruct" },
 ];
 
 const mixtralHosts: Host[] = [
-  { adapter: "groq", providerModel: "mixtral-8x7b-32768", latencyMs: 160, throughputTps: 220 },
+  { adapter: "groq", providerModel: "mixtral-8x7b-32768" },
   { adapter: "together", providerModel: "mistralai/Mixtral-8x7B-Instruct-v0.1" },
   { adapter: "fireworks", providerModel: "accounts/fireworks/models/mixtral-8x7b-instruct" },
   { adapter: "deepinfra", providerModel: "mistralai/Mixtral-8x7B-Instruct-v0.1" },
@@ -135,7 +143,7 @@ const deepseekR1Hosts: Host[] = [
   { adapter: "deepseek", providerModel: "deepseek-reasoner" },
   { adapter: "together", providerModel: "deepseek-ai/DeepSeek-R1" },
   { adapter: "fireworks", providerModel: "accounts/fireworks/models/deepseek-r1" },
-  { adapter: "groq", providerModel: "deepseek-r1-distill-llama-70b", latencyMs: 200, throughputTps: 260 },
+  { adapter: "groq", providerModel: "deepseek-r1-distill-llama-70b" },
 ];
 
 /** Catálogo propio. Un slug, varios labs (como OpenRouter). Precios de lista por token. */
@@ -234,6 +242,7 @@ export const OWNED_CATALOG: CatalogModel[] = [
     providerModel: "text-embedding-3-small",
     prompt: 2e-8,
     completion: 0,
+    outputModalities: ["embeddings"],
     params: [],
   }),
   model({
@@ -244,6 +253,7 @@ export const OWNED_CATALOG: CatalogModel[] = [
     providerModel: "text-embedding-3-large",
     prompt: 1.3e-7,
     completion: 0,
+    outputModalities: ["embeddings"],
     params: [],
   }),
   model({
@@ -516,14 +526,40 @@ export const OWNED_CATALOG: CatalogModel[] = [
     completion: 4e-7,
   }),
   model({
-    id: "openai/dall-e-3",
-    name: "DALL·E 3",
-    description: "Imágenes vía OpenAI Images API.",
+    id: "openai/gpt-image-2",
+    name: "GPT Image 2",
+    description: "Generación y edición de imágenes de última generación.",
     adapter: "openai",
-    providerModel: "dall-e-3",
+    providerModel: "gpt-image-2",
     prompt: 0,
     completion: 0,
-    params: ["prompt"],
+    image: 0.034,
+    outputModalities: ["image"],
+    params: ["prompt", "quality", "size", "n"],
+  }),
+  model({
+    id: "openai/gpt-image-1.5",
+    name: "GPT Image 1.5",
+    description: "Modelo visual anterior con alta fidelidad.",
+    adapter: "openai",
+    providerModel: "gpt-image-1.5",
+    prompt: 0,
+    completion: 0,
+    image: 0.034,
+    outputModalities: ["image"],
+    params: ["prompt", "quality", "size", "n"],
+  }),
+  model({
+    id: "openai/gpt-image-1-mini",
+    name: "GPT Image 1 Mini",
+    description: "Generación visual económica para alto volumen.",
+    adapter: "openai",
+    providerModel: "gpt-image-1-mini",
+    prompt: 0,
+    completion: 0,
+    image: 0.011,
+    outputModalities: ["image"],
+    params: ["prompt", "quality", "size", "n"],
   }),
   model({
     id: "openai/gpt-image-1",
@@ -533,7 +569,20 @@ export const OWNED_CATALOG: CatalogModel[] = [
     providerModel: "gpt-image-1",
     prompt: 0,
     completion: 0,
-    params: ["prompt"],
+    image: 0.042,
+    outputModalities: ["image"],
+    params: ["prompt", "quality", "size", "n"],
+  }),
+  model({
+    id: "openai/gpt-4o-mini-tts",
+    name: "GPT-4o Mini TTS",
+    description: "Voz natural controlable a partir de texto.",
+    adapter: "openai",
+    providerModel: "gpt-4o-mini-tts",
+    prompt: 6e-7,
+    completion: 1.2e-5,
+    outputModalities: ["audio"],
+    params: ["voice", "instructions", "response_format", "speed"],
   }),
   model({
     id: "openai/tts-1",
@@ -543,6 +592,51 @@ export const OWNED_CATALOG: CatalogModel[] = [
     providerModel: "tts-1",
     prompt: 1.5e-5,
     completion: 0,
+    outputModalities: ["audio"],
+    params: ["voice", "response_format", "speed"],
+  }),
+  model({
+    id: "openai/tts-1-hd",
+    name: "TTS 1 HD",
+    description: "Texto a voz de alta calidad.",
+    adapter: "openai",
+    providerModel: "tts-1-hd",
+    prompt: 3e-5,
+    completion: 0,
+    outputModalities: ["audio"],
+    params: ["voice", "response_format", "speed"],
+  }),
+  model({
+    id: "openai/gpt-transcribe",
+    name: "GPT Transcribe",
+    description: "Transcripción de audio de alta precisión.",
+    adapter: "openai",
+    providerModel: "gpt-transcribe",
+    prompt: 4.5e-6,
+    completion: 0,
+    modalities: ["audio"],
+    params: [],
+  }),
+  model({
+    id: "openai/gpt-4o-transcribe",
+    name: "GPT-4o Transcribe",
+    description: "Transcripción de audio con reconocimiento avanzado.",
+    adapter: "openai",
+    providerModel: "gpt-4o-transcribe",
+    prompt: 2.5e-6,
+    completion: 1e-5,
+    modalities: ["audio"],
+    params: [],
+  }),
+  model({
+    id: "openai/gpt-4o-mini-transcribe",
+    name: "GPT-4o Mini Transcribe",
+    description: "Transcripción rápida y económica.",
+    adapter: "openai",
+    providerModel: "gpt-4o-mini-transcribe",
+    prompt: 1.25e-6,
+    completion: 5e-6,
+    modalities: ["audio"],
     params: [],
   }),
   model({
@@ -553,6 +647,7 @@ export const OWNED_CATALOG: CatalogModel[] = [
     providerModel: "whisper-1",
     prompt: 6e-6,
     completion: 0,
+    modalities: ["audio"],
     params: [],
   }),
 ];

@@ -185,17 +185,17 @@ const r = await nexus.chat.send({
     title: "Generación de imagen",
     blurb: "Creá imágenes desde texto con modelos visuales disponibles en el catálogo.",
     tags: ["media", "image"],
-    model: "openai/gpt-image-1",
+    model: "openai/gpt-image-2",
     curl: `curl $NEXUS_URL/api/v1/images/generations \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "openai/gpt-image-1",
+    "model": "openai/gpt-image-2",
     "prompt": "amber mesh over dark terminal",
     "n": 1
   }'`,
     sdk: `const img = await nexus.images.generate({
-  model: "openai/gpt-image-1",
+  model: "openai/gpt-image-2",
   prompt: "amber mesh over dark terminal",
   n: 1,
 });`,

@@ -11,13 +11,19 @@ import {
 } from "./billing";
 import type { AuthContext } from "./types";
 
-/** Precio flat por modalidad cuando el catálogo no trae request pricing. */
+/** Conservative fallbacks; video never falls back because its unit economics vary by job. */
 export const MEDIA_DEFAULT_USD = {
-  image: 0.04,
+  image: 0.25,
   speech: 0.015,
   transcription: 0.006,
-  video: 0.05,
+  video: 0,
 } as const;
+
+/** Video prices vary by provider/model/runtime, so production must pin a retail quote. */
+export function configuredVideoRetailUsd() {
+  const value = Number(process.env.NEXUS_VIDEO_RETAIL_USD);
+  return Number.isFinite(value) && value >= 0.01 && value <= 10_000 ? value : null;
+}
 
 export async function holdMediaCredits(opts: {
   auth: AuthContext;
@@ -37,6 +43,12 @@ export async function holdMediaCredits(opts: {
       (opts.promptTokens ?? 0) * opts.pricing.prompt + (opts.completionTokens ?? 0) * opts.pricing.completion,
     );
   } else {
+    if (opts.modality === "video" && opts.usd == null) {
+      throw Object.assign(new Error("Video retail pricing is not configured"), {
+        status: 503,
+        code: "provider_unpriced",
+      });
+    }
     estimated = usdToMicros(opts.usd ?? MEDIA_DEFAULT_USD[opts.modality as keyof typeof MEDIA_DEFAULT_USD] ?? 0);
   }
   const genId = generationId();
@@ -84,6 +96,12 @@ export async function chargeAndRecordMedia(opts: {
     });
     costMicros = settled.micros;
   } else {
+    if (opts.modality === "video" && opts.usd == null) {
+      throw Object.assign(new Error("Video retail pricing is not configured"), {
+        status: 503,
+        code: "provider_unpriced",
+      });
+    }
     const usd = opts.usd ?? MEDIA_DEFAULT_USD[opts.modality as keyof typeof MEDIA_DEFAULT_USD] ?? 0;
     if (usd > 0) {
       const settled = await settleUsage({

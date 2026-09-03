@@ -49,6 +49,21 @@ describe("catalog verified vs discovered", () => {
     const models = allModels().filter((m) => !m.id.startsWith("nexus/"));
     assert.ok(models.some((m) => m.verified));
     assert.ok(models.every((m) => m.endpoints.every((e) => typeof e.latencyMs === "number")));
+    const external = models.filter((m) => !m.verified);
+    assert.ok(external.length > 0);
+    assert.ok(
+      external.every((m) =>
+        m.endpoints.every(
+          (e) =>
+            e.verified === false &&
+            e.metricsEstimated === true &&
+            e.latencyMs === 0 &&
+            e.throughputTps === 0 &&
+            e.uptime === 0 &&
+            e.zdr === false,
+        ),
+      ),
+    );
   });
 });
 
@@ -65,14 +80,16 @@ describe("routing latency honesty", () => {
     assert.deepEqual(ranked.map((e) => e.name), ["fast", "slow", "unknown"]);
   });
 
-  it("does not pick a zero-latency host first for :fast llama", () => {
+  it("does not fabricate a fast host when no telemetry has been measured", () => {
     const plan = resolveRoute(
       { model: "meta-llama/llama-3.3-70b-instruct:fast", messages: [{ role: "user", content: "hi" }] },
       auth,
     );
     const first = plan.models[0]?.endpoints[0];
     assert.ok(first);
-    assert.ok(first.throughputTps > 0, "unknown throughput must not win :fast");
+    assert.equal(first.latencyMs, 0);
+    assert.equal(first.throughputTps, 0);
+    assert.equal(first.metricsEstimated, true);
   });
 });
 

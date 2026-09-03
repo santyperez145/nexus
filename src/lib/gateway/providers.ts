@@ -252,7 +252,7 @@ export async function embedTexts(texts: string[], modelId: string, byok?: string
   }
   const openai = createOpenAI({ apiKey });
   const slug = modelId.includes("/") ? modelId.split("/").pop()! : modelId;
-  const model = openai.embedding(slug.includes("large") ? "text-embedding-3-large" : "text-embedding-3-small");
+  const model = openai.embedding(slug);
   if (texts.length === 1) {
     const result = await embed({ model, value: texts[0] });
     return [result.embedding];

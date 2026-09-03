@@ -237,17 +237,33 @@ class EmbeddingsResource {
 
 class ImagesResource {
   constructor(private readonly client: Nexus) {}
-  generate(body: { prompt: string; model?: string; size?: string; n?: number }) {
-    return this.client.request<{ data: Array<{ b64_json?: string; url?: string }> }>("/images/generations", {
-      method: "POST",
-      body,
-    });
+  generate(body: {
+    prompt: string;
+    model?: string;
+    size?: "1024x1024" | "1024x1536" | "1536x1024";
+    quality?: "low" | "medium" | "high";
+    n?: number;
+  }) {
+    return this.client.request<{
+      data: Array<{ b64_json?: string; url?: string }>;
+      id?: string;
+      model?: string;
+      cost?: number;
+      price_version?: string;
+    }>("/images/generations", { method: "POST", body });
   }
 }
 
 class AudioResource {
   constructor(private readonly client: Nexus) {}
-  async speech(body: { input: string; model?: string; voice?: string; response_format?: string }) {
+  async speech(body: {
+    input: string;
+    model?: string;
+    voice?: string;
+    response_format?: "mp3" | "opus" | "aac" | "flac" | "wav" | "pcm";
+    speed?: number;
+    instructions?: string;
+  }) {
     const res = await this.client.request<Response>("/audio/speech", { method: "POST", body, raw: true });
     if (!res.ok) {
       throw new NexusError(res.statusText, { status: res.status });
@@ -262,12 +278,12 @@ class AudioResource {
       const form = new FormData();
       form.append("file", file, filename);
       if (model) form.append("model", model);
-      return this.client.request<{ text: string; id?: string }>("/audio/transcriptions", {
+      return this.client.request<{ text: string; id?: string; duration?: number; cost?: number }>("/audio/transcriptions", {
         method: "POST",
         form,
       });
     }
-    return this.client.request<{ text: string; id?: string }>("/audio/transcriptions", {
+    return this.client.request<{ text: string; id?: string; duration?: number; cost?: number }>("/audio/transcriptions", {
       method: "POST",
       body,
     });

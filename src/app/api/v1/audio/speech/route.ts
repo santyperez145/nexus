@@ -1,21 +1,49 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { resolveByokKey } from "@/lib/gateway/byok";
-import { chargeAndRecordMedia, holdMediaCredits, MEDIA_DEFAULT_USD } from "@/lib/gateway/media-billing";
+import { chargeAndRecordMedia, holdMediaCredits } from "@/lib/gateway/media-billing";
 import { releaseReserve } from "@/lib/gateway/billing";
 import { synthesizeSpeech } from "@/lib/media/upstream";
 import { assertRateLimit } from "@/lib/gateway/rate-limit";
+import {
+  MEDIA_PRICE_VERSION,
+  SPEECH_FORMATS,
+  quoteSpeech,
+} from "@/lib/media/pricing";
+import { assertMediaPrivacy, canUseByokForMedia } from "@/lib/gateway/media-privacy";
 
 export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
     await assertRateLimit(auth);
     const body = await req.json();
-    const text = String(body.input ?? body.text ?? "");
-    if (!text) return jsonError(Object.assign(new Error("input required"), { status: 400 }));
-    const model = String(body.model ?? "openai/tts");
-    const apiKey = await resolveByokKey(auth.userId, "openai", auth);
+    const input = String(body.input ?? body.text ?? "").trim();
+    const quote = quoteSpeech({ model: body.model, characters: input.length });
+    if (!quote) {
+      return jsonError(
+        Object.assign(new Error("unsupported speech model or input outside the 1-4096 character limit"), {
+          status: 400,
+          code: "invalid_request",
+        }),
+      );
+    }
+    const format = String(body.response_format ?? "mp3").toLowerCase();
+    if (!SPEECH_FORMATS.includes(format as (typeof SPEECH_FORMATS)[number])) {
+      return jsonError(Object.assign(new Error("unsupported response_format"), { status: 400 }));
+    }
+    const speed = body.speed == null ? undefined : Number(body.speed);
+    if (speed != null && (!Number.isFinite(speed) || speed < 0.25 || speed > 4)) {
+      return jsonError(Object.assign(new Error("speed must be between 0.25 and 4"), { status: 400 }));
+    }
+    const instructions = body.instructions == null ? undefined : String(body.instructions).trim();
+    if (instructions && instructions.length > 4096) {
+      return jsonError(Object.assign(new Error("instructions exceed 4096 characters"), { status: 400 }));
+    }
+    const model = `openai/${quote.model}`;
+    const byok = await resolveByokKey(auth.userId, "openai", auth);
+    const apiKey = canUseByokForMedia(auth) ? byok : undefined;
     const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
-    const isByok = Boolean(apiKey) && !platform;
+    const isByok = Boolean(apiKey);
+    assertMediaPrivacy(auth, "openai", isByok);
     if (!apiKey && !platform) {
       return jsonError(
         Object.assign(new Error("No provider credentials for TTS. Configure OPENAI_API_KEY or BYOK."), {
@@ -24,16 +52,17 @@ export async function POST(req: Request) {
         }),
       );
     }
-    const charK = Math.max(1, text.length / 1000);
-    const usd = MEDIA_DEFAULT_USD.speech * charK;
+    const usd = quote.usd;
     const reservation = await holdMediaCredits({ auth, modality: "speech", isByok, usd });
     const started = Date.now();
     try {
       const live = await synthesizeSpeech({
-        input: text,
-        model: body.model,
+        input,
+        model: quote.model,
         voice: body.voice,
-        format: body.response_format,
+        format,
+        speed,
+        instructions,
         apiKey,
       });
       if (live && "error" in live) {
@@ -53,8 +82,14 @@ export async function POST(req: Request) {
         local: false,
         isByok,
         usd,
-        promptTokens: Math.ceil(text.length / 4),
+        promptTokens: Math.ceil(input.length / 4),
         latencyMs: Date.now() - started,
+        metadata: {
+          characters: input.length,
+          voice: body.voice ?? "alloy",
+          format,
+          price_version: MEDIA_PRICE_VERSION,
+        },
         reservation,
       });
       const bytes = new Uint8Array(live.buffer);
@@ -64,6 +99,7 @@ export async function POST(req: Request) {
           "X-Nexus-TTS": model,
           "X-Request-Id": billed.id,
           "X-Nexus-Cost": String(billed.costMicros / 1_000_000),
+          "X-Nexus-Price-Version": MEDIA_PRICE_VERSION,
         },
       });
     } catch (error) {

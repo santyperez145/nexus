@@ -11,21 +11,44 @@ type Tab = "image" | "speech" | "transcribe" | "video" | "embeddings";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "image", label: "Imagen" },
-  { id: "speech", label: "TTS" },
-  { id: "transcribe", label: "STT" },
+  { id: "speech", label: "Voz" },
+  { id: "transcribe", label: "Transcribir" },
   { id: "video", label: "Video" },
-  { id: "embeddings", label: "Embeddings" },
+  { id: "embeddings", label: "Vectores" },
 ];
 
-const IMAGE_MODELS = ["openai/gpt-image-1", "openai/dall-e-3", "dall-e-3", "dall-e-2", "gpt-image-1"];
-const TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+const IMAGE_MODELS = [
+  "openai/gpt-image-2",
+  "openai/gpt-image-1.5",
+  "openai/gpt-image-1",
+  "openai/gpt-image-1-mini",
+];
+const TTS_VOICES = [
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "marin",
+  "nova",
+  "onyx",
+  "sage",
+  "shimmer",
+  "verse",
+  "cedar",
+];
 const EMBED_MODELS = [
   "openai/text-embedding-3-small",
   "openai/text-embedding-3-large",
-  "openai/text-embedding-ada-002",
 ];
-const TTS_MODELS = ["openai/tts-1", "tts-1", "tts-1-hd"];
-const STT_MODELS = ["openai/whisper-1", "whisper-1"];
+const TTS_MODELS = ["openai/gpt-4o-mini-tts", "openai/tts-1", "openai/tts-1-hd"];
+const STT_MODELS = [
+  "openai/gpt-transcribe",
+  "openai/gpt-4o-transcribe",
+  "openai/gpt-4o-mini-transcribe",
+  "openai/whisper-1",
+];
 
 type Recent = {
   id: string;
@@ -34,19 +57,36 @@ type Recent = {
   tokens: number;
 };
 
-export function MediaStudio() {
-  const [tab, setTab] = useState<Tab>("image");
+export function MediaStudio({
+  initialTab = "image",
+  initialModel,
+}: {
+  initialTab?: Tab;
+  initialModel?: string;
+}) {
+  const requestedModel = initialModel?.startsWith("openai/") ? initialModel : undefined;
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("Amber mesh over a dark terminal — Nexus gateway");
-  const [imageModel, setImageModel] = useState(IMAGE_MODELS[0]);
+  const [imageModel, setImageModel] = useState(
+    requestedModel && IMAGE_MODELS.includes(requestedModel) ? requestedModel : IMAGE_MODELS[0],
+  );
   const [imageSize, setImageSize] = useState("1024x1024");
+  const [imageQuality, setImageQuality] = useState("medium");
   const [tts, setTts] = useState("Nexus: una API, todos los labs.");
   const [voice, setVoice] = useState("alloy");
-  const [ttsModel, setTtsModel] = useState(TTS_MODELS[0]);
-  const [sttModel, setSttModel] = useState(STT_MODELS[0]);
+  const [ttsModel, setTtsModel] = useState(
+    requestedModel && TTS_MODELS.includes(requestedModel) ? requestedModel : TTS_MODELS[0],
+  );
+  const [speechFormat, setSpeechFormat] = useState("mp3");
+  const [sttModel, setSttModel] = useState(
+    requestedModel && STT_MODELS.includes(requestedModel) ? requestedModel : STT_MODELS[0],
+  );
   const [embed, setEmbed] = useState("gateway de modelos OpenAI-compatible");
-  const [embedModel, setEmbedModel] = useState(EMBED_MODELS[0]);
+  const [embedModel, setEmbedModel] = useState(
+    requestedModel && EMBED_MODELS.includes(requestedModel) ? requestedModel : EMBED_MODELS[0],
+  );
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -84,13 +124,19 @@ export function MediaStudio() {
       const res = await fetch("/api/v1/images/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, n: 1, model: imageModel, size: imageSize }),
+        body: JSON.stringify({
+          prompt,
+          n: 1,
+          model: imageModel,
+          size: imageSize,
+          quality: imageQuality,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message ?? "Error imagen");
       const url =
         json.data?.[0]?.url ??
-        (json.data?.[0]?.b64_json ? `data:image/svg+xml;base64,${json.data[0].b64_json}` : null);
+        (json.data?.[0]?.b64_json ? `data:image/png;base64,${json.data[0].b64_json}` : null);
       setImageUrl(url);
       setGenId(json.id ?? null);
     } catch (e) {
@@ -107,7 +153,12 @@ export function MediaStudio() {
       const res = await fetch("/api/v1/audio/speech", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: tts, voice, model: ttsModel }),
+        body: JSON.stringify({
+          input: tts,
+          voice,
+          model: ttsModel,
+          response_format: speechFormat,
+        }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -204,22 +255,22 @@ export function MediaStudio() {
           ))}
         </div>
         <span className="text-[11px] text-zinc-500">
-          7d local/dev: {localPct}% · sin provider = error explícito
+          Llamadas de prueba en 7 días: {localPct}% · nunca se simulan resultados
         </span>
       </div>
 
       {error ? (
-        <p className="rounded-lg border border-rose-400/30 bg-rose-400/5 px-3 py-2 text-sm text-rose-200">{error}</p>
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
       ) : null}
 
       {tab === "image" ? (
         <Panel
-          title="Images"
-          hint="POST /api/v1/images/generations — requiere OPENAI key o BYOK."
+          title="Generar imagen"
+          hint="Elegí el modelo, formato y calidad. El precio se calcula antes de reservar saldo."
           onRun={() => void runImage()}
           busy={busy}
         >
-          <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <div className="mb-3 grid gap-2 sm:grid-cols-3">
             <select
               value={imageModel}
               onChange={(e) => setImageModel(e.target.value)}
@@ -238,11 +289,21 @@ export function MediaStudio() {
               className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
               aria-label="Tamaño"
             >
-              {["1024x1024", "1792x1024", "1024x1792"].map((s) => (
+              {["1024x1024", "1536x1024", "1024x1536"].map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
               ))}
+            </select>
+            <select
+              value={imageQuality}
+              onChange={(e) => setImageQuality(e.target.value)}
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
+              aria-label="Calidad"
+            >
+              <option value="low">Rápida</option>
+              <option value="medium">Equilibrada</option>
+              <option value="high">Máxima</option>
             </select>
           </div>
           <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
@@ -255,12 +316,12 @@ export function MediaStudio() {
 
       {tab === "speech" ? (
         <Panel
-          title="Text to speech"
-          hint="POST /api/v1/audio/speech — WAV local sin key de lab."
+          title="Texto a voz"
+          hint="Voz real del proveedor, cobrada por caracteres y registrada en tu actividad."
           onRun={() => void runSpeech()}
           busy={busy}
         >
-          <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <div className="mb-3 grid gap-2 sm:grid-cols-3">
             <select
               value={ttsModel}
               onChange={(e) => setTtsModel(e.target.value)}
@@ -285,13 +346,30 @@ export function MediaStudio() {
                 </option>
               ))}
             </select>
+            <select
+              value={speechFormat}
+              onChange={(e) => setSpeechFormat(e.target.value)}
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
+              aria-label="Formato de audio"
+            >
+              {["mp3", "wav", "opus", "aac", "flac"].map((format) => (
+                <option key={format} value={format}>
+                  {format.toUpperCase()}
+                </option>
+              ))}
+            </select>
           </div>
-          <Textarea value={tts} onChange={(e) => setTts(e.target.value)} rows={3} />
+          <Textarea maxLength={4096} value={tts} onChange={(e) => setTts(e.target.value)} rows={3} />
+          <p className="mt-1 text-right text-[11px] text-zinc-400">{tts.length.toLocaleString()} / 4.096</p>
           {audioUrl ? (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <audio className="w-full max-w-md" controls src={audioUrl} />
-              <a href={audioUrl} download="nexus-tts.wav" className="text-sm text-violet-700 hover:underline">
-                Download
+              <a
+                href={audioUrl}
+                download={`nexus-voz.${speechFormat}`}
+                className="text-sm text-violet-700 hover:underline"
+              >
+                Descargar
               </a>
             </div>
           ) : null}
@@ -299,7 +377,11 @@ export function MediaStudio() {
       ) : null}
 
       {tab === "transcribe" ? (
-        <Panel title="Speech to text" hint="POST /api/v1/audio/transcriptions (multipart)." busy={busy}>
+        <Panel
+          title="Audio a texto"
+          hint="La duración se verifica antes de reservar saldo; admite archivos de hasta 25 MiB."
+          busy={busy}
+        >
           <select
             value={sttModel}
             onChange={(e) => setSttModel(e.target.value)}
@@ -330,7 +412,7 @@ export function MediaStudio() {
                 className="mt-2 text-xs text-violet-700 hover:underline"
                 onClick={() => void navigator.clipboard.writeText(transcript)}
               >
-                Copiar transcript
+                Copiar transcripción
               </button>
             </div>
           ) : null}
@@ -339,8 +421,8 @@ export function MediaStudio() {
 
       {tab === "video" ? (
         <Panel
-          title="Video jobs"
-          hint="POST /api/v1/videos + poll automático cada 2s."
+          title="Generar video"
+          hint="Crea el trabajo con tu proveedor y actualiza el resultado automáticamente."
           onRun={() => void runVideo()}
           busy={busy}
         >
@@ -348,7 +430,7 @@ export function MediaStudio() {
           {videoJob ? (
             <div className="mt-4 rounded-xl border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
               <div className="font-mono text-violet-700">{videoJob.id}</div>
-              <div className="mt-1">status: {videoJob.status}</div>
+              <div className="mt-1">Estado: {videoJob.status}</div>
               {videoJob.resultUrl ? (
                 <a
                   href={videoJob.resultUrl}
@@ -356,7 +438,7 @@ export function MediaStudio() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  result
+                  Abrir resultado
                 </a>
               ) : null}
             </div>
@@ -366,8 +448,8 @@ export function MediaStudio() {
 
       {tab === "embeddings" ? (
         <Panel
-          title="Embeddings"
-          hint="POST /api/v1/embeddings — vector local 256-d sin OpenAI key."
+          title="Vectores semánticos"
+          hint="Convierte texto en vectores reales del proveedor para búsqueda y recuperación."
           onRun={() => void runEmbed()}
           busy={busy}
         >

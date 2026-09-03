@@ -14,8 +14,8 @@ export default function MediaDocsPage() {
           Media
         </p>
         <MarketingPageHeader title="Media">
-          Imagen, TTS, STT, embeddings y video jobs. Sin credenciales devuelve provider_unwired;
-          con OPENAI/BYOK ejecuta upstream real y concilia el ledger. UI:{" "}
+          Imagen, TTS, STT, embeddings y video jobs. Sin credenciales o tarifa operativa devuelve un error explícito;
+          con provider/BYOK válido ejecuta upstream real y concilia el ledger. UI:{" "}
           <Link href="/studio" className="text-violet-700 hover:underline">
             Studio
           </Link>
@@ -31,9 +31,10 @@ export default function MediaDocsPage() {
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "openai/gpt-image-1",
+    "model": "openai/gpt-image-2",
     "prompt": "amber mesh over dark terminal",
     "size": "1024x1024",
+    "quality": "medium",
     "n": 1
   }'`}
           </pre>
@@ -44,18 +45,18 @@ export default function MediaDocsPage() {
             TTS / STT
           </h2>
           <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
-{`# TTS → audio/wav
+{`# TTS → audio/mp3
 curl $NEXUS_URL/api/v1/audio/speech \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"model":"openai/tts-1","voice":"alloy","input":"Nexus gateway"}' \\
-  --output speech.wav
+  -d '{"model":"openai/gpt-4o-mini-tts","voice":"alloy","input":"Nexus gateway"}' \\
+  --output speech.mp3
 
 # STT multipart
 curl $NEXUS_URL/api/v1/audio/transcriptions \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
-  -F model=openai/whisper-1 \\
-  -F file=@speech.wav`}
+  -F model=openai/gpt-4o-mini-transcribe \\
+  -F file=@speech.mp3`}
           </pre>
         </section>
 
@@ -87,7 +88,10 @@ const e = await nexus.embeddings.create({
           <p className="mb-3 text-sm text-zinc-600">
             <code className="text-zinc-800">POST /api/v1/videos</code> crea job;{" "}
             <code className="text-zinc-800">GET /api/v1/videos?id=</code> poll hasta completed/failed.
-            Upstream Fal/Replicate cuando hay keys; si no, job local simulado.
+            Ejecuta Fal/Replicate sólo con credenciales válidas; si no hay proveedor devuelve{" "}
+            <code className="text-zinc-800">provider_unwired</code>. Además exige una tarifa minorista
+            explícita en <code className="text-zinc-800">NEXUS_VIDEO_RETAIL_USD</code>; sin ella responde{" "}
+            <code className="text-zinc-800">provider_unpriced</code> y no crea ni cobra un job.
           </p>
           <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`JOB=$(curl -s $NEXUS_URL/api/v1/videos \\
@@ -101,6 +105,10 @@ curl "$NEXUS_URL/api/v1/videos?id=$JOB" \\
         </section>
 
         <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-600">
+          <li>
+            Imagen valida modelo, calidad, tamaño y cantidad antes de reservar. TTS admite hasta 4096
+            caracteres; STT mide la duración real y limita cada archivo a 25 MiB.
+          </li>
           <li>Cada call deja generation en Activity / Analytics (mismo ledger que chat).</li>
           <li>
             Files para contexto de chat:{" "}
