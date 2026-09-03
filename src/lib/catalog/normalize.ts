@@ -91,7 +91,7 @@ export function normalizeUpstream(m: UpstreamModel): CatalogModel {
         pricing: { prompt, completion },
         latencyMs: free ? 900 : 420,
         throughputTps: free ? 40 : 85,
-        zdr: ["anthropic", "openai", "google"].includes(author),
+        zdr: false,
         uptime: 0.997,
         quantization: free ? "int4" : "fp8",
       },

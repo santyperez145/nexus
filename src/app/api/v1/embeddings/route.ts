@@ -1,6 +1,7 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { resolveByokKey } from "@/lib/gateway/byok";
-import { chargeAndRecordMedia } from "@/lib/gateway/media-billing";
+import { chargeAndRecordMedia, holdMediaCredits } from "@/lib/gateway/media-billing";
+import { releaseReserve } from "@/lib/gateway/billing";
 import { embedTexts } from "@/lib/gateway/providers";
 import { findModel } from "@/lib/catalog";
 
@@ -16,35 +17,49 @@ export async function POST(req: Request) {
     const byok = await resolveByokKey(auth.userId, "openai");
     const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
     const isByok = Boolean(byok) && !platform;
-    const local = !byok && !platform;
-    const started = Date.now();
-    const embeddings = await embedTexts(input.map(String), providerModel, byok);
     const promptTokens = Math.ceil(input.join(" ").length / 4);
-    const billed = await chargeAndRecordMedia({
+    const reserved = await holdMediaCredits({
       auth,
-      headers: req.headers,
       modality: "embedding",
-      model: requested,
-      provider: local ? "local" : isByok ? "openai-byok" : "openai",
-      local,
       isByok,
       promptTokens,
-      completionTokens: 0,
       pricing: { prompt: pricing.prompt, completion: pricing.completion ?? 0 },
-      latencyMs: Date.now() - started,
     });
-    return Response.json({
-      object: "list",
-      data: embeddings.map((embedding, index) => ({ object: "embedding", embedding, index })),
-      model: requested,
-      usage: {
-        prompt_tokens: promptTokens,
-        total_tokens: promptTokens,
-        cost: billed.costMicros / 1_000_000,
-      },
-      id: billed.id,
-      is_byok: isByok,
-    });
+    const started = Date.now();
+    let settled = false;
+    try {
+      const embeddings = await embedTexts(input.map(String), providerModel, byok);
+      const billed = await chargeAndRecordMedia({
+        auth,
+        headers: req.headers,
+        modality: "embedding",
+        model: requested,
+        provider: isByok ? "openai-byok" : "openai",
+        local: false,
+        isByok,
+        promptTokens,
+        completionTokens: 0,
+        pricing: { prompt: pricing.prompt, completion: pricing.completion ?? 0 },
+        latencyMs: Date.now() - started,
+        reservedMicros: reserved,
+      });
+      settled = true;
+      return Response.json({
+        object: "list",
+        data: embeddings.map((embedding, index) => ({ object: "embedding", embedding, index })),
+        model: requested,
+        usage: {
+          prompt_tokens: promptTokens,
+          total_tokens: promptTokens,
+          cost: billed.costMicros / 1_000_000,
+        },
+        id: billed.id,
+        is_byok: isByok,
+      });
+    } catch (error) {
+      if (!settled) await releaseReserve(auth, reserved);
+      throw error;
+    }
   } catch (error) {
     return jsonError(error);
   }

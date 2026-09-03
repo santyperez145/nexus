@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { issueApiKey } from "@/lib/keys";
@@ -33,7 +33,11 @@ export async function GET(req: Request) {
     const keys = await db
       .select()
       .from(schema.apiKeys)
-      .where(eq(schema.apiKeys.userId, auth.userId))
+      .where(
+        auth.workspaceId
+          ? and(eq(schema.apiKeys.userId, auth.userId), eq(schema.apiKeys.workspaceId, auth.workspaceId))
+          : eq(schema.apiKeys.userId, auth.userId),
+      )
       .orderBy(desc(schema.apiKeys.createdAt));
     return Response.json({ data: keys.map(serializeKey) });
   } catch (error) {

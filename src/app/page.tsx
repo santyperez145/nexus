@@ -38,10 +38,11 @@ export default async function HomePage() {
             </p>
           </div>
           <h1 className="nexus-hero-copy mt-8 max-w-xl font-[family-name:var(--font-syne)] text-2xl font-medium tracking-tight text-zinc-800 md:text-[1.85rem] md:leading-snug">
-            La interfaz unificada para cada modelo.
+            Gateway de IA de producción. Una API, una política, una factura.
           </h1>
           <p className="nexus-hero-copy mt-4 max-w-md text-[15px] leading-relaxed text-zinc-500">
-            Mejores precios, mejor disponibilidad, sin suscripción. Un slug, muchos labs.
+            BYOK y pool propio. Routing con ZDR fail-closed. Competimos con OpenRouter y Hugging
+            Face en operación, no en marketing de catálogo.
           </p>
           <div className="nexus-hero-cta mt-10 flex flex-wrap justify-center gap-3">
             {session ? (
@@ -69,7 +70,7 @@ export default async function HomePage() {
                   variant="outline"
                   className="h-11 rounded-md border-zinc-300 bg-white/80 px-6 text-zinc-900 backdrop-blur hover:bg-white"
                 >
-                  <Link href="/chat">Probar Chat</Link>
+                  <Link href="/docs">Ver API</Link>
                 </Button>
               </>
             )}

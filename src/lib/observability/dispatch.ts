@@ -1,6 +1,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { assertPublicHttpUrl, fetchPublicUrl } from "@/lib/net/public-url";
 
 export function signWebhookBody(secret: string, body: string) {
   return createHmac("sha256", secret).update(body).digest("hex");
@@ -23,20 +24,24 @@ export async function dispatchGenerationWebhook(
     live.map(async (row) => {
       const config = (row.config ?? {}) as { url?: string; secret?: string };
       if (!config.url) return;
-      const envelope = JSON.stringify({ event: "generation.completed", data: payload });
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "x-nexus-event": "generation.completed",
-      };
-      if (config.secret) {
-        headers["x-nexus-signature"] = signWebhookBody(config.secret, envelope);
+      try {
+        const envelope = JSON.stringify({ event: "generation.completed", data: payload });
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          "x-nexus-event": "generation.completed",
+        };
+        if (config.secret) {
+          headers["x-nexus-signature"] = signWebhookBody(config.secret, envelope);
+        }
+        await fetchPublicUrl(config.url, {
+          method: "POST",
+          headers,
+          body: envelope,
+          signal: AbortSignal.timeout(4000),
+        });
+      } catch {
+        /* drop: private URL or timeout */
       }
-      await fetch(config.url, {
-        method: "POST",
-        headers,
-        body: envelope,
-        signal: AbortSignal.timeout(4000),
-      }).catch(() => undefined);
     }),
   );
 }
@@ -46,6 +51,7 @@ export async function pingWebhookDestination(opts: {
   secret?: string;
   sample?: Record<string, unknown>;
 }) {
+  assertPublicHttpUrl(opts.url);
   const payload = opts.sample ?? {
     id: "gen-ping-sample",
     model: "nexus/auto",
@@ -61,7 +67,7 @@ export async function pingWebhookDestination(opts: {
     "x-nexus-ping": "1",
   };
   if (opts.secret) headers["x-nexus-signature"] = signWebhookBody(opts.secret, envelope);
-  const res = await fetch(opts.url, {
+  const res = await fetchPublicUrl(opts.url, {
     method: "POST",
     headers,
     body: envelope,

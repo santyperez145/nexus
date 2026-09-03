@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { db, schema } from "@/lib/db";
 import { microsToUsd } from "@/lib/money";
+import { manualCreditsEnabled } from "@/lib/config";
 
 export async function GET(req: Request) {
   try {
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
         total_credits: microsToUsd(purchased),
         total_usage: microsToUsd(used),
         remaining: microsToUsd(user?.creditMicros ?? 0),
-        manual_credits: process.env.ENABLE_MANUAL_CREDITS !== "false",
+        manual_credits: manualCreditsEnabled(),
         ledger: ledger.slice(0, 50).map((l) => ({
           id: l.id,
           type: l.type,

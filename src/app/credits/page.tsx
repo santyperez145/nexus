@@ -3,15 +3,14 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { Button } from "@/components/ui/button";
 import { allModels } from "@/lib/catalog";
-import { CREDIT_PACKS, CREDIT_PURCHASE_FEE, SIGNUP_BONUS_MICROS } from "@/lib/config";
-import { formatUsd, microsToUsd } from "@/lib/money";
+import { CREDIT_PACKS, CREDIT_PURCHASE_FEE } from "@/lib/config";
+import { formatUsd } from "@/lib/money";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
 
 export const dynamic = "force-dynamic";
 
 export default function PublicCreditsPage() {
   const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
-  const signup = microsToUsd(SIGNUP_BONUS_MICROS);
   const wired = wiredProviders().length;
   const freeModels = allModels().filter((m) => m.free && !m.id.startsWith("nexus/")).length;
 
@@ -31,7 +30,7 @@ export default function PublicCreditsPage() {
           {[
             { t: "0% markup", d: "Prompt/completion = catálogo del lab." },
             { t: `${feePct}% al cargar`, d: "Solo en el checkout de créditos." },
-            { t: `${formatUsd(signup, 0)} al signup`, d: "Crédito de bienvenida real, no demo fake." },
+            { t: "BYOK first", d: "Tu key, nuestra política. El pool Nexus es opt-in con saldo real." },
           ].map((c) => (
             <div key={c.t} className="rounded-xl border border-zinc-200 bg-white px-4 py-4">
               <div className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">

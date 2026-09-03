@@ -1,4 +1,4 @@
-import { APP_URL } from "./config";
+import { APP_URL, manualCreditsEnabled } from "./config";
 import { NEXUS_PROVIDERS, isWired } from "@/lib/providers/registry";
 import { searchEnginesWired } from "@/lib/search/web";
 
@@ -56,6 +56,6 @@ export function connectionStatus() {
       label: id === "duckduckgo" ? "DuckDuckGo (fallback)" : id,
       wired,
     })),
-    manualCredits: process.env.ENABLE_MANUAL_CREDITS !== "false",
+    manualCredits: manualCreditsEnabled(),
   };
 }

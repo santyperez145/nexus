@@ -31,7 +31,8 @@ npm run dev
 | `GATEWAY_URL` | Data plane Hono aparte (`npm run dev:gateway`) |
 | BYOK en Settings | Keys del cliente, cifradas |
 
-Sin keys de lab el chat funciona en modo local (echo) para probar el producto. Con keys, rutea de verdad. Sin Stripe, en Conexiones podés cargar wallet (`ENABLE_MANUAL_CREDITS`, default on).
+Sin keys de lab el playground guest hace eco local. Con keys, rutea de verdad. Sin Stripe no hay
+carga de wallet salvo `ENABLE_MANUAL_CREDITS=true` (sandbox).
 
 Webhook Stripe: `{APP_URL}/api/webhooks/stripe` evento `checkout.session.completed`.
 

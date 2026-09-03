@@ -86,11 +86,11 @@ function endpointOf(item: Discovered, zdr: boolean): ModelEndpoint {
     adapter: item.adapter,
     providerModel: item.providerModel,
     pricing: { prompt: 0, completion: 0 },
-    latencyMs: 500,
-    throughputTps: 70,
+    latencyMs: 0,
+    throughputTps: 0,
     zdr,
     uptime: 0.99,
-    quantization: "fp8",
+    quantization: "unknown",
   };
 }
 
@@ -149,8 +149,7 @@ export async function discoverOfficialCatalog(): Promise<CatalogModel[]> {
   const known = [...byId.values()];
 
   for (const item of extra) {
-    const spec = NEXUS_PROVIDERS.find((p) => p.id === item.adapter);
-    const zdr = Boolean(spec?.zdr);
+    const zdr = false;
     const ep = endpointOf(item, zdr);
 
     const ownedHit = known.find(

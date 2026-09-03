@@ -1,6 +1,7 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { resolveByokKey } from "@/lib/gateway/byok";
-import { chargeAndRecordMedia, MEDIA_DEFAULT_USD } from "@/lib/gateway/media-billing";
+import { chargeAndRecordMedia, holdMediaCredits, MEDIA_DEFAULT_USD } from "@/lib/gateway/media-billing";
+import { releaseReserve } from "@/lib/gateway/billing";
 import { generateImage } from "@/lib/media/upstream";
 
 export async function POST(req: Request) {
@@ -14,42 +15,53 @@ export async function POST(req: Request) {
     const apiKey = await resolveByokKey(auth.userId, "openai");
     const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
     const isByok = Boolean(apiKey) && !platform;
+    if (!apiKey && !platform) {
+      return jsonError(
+        Object.assign(new Error("No provider credentials for images. Configure OPENAI_API_KEY or BYOK."), {
+          status: 503,
+          code: "provider_unwired",
+        }),
+      );
+    }
+    const usd = MEDIA_DEFAULT_USD.image * n;
+    const reserved = await holdMediaCredits({ auth, modality: "image", isByok, usd });
     const started = Date.now();
-    const live = await generateImage({
-      prompt,
-      model: body.model,
-      size: body.size,
-      n,
-      apiKey,
-    });
-    if (live && "error" in live) {
-      return jsonError(Object.assign(new Error(String(live.error)), { status: live.status ?? 502 }));
+    try {
+      const live = await generateImage({
+        prompt,
+        model: body.model,
+        size: body.size,
+        n,
+        apiKey,
+      });
+      if (live && "error" in live) {
+        await releaseReserve(auth, reserved);
+        return jsonError(Object.assign(new Error(String(live.error)), { status: live.status ?? 502 }));
+      }
+      const billed = await chargeAndRecordMedia({
+        auth,
+        headers: req.headers,
+        modality: "image",
+        model,
+        provider: isByok ? "openai-byok" : "openai",
+        local: false,
+        isByok,
+        usd,
+        latencyMs: Date.now() - started,
+        metadata: { n, size: body.size ?? "1024x1024" },
+        reservedMicros: reserved,
+      });
+      if (live && "data" in live) {
+        return Response.json({ ...live, id: billed.id, cost: billed.costMicros / 1_000_000 });
+      }
+      await releaseReserve(auth, reserved);
+      return jsonError(
+        Object.assign(new Error("Image provider returned no data"), { status: 502, code: "provider_error" }),
+      );
+    } catch (error) {
+      await releaseReserve(auth, reserved);
+      throw error;
     }
-    const local = !(live && "data" in live);
-    const billed = await chargeAndRecordMedia({
-      auth,
-      headers: req.headers,
-      modality: "image",
-      model,
-      provider: local ? "local" : isByok ? "openai-byok" : "openai",
-      local,
-      isByok,
-      usd: MEDIA_DEFAULT_USD.image * n,
-      latencyMs: Date.now() - started,
-      metadata: { n, size: body.size ?? "1024x1024" },
-    });
-    if (live && "data" in live) {
-      return Response.json({ ...live, id: billed.id, cost: billed.costMicros / 1_000_000 });
-    }
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='1024' height='1024'><rect fill='#111' width='100%' height='100%'/><text x='50%' y='50%' fill='#f59e0b' font-size='28' text-anchor='middle'>Nexus · ${prompt.slice(0, 48)}</text></svg>`;
-    const b64 = Buffer.from(svg).toString("base64");
-    return Response.json({
-      id: billed.id,
-      created: Math.floor(Date.now() / 1000),
-      data: [{ b64_json: b64, url: `data:image/svg+xml;base64,${b64}` }],
-      cost: 0,
-      warning: "Sin OPENAI_API_KEY ni BYOK openai: imagen placeholder local",
-    });
   } catch (error) {
     return jsonError(error);
   }

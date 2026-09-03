@@ -1,3 +1,5 @@
+import { fetchPublicUrl } from "@/lib/net/public-url";
+
 export type SearchHit = { title: string; url: string; snippet: string; engine: string };
 
 async function fromTavily(query: string): Promise<SearchHit[] | null> {
@@ -122,8 +124,7 @@ export async function searchWeb(query: string): Promise<SearchHit[]> {
 }
 
 export async function fetchUrlText(url: string) {
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(10000),
+  const res = await fetchPublicUrl(url, {
     headers: { "User-Agent": "NexusBot/1.0 (gateway; +https://nexus.dev)" },
   });
   const raw = await res.text();

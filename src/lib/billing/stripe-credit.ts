@@ -4,7 +4,7 @@ import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { usdToMicros } from "@/lib/money";
 
-/** Acredita compra Stripe una sola vez por session id. */
+/** Acredita compra Stripe una sola vez por session id. Inserta ledger y luego suma saldo. */
 export async function creditPurchaseOnce(opts: {
   userId: string;
   creditsUsd: number;
@@ -23,10 +23,11 @@ export async function creditPurchaseOnce(opts: {
   const note =
     opts.note ??
     `Compra Stripe ${opts.creditsUsd} USD (fee ${(CREDIT_PURCHASE_FEE * 100).toFixed(1)}% en el cargo)`;
+  const ledgerId = id("led");
 
   try {
     await db.insert(schema.creditLedger).values({
-      id: id("led"),
+      id: ledgerId,
       userId: opts.userId,
       type: "purchase",
       micros,
@@ -34,17 +35,21 @@ export async function creditPurchaseOnce(opts: {
       note,
     });
   } catch {
-    // Unique race: otra entrega del webhook ganó
     return { credited: false, micros: 0 };
   }
 
-  await db
-    .update(schema.users)
-    .set({
-      creditMicros: sql`${schema.users.creditMicros} + ${micros}`,
-      ...(opts.customerId ? { stripeCustomerId: opts.customerId } : {}),
-    })
-    .where(eq(schema.users.id, opts.userId));
+  try {
+    await db
+      .update(schema.users)
+      .set({
+        creditMicros: sql`${schema.users.creditMicros} + ${micros}`,
+        ...(opts.customerId ? { stripeCustomerId: opts.customerId } : {}),
+      })
+      .where(eq(schema.users.id, opts.userId));
+  } catch (error) {
+    await db.delete(schema.creditLedger).where(eq(schema.creditLedger.id, ledgerId));
+    throw error;
+  }
 
   return { credited: true, micros };
 }

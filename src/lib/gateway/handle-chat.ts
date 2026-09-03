@@ -6,7 +6,7 @@ import { tokenCostUsd, usdToMicros } from "@/lib/money";
 import type { AuthContext, ChatMessage, ChatRequest } from "./types";
 import { resolveRoute } from "./router";
 import { completeChat, estimateTokens, hasProviderKey, streamChat } from "./providers";
-import { assertCredits, checkFreeRateLimit, maybeAutoTopup, settleUsage } from "./billing";
+import { checkFreeRateLimit, maybeAutoTopup, releaseReserve, reserveCredits, settleUsage } from "./billing";
 import { enforceGuardrails } from "./guardrails";
 import { isCircuitOpen, recordFailure, recordSuccess } from "./health";
 import { assertRateLimit } from "./rate-limit";
@@ -58,17 +58,11 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
     messages = applyMiddleOut(messages);
   }
   const plan = resolveRoute(req, auth);
-  // Tip-to-tip: si privacidad deja el plan vacío, reintentá sin ZDR duro para eco local / BYOK.
-  if (!plan.models.length) {
-    const loose = resolveRoute(req, { ...auth, allowTraining: true, zdr: false });
-    if (loose.models.length) {
-      plan.models = loose.models;
-    }
-  }
   const routeHops = summarizeRouteHops(plan);
   if (!plan.models.length) {
     throw Object.assign(new Error("No available providers match your routing and privacy settings"), {
       status: 404,
+      code: "model_not_found",
     });
   }
 
@@ -112,21 +106,6 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
       responseFormat: req.response_format,
       reasoningEffort: req.reasoning?.effort,
     });
-    await persistGeneration({
-      genId,
-      auth,
-      headers,
-      requested: plan.requested,
-      routed: first.model.id,
-      provider: "local",
-      result,
-      costMicros: 0,
-      latencyMs: Date.now() - started,
-      streamed: false,
-      isByok: false,
-      messages,
-      routeHops,
-    });
     return jsonCompletion(
       chatCompletionPayload({
         id: genId,
@@ -163,18 +142,19 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
   const anyByok = first.endpoints.some(
     (e) => byokProviders.has(e.adapter) || byokProviders.has(e.name),
   );
-  await assertCredits(auth, estimate, {
+  const billingOpts = {
     isFree: first.model.free,
     byokFeeOnly: !anyPlatform && anyByok,
-  });
+  };
+  const reservedMicros = await reserveCredits(auth, estimate, billingOpts);
 
   const started = Date.now();
   const genId = generationId();
   let lastError = "All providers failed";
-  let attemptedLive = false;
   let lastUnwired: (typeof plan.models)[number]["endpoints"][number] | undefined;
-  let lastUnwiredModel: (typeof plan.models)[number] | undefined;
+  let settled = false;
 
+  try {
   for (const candidate of plan.models) {
     for (const endpoint of candidate.endpoints) {
       if (await isCircuitOpen(endpoint.adapter)) {
@@ -186,14 +166,12 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
       if (!hasProviderKey(endpoint, byok)) {
         lastError = `No API key for provider ${endpoint.adapter}`;
         lastUnwired = endpoint;
-        lastUnwiredModel = candidate;
         continue;
       }
-      attemptedLive = true;
       const tools = buildServerTools(req, candidate.variants);
       try {
         if (req.stream) {
-          return streamCompletion({
+          const streamedRes = await streamCompletion({
             req,
             auth,
             headers,
@@ -205,7 +183,10 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
             started,
             tools,
             routeHops,
+            reservedMicros,
           });
+          settled = true;
+          return streamedRes;
         }
         const result = await completeChat({
           endpoint,
@@ -232,7 +213,9 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
           pricing: endpoint.pricing,
           isFree: candidate.model.free || result.local,
           isByok: Boolean(byok) && !result.local,
+          reservedMicros,
         });
+        settled = true;
         await persistGeneration({
           genId,
           auth,
@@ -277,81 +260,10 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
     }
   }
 
-  if (!attemptedLive && lastUnwired && lastUnwiredModel) {
-    const endpoint = lastUnwired;
-    const candidate = lastUnwiredModel;
-    if (req.stream) {
-      return streamCompletion({
-        req,
-        auth,
-        headers,
-        messages,
-        candidate,
-        endpoint,
-        genId,
-        started,
-        routeHops,
-      });
-    }
-    const result = await completeChat({
-      endpoint,
-      messages,
-      temperature: req.temperature,
-      maxTokens: req.max_tokens ?? req.max_completion_tokens ?? req.reasoning?.max_tokens,
-      tools: buildServerTools(req, candidate.variants),
-      seed: req.seed,
-      topP: req.top_p,
-      topK: req.top_k,
-      frequencyPenalty: req.frequency_penalty,
-      presencePenalty: req.presence_penalty,
-      stop: req.stop,
-      responseFormat: req.response_format,
-      reasoningEffort: req.reasoning?.effort,
-    });
-    const billed = await settleUsage({
-      auth,
-      generationId: genId,
-      promptTokens: result.promptTokens,
-      completionTokens: result.completionTokens,
-      pricing: endpoint.pricing,
-      isFree: true,
-      isByok: false,
-    });
-    await persistGeneration({
-      genId,
-      auth,
-      headers,
-      requested: plan.requested,
-      routed: candidate.model.id,
-      provider: endpoint.adapter,
-      result,
-      costMicros: billed.micros,
-      latencyMs: Date.now() - started,
-      streamed: false,
-      isByok: false,
-      messages,
-      routeHops,
-    });
-    return jsonCompletion(
-      chatCompletionPayload({
-        id: genId,
-        model: candidate.model.id,
-        provider: "local",
-        text: result.text,
-        finishReason: result.finishReason,
-        promptTokens: result.promptTokens,
-        completionTokens: result.completionTokens,
-        costUsd: 0,
-        isByok: false,
-        pricing: endpoint.pricing,
-        reasoning: result.reasoning,
-        toolCalls: result.toolCalls,
-      }),
-      genId,
-    );
+  throw Object.assign(new Error(lastError), { status: 502, provider: lastUnwired?.adapter, code: "provider_unwired" });
+  } finally {
+    if (!settled) await releaseReserve(auth, reservedMicros);
   }
-
-  throw Object.assign(new Error(lastError), { status: 502, provider: lastUnwired?.adapter });
 }
 
 async function streamCompletion(opts: {
@@ -367,6 +279,7 @@ async function streamCompletion(opts: {
   started: number;
   tools?: ReturnType<typeof buildServerTools>;
   routeHops?: Array<{ model: string; adapter: string; zdr: boolean }>;
+  reservedMicros?: number;
 }) {
   const streamed = await streamChat({
     endpoint: opts.endpoint,
@@ -417,6 +330,7 @@ async function streamCompletion(opts: {
             pricing: opts.endpoint.pricing,
             isFree: opts.candidate.model.free,
             isByok: Boolean(opts.byok),
+            reservedMicros: opts.reservedMicros,
           });
           const includeUsage = opts.req.stream_options?.include_usage === true;
           send(
@@ -464,6 +378,7 @@ async function streamCompletion(opts: {
             pricing: opts.endpoint.pricing,
             isFree: true,
             isByok: false,
+            reservedMicros: opts.reservedMicros,
           });
           const includeUsage = opts.req.stream_options?.include_usage === true;
           send(
@@ -509,6 +424,9 @@ async function streamCompletion(opts: {
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (error) {
+        if (opts.reservedMicros) {
+          await releaseReserve(opts.auth, opts.reservedMicros).catch(() => undefined);
+        }
         controller.error(error);
       }
     },
@@ -551,6 +469,7 @@ async function persistGeneration(opts: {
   messages: ChatMessage[];
   routeHops?: Array<{ model: string; adapter: string; zdr: boolean }>;
 }) {
+  if (opts.auth.guest) return;
   await db.insert(schema.generations).values({
     id: opts.genId,
     userId: opts.auth.userId,

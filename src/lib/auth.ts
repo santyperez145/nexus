@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { eq } from "drizzle-orm";
-import { SIGNUP_BONUS_MICROS, APP_URL } from "./config";
+import { signupBonusMicros, APP_URL } from "./config";
 import { trustedAuthOrigins } from "./cors";
 import { db, ensureDb, schema } from "./db";
 import { sendPasswordResetEmail } from "./email";
@@ -35,10 +35,20 @@ export const auth = betterAuth({
       create: {
         after: async (user) => {
           await ensureDb();
-          await db
-            .update(schema.users)
-            .set({ creditMicros: SIGNUP_BONUS_MICROS })
-            .where(eq(schema.users.id, user.id));
+          const bonus = signupBonusMicros();
+          if (bonus > 0) {
+            await db
+              .update(schema.users)
+              .set({ creditMicros: bonus })
+              .where(eq(schema.users.id, user.id));
+            await db.insert(schema.creditLedger).values({
+              id: id("led"),
+              userId: user.id,
+              type: "signup_bonus",
+              micros: bonus,
+              note: "Crédito de bienvenida",
+            });
+          }
           const workspaceId = id("ws");
           await db.insert(schema.workspaces).values({
             id: workspaceId,
@@ -46,13 +56,6 @@ export const auth = betterAuth({
             name: "Default",
             slug: "default",
             isDefault: true,
-          });
-          await db.insert(schema.creditLedger).values({
-            id: id("led"),
-            userId: user.id,
-            type: "signup_bonus",
-            micros: SIGNUP_BONUS_MICROS,
-            note: "Crédito de bienvenida",
           });
           await issueApiKey({ userId: user.id, name: "Default", workspaceId });
         },

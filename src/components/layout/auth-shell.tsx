@@ -2,8 +2,6 @@ import Link from "next/link";
 import { NexusWordmark } from "@/components/brand/nexus-logo";
 import { HeroMesh } from "@/components/brand/hero-mesh";
 import { AuthTrustStrip } from "@/components/layout/auth-trust-strip";
-import { SIGNUP_BONUS_MICROS } from "@/lib/config";
-import { formatUsd, microsToUsd } from "@/lib/money";
 
 /** Shell claro para login / register / forgot / reset — atmósfera marketing. */
 export function AuthShell({
@@ -15,8 +13,6 @@ export function AuthShell({
   subtitle?: string;
   children: React.ReactNode;
 }) {
-  const welcome = formatUsd(microsToUsd(SIGNUP_BONUS_MICROS), 0);
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#fafaf9] text-zinc-900">
       <HeroMesh className="pointer-events-none absolute inset-0 h-full w-full opacity-90" />
@@ -36,19 +32,22 @@ export function AuthShell({
               Cientos de modelos.
             </p>
             <p className="mt-4 text-sm leading-relaxed text-zinc-600">
-              Routing, fallbacks, BYOK y créditos con 0% markup en inferencia. Fee solo al cargar.
-              Guest playground con eco local sin signup.
+              Gateway de producción: una política, una factura, BYOK y routing medido. Keys de
+              inferencia y management separadas.
             </p>
             <ul className="mt-8 space-y-2 text-sm text-zinc-600">
               <li className="flex gap-2">
                 <span className="text-amber-700">→</span> OpenAI-compatible · keys{" "}
-                <code className="text-zinc-800">sk-nx-</code>
+                <code className="text-zinc-800">sk-nx-</code> /{" "}
+                <code className="text-zinc-800">sk-nx-mgmt-</code>
               </li>
               <li className="flex gap-2">
-                <span className="text-amber-700">→</span> {welcome} de bienvenida al crear cuenta
+                <span className="text-amber-700">→</span> Créditos vía Stripe. Sin bonus de signup
+                ni grants anónimos.
               </li>
               <li className="flex gap-2">
-                <span className="text-amber-700">→</span> Route trace antes de gastar
+                <span className="text-amber-700">→</span> ZDR fail-closed. Sin eco en la API de
+                producción.
               </li>
             </ul>
             <AuthTrustStrip />
@@ -67,7 +66,7 @@ export function AuthShell({
             </Link>
             {" · "}
             <Link href="/chat" className="hover:text-zinc-600">
-              Chat guest
+              Chat
             </Link>
           </p>
         </aside>

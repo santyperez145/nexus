@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
+import { assertPublicHttpUrl } from "@/lib/net/public-url";
 import { newWebhookSecret, pingWebhookDestination } from "@/lib/observability/dispatch";
 
 export async function GET(req: Request) {
@@ -51,6 +52,8 @@ export async function POST(req: Request) {
     }
 
     const secret = body.secret === false ? undefined : newWebhookSecret();
+    const url = String(body.url ?? body.config?.url ?? "");
+    assertPublicHttpUrl(url);
     const row = {
       id: id("obs"),
       userId: auth.userId,
@@ -58,7 +61,7 @@ export async function POST(req: Request) {
       type: body.type ?? "webhook",
       name: body.name ?? "Webhook",
       config: {
-        url: body.url ?? body.config?.url,
+        url,
         ...(secret ? { secret } : {}),
       },
     };

@@ -20,7 +20,16 @@ export const BYOK_FEE = 0.05;
 export const FREE_MODEL_RPD_NO_CREDITS = 50;
 export const FREE_MODEL_RPD_WITH_CREDITS = 1000;
 export const FREE_MODEL_CREDITS_THRESHOLD_USD = 10;
-export const SIGNUP_BONUS_MICROS = 1_000_000; // $1
+
+/** Opt-in. Default off: no créditos de bienvenida sin verificación. */
+export function signupBonusMicros() {
+  return process.env.ENABLE_SIGNUP_BONUS === "true" ? 1_000_000 : 0;
+}
+
+/** Opt-in. Default off: no auto-grant ni top-up de wallet sin Stripe. */
+export function manualCreditsEnabled() {
+  return process.env.ENABLE_MANUAL_CREDITS === "true";
+}
 
 export const KEY_PREFIX = "sk-nx-";
 export const MANAGEMENT_KEY_PREFIX = "sk-nx-mgmt-";

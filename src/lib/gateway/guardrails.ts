@@ -29,10 +29,16 @@ export async function enforceGuardrails(
 
   for (const g of rows) {
     if (g.allowedModels?.length && !g.allowedModels.some((m) => model.startsWith(m))) {
-      throw Object.assign(new Error(`Guardrail "${g.name}" blocked model ${model}`), { status: 403 });
+      throw Object.assign(new Error(`Guardrail "${g.name}" blocked model ${model}`), {
+        status: 403,
+        code: "guardrail_blocked",
+      });
     }
     if (g.blockedModels?.some((m) => model.includes(m))) {
-      throw Object.assign(new Error(`Guardrail "${g.name}" blocked model ${model}`), { status: 403 });
+      throw Object.assign(new Error(`Guardrail "${g.name}" blocked model ${model}`), {
+        status: 403,
+        code: "guardrail_blocked",
+      });
     }
     if (g.promptInjection && INJECTION.some((r) => r.test(prompt))) {
       throw Object.assign(new Error(`Guardrail "${g.name}" detected prompt injection`), { status: 400 });

@@ -7,49 +7,49 @@ import { SignOutButton } from "@/components/layout/sign-out";
 
 const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string }> }> = [
   {
-    title: "Playground",
+    title: "Gateway",
     items: [
       { href: "/overview", label: "Overview" },
-      { href: "/welcome", label: "Welcome" },
       { href: "/chat", label: "Chat" },
       { href: "/studio", label: "Studio" },
       { href: "/models", label: "Models" },
-      { href: "/rankings", label: "Rankings" },
-      { href: "/apps", label: "Apps" },
-      { href: "/compare", label: "Compare" },
-      { href: "/arena", label: "Arena" },
     ],
   },
   {
-    title: "Uso",
+    title: "Operación",
     items: [
       { href: "/activity", label: "Activity" },
       { href: "/analytics", label: "Analytics" },
       { href: "/settings/credits", label: "Credits" },
+      { href: "/settings/keys", label: "API Keys" },
+      { href: "/settings/byok", label: "BYOK" },
+      { href: "/settings/connections", label: "Conexiones" },
+    ],
+  },
+  {
+    title: "Política",
+    items: [
+      { href: "/settings/privacy", label: "Privacy" },
+      { href: "/settings/guardrails", label: "Guardrails" },
+      { href: "/settings/observability", label: "Observability" },
+      { href: "/settings/workspaces", label: "Workspaces" },
+      { href: "/settings/organizations", label: "Organizations" },
       { href: "/settings/files", label: "Files" },
     ],
   },
   {
-    title: "Cuenta",
+    title: "Explorar",
     items: [
-      { href: "/settings/keys", label: "API Keys" },
-      { href: "/settings/connections", label: "Conexiones" },
-      { href: "/settings/byok", label: "BYOK" },
+      { href: "/compare", label: "Compare" },
+      { href: "/rankings", label: "Rankings" },
+      { href: "/arena", label: "Arena" },
+      { href: "/apps", label: "Apps" },
       { href: "/settings/presets", label: "Presets" },
       { href: "/settings/shares", label: "Shares" },
-      { href: "/settings/privacy", label: "Privacy" },
+      { href: "/welcome", label: "Welcome" },
       { href: "/settings/notifications", label: "Notifications" },
       { href: "/settings/preferences", label: "Preferences" },
-    ],
-  },
-  {
-    title: "Equipo",
-    items: [
-      { href: "/settings/guardrails", label: "Guardrails" },
-      { href: "/settings/observability", label: "Observability" },
       { href: "/settings/oauth", label: "OAuth" },
-      { href: "/settings/workspaces", label: "Workspaces" },
-      { href: "/settings/organizations", label: "Organizations" },
     ],
   },
 ];

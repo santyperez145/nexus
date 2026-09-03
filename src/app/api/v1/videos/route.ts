@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { resolveByokKey } from "@/lib/gateway/byok";
-import { chargeAndRecordMedia, MEDIA_DEFAULT_USD } from "@/lib/gateway/media-billing";
+import { chargeAndRecordMedia, holdMediaCredits, MEDIA_DEFAULT_USD } from "@/lib/gateway/media-billing";
+import { releaseReserve } from "@/lib/gateway/billing";
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { pollVideoJob, startVideoJob } from "@/lib/media/upstream";
@@ -14,14 +15,38 @@ export async function POST(req: Request) {
     const model = body.model ?? "nexus/video";
     const falKey = await resolveByokKey(auth.userId, "fal");
     const replicateToken = await resolveByokKey(auth.userId, "replicate");
-    const started = Date.now();
-    const live = await startVideoJob({ prompt, model, falKey, replicateToken });
-    const local = !live || "error" in live;
+    const platform = Boolean(process.env.FAL_KEY?.trim() || process.env.REPLICATE_API_TOKEN?.trim());
     const isByok =
       Boolean(falKey || replicateToken) &&
       !process.env.FAL_KEY?.trim() &&
       !process.env.REPLICATE_API_TOKEN?.trim();
-    const provider = live?.provider ?? "local";
+    if (!falKey && !replicateToken && !platform) {
+      return jsonError(
+        Object.assign(new Error("No provider credentials for video. Configure FAL_KEY, REPLICATE_API_TOKEN or BYOK."), {
+          status: 503,
+          code: "provider_unwired",
+        }),
+      );
+    }
+    const reserved = await holdMediaCredits({
+      auth,
+      modality: "video",
+      isByok,
+      usd: MEDIA_DEFAULT_USD.video,
+    });
+    const started = Date.now();
+    try {
+    const live = await startVideoJob({ prompt, model, falKey, replicateToken });
+    const local = !live || "error" in live;
+    if (local) {
+      await releaseReserve(auth, reserved);
+      return jsonError(
+        Object.assign(new Error(live && "error" in live ? String(live.error) : "Video provider unavailable"), {
+          status: 502,
+        }),
+      );
+    }
+    const provider = live.provider ?? "fal";
     let status = live && "data" in live && !("error" in live) ? "processing" : live ? "failed" : "completed";
     let resultUrl: string | null = null;
 
@@ -59,12 +84,13 @@ export async function POST(req: Request) {
       modality: "video",
       model,
       provider,
-      local,
+      local: false,
       isByok,
-      usd: local ? 0 : MEDIA_DEFAULT_USD.video,
+      usd: MEDIA_DEFAULT_USD.video,
       latencyMs: Date.now() - started,
       metadata: { video_job_id: row.id },
       finishReason: status === "failed" ? "error" : "stop",
+      reservedMicros: reserved,
     });
     return Response.json({
       id: row.id,
@@ -74,8 +100,11 @@ export async function POST(req: Request) {
       polling_url: `/api/v1/videos?id=${row.id}`,
       provider,
       cost: billed.costMicros / 1_000_000,
-      warning: live ? undefined : "Cableá FAL_KEY o REPLICATE_API_TOKEN para video real",
     });
+    } catch (error) {
+      await releaseReserve(auth, reserved);
+      throw error;
+    }
   } catch (error) {
     return jsonError(error);
   }

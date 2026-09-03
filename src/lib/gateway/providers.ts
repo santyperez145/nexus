@@ -77,7 +77,11 @@ export async function completeChat(opts: {
 }) {
   const apiKey = opts.forceLocal ? undefined : envKey(opts.endpoint.adapter, opts.byok);
   if (!apiKey) {
-    return localComplete(opts.messages, opts.endpoint);
+    if (opts.forceLocal) return localComplete(opts.messages, opts.endpoint);
+    throw Object.assign(new Error("No provider credentials for this route. Configure BYOK or a platform key."), {
+      status: 503,
+      code: "provider_unwired",
+    });
   }
   const stop = opts.stop == null ? undefined : Array.isArray(opts.stop) ? opts.stop : [opts.stop];
   const openai: {
@@ -133,8 +137,14 @@ export async function streamChat(opts: {
 }) {
   const apiKey = opts.forceLocal ? undefined : envKey(opts.endpoint.adapter, opts.byok);
   if (!apiKey) {
-    const local = await localComplete(opts.messages, opts.endpoint);
-    return { ...local, stream: null as ReadableStream<string> | null };
+    if (opts.forceLocal) {
+      const local = await localComplete(opts.messages, opts.endpoint);
+      return { ...local, stream: null as ReadableStream<string> | null };
+    }
+    throw Object.assign(new Error("No provider credentials for this route. Configure BYOK or a platform key."), {
+      status: 503,
+      code: "provider_unwired",
+    });
   }
   const stop = opts.stop == null ? undefined : Array.isArray(opts.stop) ? opts.stop : [opts.stop];
   const result = streamText({
@@ -161,7 +171,10 @@ export async function streamChat(opts: {
 export async function embedTexts(texts: string[], modelId: string, byok?: string) {
   const apiKey = envKey("openai", byok) ?? process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return texts.map((t) => localEmbedding(t));
+    throw Object.assign(new Error("No provider credentials for embeddings. Configure OPENAI_API_KEY or BYOK."), {
+      status: 503,
+      code: "provider_unwired",
+    });
   }
   const openai = createOpenAI({ apiKey });
   const slug = modelId.includes("/") ? modelId.split("/").pop()! : modelId;
@@ -189,14 +202,6 @@ async function localComplete(messages: ChatMessage[], endpoint: ModelEndpoint) {
     cachedTokens: 0,
     local: true,
   };
-}
-
-function localEmbedding(text: string) {
-  const dim = 256;
-  const vec = new Array(dim).fill(0);
-  for (let i = 0; i < text.length; i++) vec[i % dim] += text.charCodeAt(i) / 255;
-  const norm = Math.sqrt(vec.reduce((s, v) => s + v * v, 0)) || 1;
-  return vec.map((v) => v / norm);
 }
 
 export function estimateTokens(input: string | ChatMessage[]) {

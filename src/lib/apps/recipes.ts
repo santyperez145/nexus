@@ -233,7 +233,7 @@ const r = await nexus.chat.send({
   {
     slug: "guest-playground",
     title: "Guest eco (sin API key)",
-    blurb: "Header X-Nexus-Guest: 1 — completion local rate-limited. Nunca quema keys de lab.",
+    blurb: "Solo en chat completions: eco local rate-limited. No sirve para keys, BYOK ni media.",
     tags: ["guest", "demo"],
     model: "nexus/auto",
     curl: `curl $NEXUS_URL/api/v1/chat/completions \\
