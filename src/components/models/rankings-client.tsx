@@ -51,6 +51,34 @@ export function RankingsClient({ rows }: { rows: RankingRow[] }) {
     { id: "latency", label: "Latencia", blurb: "Min latencyMs de endpoints" },
   ];
 
+  if (ranked.length === 0) {
+    return (
+      <div>
+        <div className="mb-6 flex flex-wrap gap-1 rounded-xl border border-zinc-200 bg-white p-1">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setSort(t.id)}
+              className={`rounded-lg px-4 py-2 text-sm transition-colors ${
+                sort === t.id ? "bg-amber-50 text-amber-900" : "text-zinc-500 hover:text-zinc-900"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <p className="rounded-xl border border-dashed border-zinc-200 bg-white px-4 py-10 text-center text-sm text-zinc-500">
+          Sin filas para este criterio.{" "}
+          <Link href="/chat" className="text-amber-700 hover:underline">
+            Generá uso en el chat
+          </Link>{" "}
+          — no inventamos leaderboards.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap gap-1 rounded-xl border border-zinc-200 bg-white p-1">
@@ -68,6 +96,16 @@ export function RankingsClient({ rows }: { rows: RankingRow[] }) {
         ))}
       </div>
       <p className="mb-4 text-sm text-zinc-500">{tabs.find((t) => t.id === sort)?.blurb}</p>
+
+      {sort === "popular" && ranked.every((r) => r.tokens === 0) ? (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-900/80">
+          Todavía no hay tokens en esta instancia — el orden Popular cae a precio.{" "}
+          <Link href="/chat" className="font-medium underline">
+            Abrí el chat
+          </Link>
+          .
+        </p>
+      ) : null}
 
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
         <div className="grid grid-cols-[2.5rem_1fr_7rem_7rem] gap-3 border-b border-zinc-200 bg-zinc-50/80 px-4 py-2.5 text-[11px] uppercase tracking-[0.06em] text-zinc-500 md:grid-cols-[2.5rem_1fr_8rem_7rem_7rem]">

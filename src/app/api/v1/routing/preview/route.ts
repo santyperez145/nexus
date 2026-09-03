@@ -4,10 +4,22 @@ import { resolveByokKey } from "@/lib/gateway/byok";
 import { resolveRoute } from "@/lib/gateway/router";
 import type { ChatRequest } from "@/lib/gateway/types";
 
-/** Preview de routing: qué labs se intentarían y si hay key. */
+/** Preview de routing: qué labs se intentarían y si hay key. Público con prefs default. */
 export async function POST(req: Request) {
   try {
-    const auth = await authenticateRequest(req);
+    let auth;
+    try {
+      auth = await authenticateRequest(req);
+    } catch {
+      auth = {
+        userId: "guest",
+        isManagement: false,
+        creditMicros: 0,
+        zdr: false,
+        allowTraining: true,
+        logPrompts: false,
+      };
+    }
     const body = (await req.json()) as ChatRequest;
     const plan = resolveRoute(body, auth);
     const adapters = new Set<string>();
@@ -24,8 +36,11 @@ export async function POST(req: Request) {
         if (adapters.has(`${candidate.model.id}:${endpoint.adapter}`)) continue;
         adapters.add(`${candidate.model.id}:${endpoint.adapter}`);
         const byok =
-          (await resolveByokKey(auth.userId, endpoint.adapter)) ??
-          (await resolveByokKey(auth.userId, endpoint.name));
+          auth.userId !== "guest"
+            ? ((await resolveByokKey(auth.userId, endpoint.adapter)) ??
+              (await resolveByokKey(auth.userId, endpoint.name)) ??
+              undefined)
+            : undefined;
         hops.push({
           model: candidate.model.id,
           adapter: endpoint.adapter,
@@ -43,10 +58,13 @@ export async function POST(req: Request) {
         mode: live.length ? "live" : hops.length ? "local_echo" : "empty",
         hops,
         live_count: live.length,
+        guest: auth.userId === "guest",
         note:
-          live.length === 0
-            ? "Sin keys de lab: el gateway responderá en eco local. Agregá BYOK o Conexiones."
-            : `${live.length} host(s) cableados; el primero viable gana.`,
+          auth.userId === "guest"
+            ? "Preview público (prefs default). Entrá para BYOK y privacy de tu cuenta."
+            : live.length === 0
+              ? "Sin keys de lab: el gateway responderá en eco local. Agregá BYOK o Conexiones."
+              : `${live.length} host(s) cableados; el primero viable gana.`,
       },
     });
   } catch (error) {

@@ -39,12 +39,14 @@ export function Playground({
   compareModel,
   platformLabs = 0,
   hasByok = false,
+  guest = false,
 }: {
   models: { id: string; name: string }[];
   defaultModel?: string;
   compareModel?: string;
   platformLabs?: number;
   hasByok?: boolean;
+  guest?: boolean;
 }) {
   const [lanes, setLanes] = useState<Lane[]>(() => {
     const first: Lane = { model: defaultModel, query: "", messages: [], stats: null };
@@ -136,12 +138,18 @@ export function Playground({
     const visible = thread.filter((m) => m.role !== "system");
     if (!res.ok || !res.body) {
       const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
+      const message =
+        res.status === 401
+          ? guest
+            ? "Necesitás sesión o una API key. Creá cuenta (incluye $1) o Entrá para chatear."
+            : "Sesión expirada — volvé a entrar."
+          : (err.error?.message ?? "Error de gateway");
       setLanes((prev) =>
         prev.map((lane, i) =>
           i === laneIndex
             ? {
                 ...lane,
-                messages: [...visible, { role: "assistant", content: err.error?.message ?? "Error de gateway" }],
+                messages: [...visible, { role: "assistant", content: message }],
               }
             : lane,
         ),
@@ -238,6 +246,14 @@ export function Playground({
 
   return (
     <div className="grid gap-4">
+      {guest ? (
+        <p className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-zinc-400">
+          Guest · el route trace funciona; el completion pide sesión.{" "}
+          <Link href="/register" className="text-amber-400 hover:underline">
+            Crear cuenta
+          </Link>
+        </p>
+      ) : null}
       {echoRisk || sawLocal ? (
         <p className="rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-sm text-amber-100">
           {sawLocal
