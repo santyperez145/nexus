@@ -35,6 +35,9 @@ export async function GET(req: Request) {
         is_byok: row.isByok,
         app_referer: row.appReferer,
         latency: row.latencyMs,
+        error: row.error,
+        metadata: row.metadata,
+        requested_model: row.requestedModel,
       },
     });
   } catch (error) {

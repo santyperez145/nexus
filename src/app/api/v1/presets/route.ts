@@ -32,6 +32,7 @@ export async function POST(req: Request) {
         temperature: body.temperature,
         max_tokens: body.max_tokens,
         provider: body.provider,
+        system: body.system,
       },
     };
     await db.insert(schema.presets).values(row);

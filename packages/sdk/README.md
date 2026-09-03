@@ -59,12 +59,15 @@ await nexus.chat.completions.create({
 | Método | API |
 |---|---|
 | `nexus.chat.send` / `nexus.chat.completions.create` | `POST /chat/completions` |
+| `nexus.responses.create` | `POST /responses` |
+| `nexus.messages.create` | `POST /messages` |
 | `nexus.models.list` / `.get` / `.endpoints` / `.count` | `/models` |
 | `nexus.credits.get` | `/credits` |
 | `nexus.generations.get` / `.list` | `/generation` |
 | `nexus.embeddings.create` | `/embeddings` |
 | `nexus.images.generate` | `/images/generations` |
-| `nexus.audio.speech` | `/audio/speech` |
+| `nexus.audio.speech` / `.transcriptions` | `/audio/*` |
+| `nexus.videos.create` / `.get` | `/videos` |
 | `nexus.keys.list` / `.create` / `.rotate` / `.update` / `.delete` | `/keys` |
 | `nexus.providers.list` | `/providers` |
 | `nexus.files.list` / `.upload` / `.delete` | `/files` |

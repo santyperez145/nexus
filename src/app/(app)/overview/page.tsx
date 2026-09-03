@@ -39,6 +39,9 @@ export default async function OverviewPage() {
         actions={
           <>
         <Button asChild size="sm" variant="outline">
+              <Link href="/welcome">Welcome</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
               <Link href="/studio">Studio</Link>
             </Button>
             <Button asChild size="sm">
