@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { SIGNUP_BONUS_MICROS, APP_URL } from "./config";
 import { trustedAuthOrigins } from "./cors";
 import { db, ensureDb, schema } from "./db";
+import { sendPasswordResetEmail } from "./email";
 import { id } from "./ids";
 import { issueApiKey } from "./keys";
 
@@ -21,7 +22,13 @@ export const auth = betterAuth({
       verification: schema.verifications,
     },
   }),
-  emailAndPassword: { enabled: true },
+  emailAndPassword: {
+    enabled: true,
+    sendResetPassword: async ({ user, token }) => {
+      const url = `${APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
+      void sendPasswordResetEmail({ email: user.email, name: user.name, url });
+    },
+  },
   plugins: [nextCookies()],
   databaseHooks: {
     user: {

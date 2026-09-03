@@ -11,8 +11,11 @@ export const APP_URL =
           ? `https://${process.env.VERCEL_URL}`
           : "http://localhost:3000");
 
-/** Fee sobre la carga de créditos, no sobre la inferencia. */
+/** Fee sobre la carga de créditos, no sobre la inferencia de pool. */
 export const CREDIT_PURCHASE_FEE = 0.049;
+
+/** Fee de plataforma sobre el precio de lista cuando la inferencia usa BYOK. */
+export const BYOK_FEE = 0.05;
 
 export const FREE_MODEL_RPD_NO_CREDITS = 50;
 export const FREE_MODEL_RPD_WITH_CREDITS = 1000;

@@ -27,6 +27,7 @@ export const users = pgTable("user", {
   autoTopupEnabled: boolean("auto_topup_enabled").notNull().default(false),
   autoTopupThresholdUsd: numeric("auto_topup_threshold_usd"),
   autoTopupAmountUsd: numeric("auto_topup_amount_usd"),
+  stripeCustomerId: text("stripe_customer_id"),
 });
 
 export const sessions = pgTable(

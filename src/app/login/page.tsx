@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { AuthShell } from "@/components/layout/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NexusWordmark } from "@/components/brand/nexus-logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,35 +28,49 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <Link href="/" className="mb-8 text-[15px]">
-        <NexusWordmark />
-      </Link>
-      <h1 className="mb-6 text-2xl font-semibold">Entrar</h1>
+    <AuthShell title="Entrar">
       <form onSubmit={onSubmit} className="grid gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Label htmlFor="email" className="text-zinc-700">
+            Email
+          </Label>
+          <Input
+            id="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="border-zinc-300 bg-white text-zinc-900"
+          />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password" className="text-zinc-700">
+              Password
+            </Label>
+            <Link href="/forgot-password" className="text-xs text-amber-700 hover:underline">
+              Olvidé mi password
+            </Link>
+          </div>
           <Input
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            className="border-zinc-300 bg-white text-zinc-900"
           />
         </div>
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
-        <Button type="submit">Entrar</Button>
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        <Button type="submit" className="bg-amber-600 text-white hover:bg-amber-700">
+          Entrar
+        </Button>
       </form>
       <p className="mt-4 text-sm text-zinc-500">
         ¿No tienes cuenta?{" "}
-        <Link href="/register" className="text-amber-400">
+        <Link href="/register" className="text-amber-700 hover:underline">
           Crear una
         </Link>
       </p>
-    </div>
+    </AuthShell>
   );
 }

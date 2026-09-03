@@ -15,6 +15,14 @@ describe("extractFileText", () => {
     assert.match(text, /Hello Nexus document/);
   });
 
+  it("reads TJ arrays from pdf content streams", () => {
+    const raw = "%PDF-1.4\nBT [(Factura ) 120 (Nexus)] TJ ET";
+    const b64 = Buffer.from(raw, "latin1").toString("base64");
+    const text = extractFileText("application/pdf", b64, "factura.pdf");
+    assert.match(text, /Factura/);
+    assert.match(text, /Nexus/);
+  });
+
   it("falls back for opaque binaries", () => {
     const b64 = Buffer.from([0, 1, 2, 3]).toString("base64");
     assert.match(extractFileText("application/octet-stream", b64, "blob.bin"), /blob.bin/);

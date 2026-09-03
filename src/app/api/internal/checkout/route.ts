@@ -1,6 +1,7 @@
-import { CREDIT_PACKS } from "@/lib/config";
+import { eq } from "drizzle-orm";
+import { CREDIT_PACKS, APP_URL } from "@/lib/config";
 import { getSession } from "@/lib/auth";
-import { APP_URL } from "@/lib/config";
+import { db, ensureDb, schema } from "@/lib/db";
 import { chargeAmountCents, getStripe } from "@/lib/stripe";
 
 export async function POST(req: Request) {
@@ -15,9 +16,13 @@ export async function POST(req: Request) {
       error: "Stripe no configurado. Define STRIPE_SECRET_KEY para comprar créditos reales.",
     }, { status: 503 });
   }
+  await ensureDb();
+  const [user] = await db.select().from(schema.users).where(eq(schema.users.id, session.user.id)).limit(1);
   const checkout = await stripe.checkout.sessions.create({
     mode: "payment",
-    customer_email: session.user.email,
+    ...(user?.stripeCustomerId
+      ? { customer: user.stripeCustomerId }
+      : { customer_email: session.user.email, customer_creation: "always" as const }),
     line_items: [
       {
         quantity: 1,
@@ -39,6 +44,7 @@ export async function POST(req: Request) {
     billing_address_collection: "auto",
     allow_promotion_codes: true,
     payment_intent_data: {
+      setup_future_usage: "off_session",
       metadata: { userId: session.user.id, creditsUsd: String(pack.usd) },
     },
   });

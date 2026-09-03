@@ -94,6 +94,11 @@ export default function CreditsPage() {
         </p>
       ) : null}
       <h2 className="mt-10 mb-3 text-lg font-medium">Auto top-up</h2>
+      <p className="mb-3 max-w-xl text-sm text-zinc-500">
+        Con wallet manual acredita saldo al pasar el umbral. En prod (Stripe) cobra la tarjeta
+        guardada del customer tras un checkout con{" "}
+        <code className="text-zinc-300">setup_future_usage</code>.
+      </p>
       <div className="grid max-w-xl gap-2 md:grid-cols-3">
         <Input value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label="Umbral USD" />
         <Input value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Monto USD" />

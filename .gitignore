@@ -37,7 +37,9 @@ yarn-error.log*
 # local pglite + generated dumps
 /data
 /_models_raw.json
-packages/sdk/dist
+# SDK dist is committed so file:/npm pack works without a prepublish step
+# packages/sdk/dist
+
 
 # vercel
 .vercel

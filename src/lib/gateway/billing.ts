@@ -1,18 +1,21 @@
 import { and, eq, gte, sql } from "drizzle-orm";
+import { BYOK_FEE, FREE_MODEL_CREDITS_THRESHOLD_USD, FREE_MODEL_RPD_NO_CREDITS, FREE_MODEL_RPD_WITH_CREDITS } from "@/lib/config";
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
-import { tokenCostUsd, usdToMicros } from "@/lib/money";
-import {
-  FREE_MODEL_CREDITS_THRESHOLD_USD,
-  FREE_MODEL_RPD_NO_CREDITS,
-  FREE_MODEL_RPD_WITH_CREDITS,
-} from "@/lib/config";
-import { microsToUsd } from "@/lib/money";
+import { microsToUsd, tokenCostUsd, usdToMicros } from "@/lib/money";
+import { chargeAmountCents, getStripe } from "@/lib/stripe";
 import type { AuthContext } from "./types";
 
-export async function assertCredits(auth: AuthContext, estimatedMicros: number, isFree: boolean) {
-  if (isFree) return;
-  if (auth.creditMicros < estimatedMicros) {
+export async function assertCredits(
+  auth: AuthContext,
+  estimatedMicros: number,
+  opts: { isFree?: boolean; byokFeeOnly?: boolean } = {},
+) {
+  if (opts.isFree) return;
+  const need = opts.byokFeeOnly
+    ? Math.max(1, Math.floor(estimatedMicros * BYOK_FEE))
+    : estimatedMicros;
+  if (auth.creditMicros < need) {
     const err = new Error("Insufficient credits");
     (err as Error & { status: number }).status = 402;
     throw err;
@@ -23,7 +26,7 @@ export async function assertCredits(auth: AuthContext, estimatedMicros: number, 
       .from(schema.workspaceBudgets)
       .where(eq(schema.workspaceBudgets.workspaceId, auth.workspaceId))
       .limit(1);
-    if (budget && budget.spentMicros + estimatedMicros > budget.limitMicros) {
+    if (budget && budget.spentMicros + need > budget.limitMicros) {
       throw Object.assign(new Error("Workspace budget exceeded"), { status: 402 });
     }
   }
@@ -40,8 +43,13 @@ export async function settleUsage(opts: {
 }) {
   const usd = tokenCostUsd(opts.promptTokens, opts.completionTokens, opts.pricing);
   let micros = usdToMicros(usd);
-  if (opts.isFree || opts.isByok) micros = 0;
-  if (opts.auth.logPrompts) micros = Math.floor(micros * 0.99);
+  let ledgerType = "inference";
+  if (opts.isFree) micros = 0;
+  else if (opts.isByok) {
+    micros = usdToMicros(usd * BYOK_FEE);
+    ledgerType = "byok_fee";
+  }
+  if (opts.auth.logPrompts && micros > 0) micros = Math.floor(micros * 0.99);
 
   if (micros > 0) {
     await db
@@ -51,9 +59,10 @@ export async function settleUsage(opts: {
     await db.insert(schema.creditLedger).values({
       id: id("led"),
       userId: opts.auth.userId,
-      type: "inference",
+      type: ledgerType,
       micros: -micros,
       generationId: opts.generationId,
+      note: opts.isByok ? `BYOK fee ${(BYOK_FEE * 100).toFixed(0)}%` : null,
     });
   }
   if (opts.auth.apiKeyId) {
@@ -71,7 +80,7 @@ export async function settleUsage(opts: {
       .set({ spentMicros: sql`${schema.workspaceBudgets.spentMicros} + ${micros}` })
       .where(eq(schema.workspaceBudgets.workspaceId, opts.auth.workspaceId));
   }
-  return { usd, micros };
+  return { usd: opts.isByok ? usd * BYOK_FEE : usd, micros };
 }
 
 export async function maybeAutoTopup(userId: string) {
@@ -81,7 +90,47 @@ export async function maybeAutoTopup(userId: string) {
   const amount = Number(user.autoTopupAmountUsd ?? 0);
   if (!(threshold > 0) || !(amount > 0)) return;
   if (microsToUsd(user.creditMicros) >= threshold) return;
-  if (process.env.ENABLE_MANUAL_CREDITS === "false") return;
+
+  const manualOk = process.env.ENABLE_MANUAL_CREDITS !== "false";
+  if (manualOk) {
+    const micros = usdToMicros(amount);
+    await db
+      .update(schema.users)
+      .set({ creditMicros: sql`${schema.users.creditMicros} + ${micros}` })
+      .where(eq(schema.users.id, userId));
+    await db.insert(schema.creditLedger).values({
+      id: id("led"),
+      userId,
+      type: "auto_topup",
+      micros,
+      note: `Auto top-up ${amount} USD (wallet manual, saldo < ${threshold})`,
+    });
+    return;
+  }
+
+  const stripe = getStripe();
+  if (!stripe || !user.stripeCustomerId) return;
+  const methods = await stripe.paymentMethods.list({
+    customer: user.stripeCustomerId,
+    type: "card",
+    limit: 1,
+  });
+  const pm = methods.data[0];
+  if (!pm) return;
+  const intent = await stripe.paymentIntents.create({
+    amount: chargeAmountCents(amount),
+    currency: "usd",
+    customer: user.stripeCustomerId,
+    payment_method: pm.id,
+    off_session: true,
+    confirm: true,
+    metadata: {
+      userId,
+      creditsUsd: String(amount),
+      auto_topup: "1",
+    },
+  });
+  if (intent.status !== "succeeded") return;
   const micros = usdToMicros(amount);
   await db
     .update(schema.users)
@@ -92,7 +141,7 @@ export async function maybeAutoTopup(userId: string) {
     userId,
     type: "auto_topup",
     micros,
-    note: `Auto top-up ${amount} USD (saldo < ${threshold})`,
+    note: `Auto top-up Stripe ${amount} USD (saldo < ${threshold}) · pi ${intent.id}`,
   });
 }
 

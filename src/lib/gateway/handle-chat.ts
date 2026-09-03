@@ -55,7 +55,21 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
     tokenCostUsd(estimateTokens(messages), req.max_tokens ?? 256, first.model.pricing),
   );
   await enforceGuardrails(auth, req, estimate);
-  await assertCredits(auth, estimate, first.model.free);
+  const byokRows = await db
+    .select({ provider: schema.byokCredentials.provider, deleted: schema.byokCredentials.deleted })
+    .from(schema.byokCredentials)
+    .where(eq(schema.byokCredentials.userId, auth.userId));
+  const byokProviders = new Set(
+    byokRows.filter((r) => !r.deleted && r.provider).map((r) => r.provider),
+  );
+  const anyPlatform = first.endpoints.some((e) => hasProviderKey(e));
+  const anyByok = first.endpoints.some(
+    (e) => byokProviders.has(e.adapter) || byokProviders.has(e.name),
+  );
+  await assertCredits(auth, estimate, {
+    isFree: first.model.free,
+    byokFeeOnly: !anyPlatform && anyByok,
+  });
 
   const started = Date.now();
   const genId = generationId();

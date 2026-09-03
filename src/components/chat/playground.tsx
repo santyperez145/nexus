@@ -35,10 +35,14 @@ export function Playground({
   models,
   defaultModel = "nexus/auto",
   compareModel,
+  platformLabs = 0,
+  hasByok = false,
 }: {
   models: { id: string; name: string }[];
   defaultModel?: string;
   compareModel?: string;
+  platformLabs?: number;
+  hasByok?: boolean;
 }) {
   const [lanes, setLanes] = useState<Lane[]>(() => {
     const first: Lane = { model: defaultModel, query: "", messages: [], stats: null };
@@ -54,9 +58,21 @@ export function Playground({
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const files = useRemoteData<FileRow[]>("/api/v1/files")[0] ?? [];
+  const [filesData, reloadFiles] = useRemoteData<FileRow[]>("/api/v1/files");
+  const files = filesData ?? [];
   const presets = useRemoteData<PresetRow[]>("/api/v1/presets")[0] ?? [];
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const echoRisk = platformLabs === 0 && !hasByok;
+  const sawLocal = lanes.some((l) => l.stats?.provider === "local");
+
+  async function uploadInline(file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/v1/files", { method: "POST", body: fd });
+    const json = (await res.json()) as { data?: { id: string } };
+    reloadFiles();
+    if (json.data?.id) setFileIds((ids) => [...ids, json.data!.id]);
+  }
 
   function filtered(query: string) {
     const q = query.trim().toLowerCase();
@@ -192,6 +208,20 @@ export function Playground({
 
   return (
     <div className="grid gap-4">
+      {echoRisk || sawLocal ? (
+        <p className="rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-sm text-amber-100">
+          {sawLocal
+            ? "La última respuesta fue eco local (sin key de lab)."
+            : "Sin labs de plataforma ni BYOK: el chat responderá en eco local."}{" "}
+          <Link href="/settings/byok" className="text-amber-400 hover:underline">
+            BYOK
+          </Link>
+          {" · "}
+          <Link href="/settings/connections" className="text-amber-400 hover:underline">
+            Conexiones
+          </Link>
+        </p>
+      ) : null}
       <div className={`grid gap-4 ${comparing ? "md:grid-cols-2" : ""}`}>
         {lanes.map((lane, index) => (
           <LanePicker
@@ -239,6 +269,18 @@ export function Playground({
           />
           <span className="w-8 font-mono text-xs">{temperature.toFixed(1)}</span>
         </label>
+        <label className="cursor-pointer text-amber-400 hover:underline">
+          Subir archivo
+          <input
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void uploadInline(f);
+              e.target.value = "";
+            }}
+          />
+        </label>
       </div>
       {files.length ? (
         <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
@@ -258,7 +300,9 @@ export function Playground({
             );
           })}
         </div>
-      ) : null}
+      ) : (
+        <p className="text-xs text-zinc-500">Sin archivos adjuntos. Subí uno o gestioná en Settings → Files.</p>
+      )}
       <Textarea
         value={system}
         onChange={(e) => setSystem(e.target.value)}

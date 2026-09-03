@@ -14,8 +14,10 @@ export const SCHEMA_SQL = [
     log_prompts boolean NOT NULL DEFAULT false,
     auto_topup_enabled boolean NOT NULL DEFAULT false,
     auto_topup_threshold_usd numeric,
-    auto_topup_amount_usd numeric
+    auto_topup_amount_usd numeric,
+    stripe_customer_id text
   )`,
+  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS stripe_customer_id text`,
   `CREATE TABLE IF NOT EXISTS "session" (
     id text PRIMARY KEY,
     expires_at timestamp NOT NULL,

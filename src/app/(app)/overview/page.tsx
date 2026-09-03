@@ -34,6 +34,10 @@ export default async function OverviewPage() {
           <Link href="/settings/connections" className="text-amber-400 hover:underline">
             Conexiones
           </Link>
+          {" · "}
+          <Link href="/settings/byok" className="text-amber-400 hover:underline">
+            BYOK
+          </Link>
         </p>
       ) : null}
       {unusedKeys.length ? (

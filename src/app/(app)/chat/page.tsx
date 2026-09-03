@@ -2,7 +2,8 @@ import { Playground } from "@/components/chat/playground";
 import { allModels } from "@/lib/catalog";
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { wiredProviders } from "@/lib/providers/registry";
+import { and, eq } from "drizzle-orm";
 
 export default async function ChatPage({
   searchParams,
@@ -11,8 +12,16 @@ export default async function ChatPage({
 }) {
   const session = await getSession();
   const q = await searchParams;
-  const [user] = session?.user
-    ? await db.select().from(schema.users).where(eq(schema.users.id, session.user.id)).limit(1)
+  const userId = session?.user?.id;
+  const [user] = userId
+    ? await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1)
+    : [];
+  const byok = userId
+    ? await db
+        .select({ id: schema.byokCredentials.id })
+        .from(schema.byokCredentials)
+        .where(and(eq(schema.byokCredentials.userId, userId), eq(schema.byokCredentials.deleted, false)))
+        .limit(1)
     : [];
   const models = allModels().map((m) => ({ id: m.id, name: m.name }));
   return (
@@ -26,6 +35,8 @@ export default async function ChatPage({
         models={models}
         defaultModel={q.model ?? user?.defaultModel ?? "nexus/auto"}
         compareModel={q.compare}
+        platformLabs={wiredProviders().length}
+        hasByok={byok.length > 0}
       />
     </div>
   );
