@@ -1,6 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { chatChunkPayload, chatCompletionPayload, usagePayload } from "../src/lib/gateway/openai-compat";
+import {
+  chatChunkPayload,
+  chatCompletionPayload,
+  toAnthropicMessage,
+  toResponseEnvelope,
+  usagePayload,
+} from "../src/lib/gateway/openai-compat";
 
 describe("openai-compat", () => {
   it("builds OpenRouter-shaped usage", () => {
@@ -52,5 +58,46 @@ describe("openai-compat", () => {
     });
     assert.equal(chunk.object, "chat.completion.chunk");
     assert.equal("usage" in chunk, false);
+  });
+
+  it("maps chat.completion to Responses envelope", () => {
+    const chat = chatCompletionPayload({
+      id: "gen-abc",
+      model: "nexus/auto",
+      provider: "local",
+      text: "hola mundo",
+      finishReason: "stop",
+      promptTokens: 2,
+      completionTokens: 3,
+      costUsd: 0,
+      isByok: false,
+      pricing: { prompt: 0, completion: 0 },
+    });
+    const resp = toResponseEnvelope(chat);
+    assert.equal(resp.object, "response");
+    assert.equal(resp.status, "completed");
+    assert.equal(resp.output[0]?.content[0]?.text, "hola mundo");
+    assert.equal(resp.usage.input_tokens, 2);
+    assert.equal(resp.metadata.nexus_chat_id, "gen-abc");
+  });
+
+  it("maps chat.completion to Anthropic Messages envelope", () => {
+    const chat = chatCompletionPayload({
+      id: "gen-xyz",
+      model: "anthropic/claude",
+      provider: "local",
+      text: "bonjour",
+      finishReason: "stop",
+      promptTokens: 1,
+      completionTokens: 1,
+      costUsd: 0,
+      isByok: false,
+      pricing: { prompt: 0, completion: 0 },
+    });
+    const msg = toAnthropicMessage(chat);
+    assert.equal(msg.type, "message");
+    assert.equal(msg.role, "assistant");
+    assert.equal(msg.content[0]?.text, "bonjour");
+    assert.equal(msg.stop_reason, "end_turn");
   });
 });

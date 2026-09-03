@@ -71,6 +71,18 @@ export const SCHEMA_SQL = [
     created_at timestamp NOT NULL DEFAULT now(),
     UNIQUE (organization_id, user_id)
   )`,
+  `CREATE TABLE IF NOT EXISTS "organization_invite" (
+    id text PRIMARY KEY,
+    organization_id text NOT NULL REFERENCES "organization"(id) ON DELETE CASCADE,
+    email text NOT NULL,
+    role text NOT NULL DEFAULT 'member',
+    token text NOT NULL UNIQUE,
+    invited_by text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    accepted_at timestamp,
+    expires_at timestamp NOT NULL,
+    created_at timestamp NOT NULL DEFAULT now(),
+    UNIQUE (organization_id, email)
+  )`,
   `CREATE TABLE IF NOT EXISTS "workspace" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,

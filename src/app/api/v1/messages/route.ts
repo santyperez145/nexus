@@ -1,5 +1,6 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { handleChat } from "@/lib/gateway/handle-chat";
+import { reshapeChatResponse } from "@/lib/gateway/openai-compat";
 import type { ChatMessage, ChatRequest } from "@/lib/gateway/types";
 
 export async function POST(req: Request) {
@@ -17,7 +18,8 @@ export async function POST(req: Request) {
       tools: body.tools,
       provider: body.provider,
     };
-    return await handleChat(mapped, auth, req.headers);
+    const res = await handleChat(mapped, auth, req.headers);
+    return await reshapeChatResponse(res, "anthropic");
   } catch (error) {
     return jsonError(error);
   }

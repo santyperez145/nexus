@@ -225,25 +225,25 @@ paths:
         "200": { description: Preset }
   /embeddings:
     post:
-      summary: Embeddings
+      summary: Embeddings (billed + generation ledger)
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Vectors }
   /images/generations:
     post:
-      summary: Images
+      summary: Images (billed + generation ledger)
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Image payload }
   /audio/speech:
     post:
-      summary: TTS
+      summary: TTS (billed + generation ledger)
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Audio bytes }
   /audio/transcriptions:
     post:
-      summary: STT
+      summary: STT (billed + generation ledger)
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Transcript }
@@ -323,16 +323,16 @@ paths:
         "200": { description: Completion }
   /messages:
     post:
-      summary: Anthropic Messages shim
+      summary: Anthropic Messages envelope (engine = chat)
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Messages response }
+        "200": { description: Anthropic message object }
   /responses:
     post:
-      summary: OpenAI Responses shim
+      summary: OpenAI Responses envelope (engine = chat)
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Responses payload }
+        "200": { description: Response object with output[] }
   /videos:
     post:
       summary: Start video job (Fal / Replicate / local)

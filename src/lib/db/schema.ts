@@ -105,6 +105,26 @@ export const organizationMembers = pgTable(
   (t) => [uniqueIndex("org_member_unique").on(t.organizationId, t.userId)],
 );
 
+export const organizationInvites = pgTable(
+  "organization_invite",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role").notNull().default("member"),
+    token: text("token").notNull().unique(),
+    invitedBy: text("invited_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    acceptedAt: timestamp("accepted_at"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("org_invite_email_unique").on(t.organizationId, t.email)],
+);
+
 export const workspaces = pgTable(
   "workspace",
   {

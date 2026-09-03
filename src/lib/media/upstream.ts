@@ -105,3 +105,49 @@ export async function startVideoJob(opts: { prompt: string; model?: string; falK
   }
   return null;
 }
+
+export async function pollVideoJob(opts: {
+  pollUrl?: string | null;
+  jobId?: string | null;
+  falKey?: string;
+  replicateToken?: string;
+}): Promise<{ url?: string; failed?: boolean; status?: string } | null> {
+  const replicate = opts.replicateToken?.trim() || process.env.REPLICATE_API_TOKEN?.trim();
+  if (replicate && (opts.pollUrl?.includes("replicate.com") || opts.jobId)) {
+    const url =
+      opts.pollUrl?.startsWith("http")
+        ? opts.pollUrl
+        : `https://api.replicate.com/v1/predictions/${opts.jobId}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${replicate}` },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return { failed: true, status: String(res.status) };
+    const data = (await res.json()) as {
+      status?: string;
+      output?: string | string[];
+      error?: string;
+      urls?: { get?: string };
+    };
+    if (data.status === "failed" || data.error) return { failed: true, status: data.status };
+    if (data.status === "succeeded") {
+      const out = Array.isArray(data.output) ? data.output[0] : data.output;
+      return { url: typeof out === "string" ? out : undefined, status: "succeeded" };
+    }
+    return { status: data.status };
+  }
+  const fal = opts.falKey?.trim() || process.env.FAL_KEY?.trim();
+  if (fal && opts.pollUrl?.includes("fal.")) {
+    const res = await fetch(opts.pollUrl, {
+      headers: { Authorization: `Key ${fal}` },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return { failed: true };
+    const data = (await res.json()) as { video?: { url?: string }; status?: string; error?: string };
+    if (data.error) return { failed: true };
+    if (data.video?.url) return { url: data.video.url, status: "completed" };
+    return { status: data.status };
+  }
+  return null;
+}
+

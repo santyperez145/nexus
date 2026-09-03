@@ -1,5 +1,6 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { resolveByokKey } from "@/lib/gateway/byok";
+import { chargeAndRecordMedia, MEDIA_DEFAULT_USD } from "@/lib/gateway/media-billing";
 import { synthesizeSpeech } from "@/lib/media/upstream";
 
 export async function POST(req: Request) {
@@ -8,7 +9,11 @@ export async function POST(req: Request) {
     const body = await req.json();
     const text = String(body.input ?? body.text ?? "");
     if (!text) return jsonError(Object.assign(new Error("input required"), { status: 400 }));
+    const model = String(body.model ?? "openai/tts");
     const apiKey = await resolveByokKey(auth.userId, "openai");
+    const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
+    const isByok = Boolean(apiKey) && !platform;
+    const started = Date.now();
     const live = await synthesizeSpeech({
       input: text,
       model: body.model,
@@ -16,23 +21,41 @@ export async function POST(req: Request) {
       format: body.response_format,
       apiKey,
     });
+    if (live && "error" in live) {
+      return jsonError(Object.assign(new Error(String(live.error)), { status: live.status ?? 502 }));
+    }
+    const local = !(live && "buffer" in live && live.buffer);
+    const charK = Math.max(1, text.length / 1000);
+    const billed = await chargeAndRecordMedia({
+      auth,
+      headers: req.headers,
+      modality: "speech",
+      model,
+      provider: local ? "local" : isByok ? "openai-byok" : "openai",
+      local,
+      isByok,
+      usd: MEDIA_DEFAULT_USD.speech * charK,
+      promptTokens: Math.ceil(text.length / 4),
+      latencyMs: Date.now() - started,
+    });
     if (live && "buffer" in live && live.buffer) {
       const bytes = new Uint8Array(live.buffer);
       return new Response(bytes, {
         headers: {
           "Content-Type": live.contentType || "audio/mpeg",
-          "X-Nexus-TTS": String(body.model ?? "openai/tts"),
+          "X-Nexus-TTS": model,
+          "X-Request-Id": billed.id,
+          "X-Nexus-Cost": String(billed.costMicros / 1_000_000),
         },
       });
-    }
-    if (live && "error" in live) {
-      return jsonError(Object.assign(new Error(String(live.error)), { status: live.status ?? 502 }));
     }
     const wav = minimalWav(text);
     return new Response(new Uint8Array(wav), {
       headers: {
         "Content-Type": "audio/wav",
         "X-Nexus-TTS": "nexus/tts-local",
+        "X-Request-Id": billed.id,
+        "X-Nexus-Cost": "0",
       },
     });
   } catch (error) {

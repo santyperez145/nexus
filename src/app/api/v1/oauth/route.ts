@@ -1,9 +1,22 @@
 import { eq } from "drizzle-orm";
+import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { sha256, randomKey } from "@/lib/crypto";
 import { db, schema } from "@/lib/db";
-import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { id } from "@/lib/ids";
 import { KEY_PREFIX } from "@/lib/config";
+
+/** Documenta el flujo PKCE (solo POST emite/canjea codes). */
+export async function GET() {
+  return Response.json({
+    data: {
+      flow: "pkce",
+      steps: [
+        "POST /api/v1/oauth with session + code_challenge → { code }",
+        "POST /api/v1/oauth with code + code_verifier → { key: sk-nx-… }",
+      ],
+    },
+  });
+}
 
 export async function POST(req: Request) {
   try {
