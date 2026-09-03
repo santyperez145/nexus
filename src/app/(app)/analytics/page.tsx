@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Sparkline } from "@/components/charts/sparkline";
 import { formatUsd } from "@/lib/money";
 import { useRemoteData } from "@/lib/use-remote-data";
 
 type Analytics = {
   totals: { requests: number; tokens: number; cost: number };
+  by_day?: Array<{ day: string; requests: number; tokens: number; cost: number }>;
   by_model: Array<{ model: string; tokens: number; cost: number; requests: number }>;
   by_provider: Array<{ provider: string; tokens: number; cost: number; requests: number }>;
   window_days: number;
@@ -19,12 +21,15 @@ const RANGES = [
 
 export default function AnalyticsPage() {
   const [days, setDays] = useState(30);
+  const [metric, setMetric] = useState<"requests" | "tokens" | "cost">("requests");
   const [data] = useRemoteData<Analytics>(`/api/v1/analytics?days=${days}`);
 
   const maxModelTok = useMemo(
     () => Math.max(1, ...(data?.by_model.map((r) => r.tokens) ?? [1])),
     [data],
   );
+  const series = useMemo(() => (data?.by_day ?? []).map((d) => d[metric]), [data, metric]);
+  const maxDay = Math.max(1, ...series);
 
   if (!data) return <p className="text-sm text-zinc-500">Cargando analytics…</p>;
 
@@ -54,6 +59,7 @@ export default function AnalyticsPage() {
           ))}
         </div>
       </div>
+
       <div className="mb-8 grid gap-6 md:grid-cols-3">
         <div>
           <div className="text-xs text-zinc-500">Requests</div>
@@ -68,6 +74,42 @@ export default function AnalyticsPage() {
           <div className="text-2xl font-semibold">{formatUsd(data.totals.cost)}</div>
         </div>
       </div>
+
+      <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-medium text-zinc-300">Serie diaria</h2>
+          <div className="flex gap-1">
+            {(["requests", "tokens", "cost"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMetric(m)}
+                className={`rounded px-2 py-0.5 text-[11px] uppercase tracking-wide ${
+                  metric === m ? "bg-amber-400/15 text-amber-200" : "text-zinc-600 hover:text-zinc-400"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Sparkline values={series} className="mb-4 h-14 w-full" />
+        <div className="flex h-24 items-end gap-px">
+          {series.map((v, i) => (
+            <div
+              key={data.by_day?.[i]?.day ?? i}
+              title={`${data.by_day?.[i]?.day ?? ""}: ${metric === "cost" ? formatUsd(v) : v.toLocaleString()}`}
+              className="min-w-0 flex-1 rounded-t bg-amber-400/40"
+              style={{ height: `${Math.max(v > 0 ? 6 : 2, (v / maxDay) * 100)}%` }}
+            />
+          ))}
+        </div>
+        <div className="mt-2 flex justify-between text-[10px] text-zinc-600">
+          <span>{data.by_day?.[0]?.day ?? ""}</span>
+          <span>{data.by_day?.[data.by_day.length - 1]?.day ?? ""}</span>
+        </div>
+      </section>
+
       <h2 className="mb-3 text-sm font-medium text-zinc-300">Por provider</h2>
       <div className="mb-8 grid gap-2">
         {(data.by_provider ?? [])

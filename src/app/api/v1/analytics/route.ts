@@ -16,6 +16,7 @@ export async function GET(req: Request) {
       .limit(2000);
     const byModel = new Map<string, { tokens: number; cost: number; requests: number }>();
     const byProvider = new Map<string, { tokens: number; cost: number; requests: number }>();
+    const byDay = new Map<string, { requests: number; tokens: number; cost: number }>();
     for (const r of rows) {
       const tok = r.promptTokens + r.completionTokens;
       const cost = microsToUsd(r.costMicros);
@@ -29,6 +30,17 @@ export async function GET(req: Request) {
       p.cost += cost;
       p.requests += 1;
       byProvider.set(r.provider, p);
+      const day = new Date(r.createdAt).toISOString().slice(0, 10);
+      const d = byDay.get(day) ?? { requests: 0, tokens: 0, cost: 0 };
+      d.requests += 1;
+      d.tokens += tok;
+      d.cost += cost;
+      byDay.set(day, d);
+    }
+    const daySeries: Array<{ day: string; requests: number; tokens: number; cost: number }> = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      daySeries.push({ day: d, ...(byDay.get(d) ?? { requests: 0, tokens: 0, cost: 0 }) });
     }
     return Response.json({
       data: {
@@ -38,6 +50,7 @@ export async function GET(req: Request) {
           tokens: rows.reduce((s, r) => s + r.promptTokens + r.completionTokens, 0),
           cost: rows.reduce((s, r) => s + microsToUsd(r.costMicros), 0),
         },
+        by_day: daySeries,
         by_model: [...byModel.entries()].map(([model, v]) => ({ model, ...v })),
         by_provider: [...byProvider.entries()].map(([provider, v]) => ({ provider, ...v })),
         recent: rows.slice(0, 50),

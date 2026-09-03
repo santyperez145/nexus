@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { formatUsd, microsToUsd } from "@/lib/money";
@@ -7,13 +7,38 @@ import { allModels } from "@/lib/catalog";
 import { wiredProviders } from "@/lib/providers/registry";
 import { Button } from "@/components/ui/button";
 import { AppPageHeader } from "@/components/layout/app-page-header";
+import { Sparkline } from "@/components/charts/sparkline";
 
-function relativeTime(d: Date) {
-  const sec = Math.max(1, Math.floor((Date.now() - d.getTime()) / 1000));
+function relativeTime(d: Date, nowMs: number) {
+  const sec = Math.max(1, Math.floor((nowMs - d.getTime()) / 1000));
   if (sec < 60) return `${sec}s`;
   if (sec < 3600) return `${Math.floor(sec / 60)}m`;
   if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
   return `${Math.floor(sec / 86400)}d`;
+}
+
+async function loadWeekSeries(userId: string) {
+  const nowMs = Date.now();
+  const since7 = new Date(nowMs - 7 * 24 * 60 * 60 * 1000);
+  const week = await db
+    .select()
+    .from(schema.generations)
+    .where(and(eq(schema.generations.userId, userId), gte(schema.generations.createdAt, since7)))
+    .orderBy(desc(schema.generations.createdAt))
+    .limit(2000);
+  const byDay = new Map<string, number>();
+  for (let i = 6; i >= 0; i--) {
+    byDay.set(new Date(nowMs - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), 0);
+  }
+  let weekTokens = 0;
+  let weekCost = 0;
+  for (const r of week) {
+    const day = new Date(r.createdAt).toISOString().slice(0, 10);
+    if (byDay.has(day)) byDay.set(day, (byDay.get(day) ?? 0) + 1);
+    weekTokens += r.promptTokens + r.completionTokens;
+    weekCost += microsToUsd(r.costMicros);
+  }
+  return { week, spark: [...byDay.values()], weekTokens, weekCost, nowMs };
 }
 
 export default async function OverviewPage() {
@@ -26,6 +51,7 @@ export default async function OverviewPage() {
     .where(eq(schema.generations.userId, userId))
     .orderBy(desc(schema.generations.createdAt))
     .limit(10);
+  const { week, spark, weekTokens, weekCost, nowMs } = await loadWeekSeries(userId);
   const keys = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.userId, userId));
   const labs = wiredProviders().length;
   const models = allModels().filter((m) => !m.id.startsWith("nexus/")).length;
@@ -38,7 +64,7 @@ export default async function OverviewPage() {
         title="Overview"
         actions={
           <>
-        <Button asChild size="sm" variant="outline">
+            <Button asChild size="sm" variant="outline">
               <Link href="/welcome">Welcome</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
@@ -77,7 +103,7 @@ export default async function OverviewPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.2fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
           <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Wallet</div>
           <div className="mt-2 font-[family-name:var(--font-syne)] text-4xl font-semibold tracking-tight text-amber-300">
@@ -108,6 +134,27 @@ export default async function OverviewPage() {
               <Link href="/docs">Docs</Link>
             </Button>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Últimos 7d</div>
+            <Link href="/analytics" className="text-[11px] text-amber-400/90 hover:underline">
+              Analytics →
+            </Link>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-xs text-zinc-600">Requests</div>
+              <div className="text-xl font-semibold tabular-nums">{week.length}</div>
+            </div>
+            <div>
+              <div className="text-xs text-zinc-600">Costo</div>
+              <div className="text-xl font-semibold tabular-nums">{formatUsd(weekCost)}</div>
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-zinc-600">{weekTokens.toLocaleString()} tokens</p>
+          <Sparkline values={spark} className="mt-4 h-12 w-full" />
         </section>
 
         <section>
@@ -145,7 +192,7 @@ export default async function OverviewPage() {
                     <div className="tabular-nums">
                       {r.promptTokens + r.completionTokens} tok · {formatUsd(microsToUsd(r.costMicros))}
                     </div>
-                    <div className="mt-0.5 text-zinc-600">{relativeTime(new Date(r.createdAt))}</div>
+                    <div className="mt-0.5 text-zinc-600">{relativeTime(new Date(r.createdAt), nowMs)}</div>
                   </div>
                 </Link>
               ))}

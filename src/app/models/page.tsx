@@ -8,7 +8,7 @@ const MODS = new Set(["all", "text", "image", "video", "audio", "embeddings"]);
 export default async function ModelsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mod?: string }>;
+  searchParams: Promise<{ mod?: string; free?: string; author?: string; lab?: string }>;
 }) {
   const q = await searchParams;
   const initialMod = MODS.has(q.mod ?? "")
@@ -30,14 +30,20 @@ export default async function ModelsPage({
     <MarketingShell>
       <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
         <MarketingPageHeader title="Models">
-          Un slug, varios labs. Filtrá por modalidad; el gateway elige host por precio, latencia o{" "}
-          <code className="text-zinc-700">provider.only</code>. Media en{" "}
+          Un slug, varios labs. Filtrá por modalidad, free, autor o host; el gateway elige por precio,
+          latencia o <code className="text-zinc-700">provider.only</code>. Media en{" "}
           <a href="/studio" className="text-amber-700 hover:underline">
             Studio
           </a>
           .
         </MarketingPageHeader>
-        <ModelsExplorer models={models} initialMod={initialMod} />
+        <ModelsExplorer
+          models={models}
+          initialMod={initialMod}
+          initialFree={q.free === "1" || q.free === "true"}
+          initialAuthor={q.author ?? "all"}
+          initialLab={q.lab ?? "all"}
+        />
       </div>
     </MarketingShell>
   );

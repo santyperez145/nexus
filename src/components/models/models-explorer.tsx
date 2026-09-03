@@ -41,13 +41,21 @@ const MODALITIES = [
 export function ModelsExplorer({
   models,
   initialMod = "all",
+  initialFree = false,
+  initialAuthor = "all",
+  initialLab = "all",
 }: {
   models: Row[];
   initialMod?: (typeof MODALITIES)[number]["id"];
+  initialFree?: boolean;
+  initialAuthor?: string;
+  initialLab?: string;
 }) {
   const [q, setQ] = useState("");
-  const [lab, setLab] = useState("all");
+  const [lab, setLab] = useState(initialLab);
   const [mod, setMod] = useState<(typeof MODALITIES)[number]["id"]>(initialMod);
+  const [freeOnly, setFreeOnly] = useState(initialFree);
+  const [author, setAuthor] = useState(initialAuthor);
   const [sort, setSort] = useState<"new" | "price" | "context">("new");
   const [table, setTable] = useState(true);
   const router = useRouter();
@@ -56,6 +64,13 @@ export function ModelsExplorer({
     for (const m of models) for (const e of m.endpoints) set.add(e.adapter);
     return [...set].sort();
   }, [models]);
+  const authors = useMemo(
+    () =>
+      [...new Set(models.map((m) => m.author).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, 200),
+    [models],
+  );
   const modCounts = useMemo(() => {
     const map: Record<string, number> = { all: models.length };
     for (const item of MODALITIES) {
@@ -64,10 +79,32 @@ export function ModelsExplorer({
     }
     return map;
   }, [models]);
+
+  function syncUrl(next: {
+    mod?: string;
+    free?: boolean;
+    author?: string;
+    lab?: string;
+  }) {
+    const params = new URLSearchParams();
+    const m = next.mod ?? mod;
+    const f = next.free ?? freeOnly;
+    const a = next.author ?? author;
+    const l = next.lab ?? lab;
+    if (m !== "all") params.set("mod", m);
+    if (f) params.set("free", "1");
+    if (a !== "all") params.set("author", a);
+    if (l !== "all") params.set("lab", l);
+    const qs = params.toString();
+    router.replace(qs ? `/models?${qs}` : "/models", { scroll: false });
+  }
+
   const filtered = models
     .filter((m) => {
       const hay = `${m.id} ${m.name} ${m.description} ${m.author}`.toLowerCase();
       if (q && !hay.includes(q.toLowerCase())) return false;
+      if (freeOnly && !m.free) return false;
+      if (author !== "all" && m.author !== author) return false;
       if (lab !== "all") {
         if (m.id.startsWith("nexus/")) return lab === "nexus";
         if (!m.endpoints.some((e) => e.adapter === lab)) return false;
@@ -96,8 +133,7 @@ export function ModelsExplorer({
                 type="button"
                 onClick={() => {
                   setMod(item.id);
-                  const url = item.id === "all" ? "/models" : `/models?mod=${item.id}`;
-                  router.replace(url, { scroll: false });
+                  syncUrl({ mod: item.id });
                 }}
                 className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                   active
@@ -112,8 +148,23 @@ export function ModelsExplorer({
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !freeOnly;
+              setFreeOnly(next);
+              syncUrl({ free: next });
+            }}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              freeOnly
+                ? "border-emerald-600/40 bg-emerald-50 text-emerald-800"
+                : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-800"
+            }`}
+          >
+            Free
+          </button>
         </div>
-        <div className="grid gap-2 md:grid-cols-[1fr_160px_140px_auto]">
+        <div className="grid gap-2 md:grid-cols-[1fr_140px_140px_140px_auto]">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -122,8 +173,27 @@ export function ModelsExplorer({
             aria-label="Buscar modelos"
           />
           <select
+            value={author}
+            onChange={(e) => {
+              setAuthor(e.target.value);
+              syncUrl({ author: e.target.value });
+            }}
+            className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
+            aria-label="Filtrar por autor"
+          >
+            <option value="all">Todos los autores</option>
+            {authors.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+          <select
             value={lab}
-            onChange={(e) => setLab(e.target.value)}
+            onChange={(e) => {
+              setLab(e.target.value);
+              syncUrl({ lab: e.target.value });
+            }}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
             aria-label="Filtrar por lab"
           >
