@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.4.0
-  description: OpenAI-compatible model gateway. One slug, many labs.
+  version: 0.5.0
+  description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference.
 servers:
   - url: /api/v1
 paths:
@@ -10,6 +10,15 @@ paths:
     post:
       summary: Chat Completions
       security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: HTTP-Referer
+          schema: { type: string }
+          description: App origin for activity attribution
+        - in: header
+          name: X-Title
+          schema: { type: string }
+          description: App name for activity attribution
       requestBody:
         required: true
         content:
@@ -18,11 +27,34 @@ paths:
               type: object
               properties:
                 model: { type: string, example: meta-llama/llama-3.3-70b-instruct }
-                models: { type: array, items: { type: string } }
+                models: { type: array, items: { type: string }, description: Fallback slugs }
                 messages: { type: array, items: { type: object } }
                 stream: { type: boolean }
+                stream_options:
+                  type: object
+                  properties:
+                    include_usage: { type: boolean }
                 temperature: { type: number }
                 max_tokens: { type: integer }
+                top_p: { type: number }
+                top_k: { type: integer }
+                seed: { type: integer }
+                stop: { oneOf: [{ type: string }, { type: array, items: { type: string } }] }
+                transforms:
+                  type: array
+                  items: { type: string, enum: [middle-out] }
+                include_reasoning: { type: boolean }
+                reasoning:
+                  type: object
+                  properties:
+                    effort: { type: string, enum: [low, medium, high] }
+                    max_tokens: { type: integer }
+                plugins:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string, example: web }
                 tools:
                   type: array
                   items:
@@ -44,12 +76,25 @@ paths:
                         prompt: { type: number }
                         completion: { type: number }
       responses:
-        "200": { description: Completion or SSE stream }
+        "200":
+          description: Completion or SSE stream. Header X-Request-Id is the generation id.
         "401": { description: Invalid API key }
         "402": { description: Insufficient credits }
+        "429": { description: Rate limited }
+        "502": { description: Provider error }
   /models:
     get:
       summary: List models
+      parameters:
+        - in: query
+          name: category
+          schema: { type: string, example: free }
+        - in: query
+          name: output_modalities
+          schema: { type: string, example: text }
+        - in: query
+          name: supported_parameters
+          schema: { type: string, example: tools }
       responses:
         "200": { description: Catalog }
   /models/{author}/{slug}:
@@ -76,19 +121,88 @@ paths:
       summary: Remaining credits
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Balance }
+        "200": { description: total_credits, total_usage, remaining }
+  /generation:
+    get:
+      summary: Generation stats
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Usage, cost, provider, latency }
+  /generations:
+    get:
+      summary: Recent generations
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+      responses:
+        "200": { description: List }
   /keys:
     get:
       summary: List API keys
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Keys }
+        "200": { description: Keys (usage/limit in USD) }
+    post:
+      summary: Create API key
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Includes plaintext key once }
+    patch:
+      summary: Update API key (name, disabled, limit)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Updated key }
+    delete:
+      summary: Revoke API key
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: success }
+  /auth/key:
+    get:
+      summary: Current key stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Label, usage, limit }
   /byok:
     get:
       summary: BYOK credentials
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Credentials }
+  /workspaces:
+    get:
+      summary: Workspaces and budgets
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Workspaces }
+    post:
+      summary: Create workspace
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Workspace }
+    patch:
+      summary: Update name or monthly budget
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Workspace }
+  /presets:
+    get:
+      summary: List presets
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Presets }
+    post:
+      summary: Create preset (@slug)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Preset }
   /embeddings:
     post:
       summary: Embeddings

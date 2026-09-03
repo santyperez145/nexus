@@ -29,6 +29,10 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
     if (key.limitMicros != null && key.usageMicros >= key.limitMicros) {
       throw Object.assign(new Error("API key credit limit reached"), { status: 402 });
     }
+    await db
+      .update(schema.apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(schema.apiKeys.id, key.id));
     return {
       userId: user.id,
       apiKeyId: key.id,
@@ -72,10 +76,22 @@ export function jsonError(error: unknown) {
         ? "insufficient_credits"
         : safe === 404
           ? "model_not_found"
-          : safe === 429
+          : safe === 400
+            ? "invalid_request"
+            : safe === 429
             ? "rate_limited"
             : safe === 502
               ? "provider_error"
               : "internal_error";
-  return Response.json({ error: { message, code, metadata: {} } }, { status: safe });
+  const metadata: Record<string, unknown> = {};
+  if (typeof error === "object" && error && "provider" in error) {
+    metadata.provider_name = (error as { provider?: string }).provider;
+  }
+  const headers: Record<string, string> = {};
+  if (safe === 429) {
+    headers["Retry-After"] = "60";
+    headers["X-RateLimit-Limit"] = "60";
+    headers["X-RateLimit-Remaining"] = "0";
+  }
+  return Response.json({ error: { message, code, metadata } }, { status: safe, headers });
 }

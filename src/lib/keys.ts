@@ -8,6 +8,7 @@ export async function issueApiKey(opts: {
   name: string;
   workspaceId?: string | null;
   isManagement?: boolean;
+  limitMicros?: number | null;
 }) {
   const prefix = opts.isManagement ? MANAGEMENT_KEY_PREFIX : KEY_PREFIX;
   const plain = randomKey(prefix);
@@ -19,6 +20,7 @@ export async function issueApiKey(opts: {
     keyHash: sha256(plain),
     keyPrefix: plain.slice(0, 12),
     isManagement: Boolean(opts.isManagement),
+    limitMicros: opts.limitMicros ?? null,
   };
   await db.insert(schema.apiKeys).values(row);
   return { ...row, key: plain };

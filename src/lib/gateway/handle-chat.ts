@@ -11,6 +11,9 @@ import { enforceGuardrails } from "./guardrails";
 import { isCircuitOpen, recordFailure, recordSuccess } from "./health";
 import { assertRateLimit } from "./rate-limit";
 import { buildServerTools } from "./server-tools";
+import { applyPreset } from "./presets";
+import { applyMiddleOut } from "./middle-out";
+import { chatChunkPayload, chatCompletionPayload, usagePayload } from "./openai-compat";
 import { dispatchGenerationWebhook } from "@/lib/observability/dispatch";
 
 function normalizeMessages(req: ChatRequest): ChatMessage[] {
@@ -30,8 +33,12 @@ async function byokFor(userId: string, provider: string) {
 }
 
 export async function handleChat(req: ChatRequest, auth: AuthContext, headers: Headers) {
+  req = await applyPreset(req, auth.userId);
   await enforceGuardrails(auth, req);
-  const messages = normalizeMessages(req);
+  let messages = normalizeMessages(req);
+  if (req.transforms?.includes("middle-out")) {
+    messages = applyMiddleOut(messages);
+  }
   const plan = resolveRoute(req, auth);
   if (!plan.models.length) {
     throw Object.assign(new Error("No available providers match your routing and privacy settings"), {
@@ -89,11 +96,17 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
           endpoint,
           messages,
           temperature: req.temperature,
-          maxTokens: req.max_tokens ?? req.max_completion_tokens,
+          maxTokens: req.max_tokens ?? req.max_completion_tokens ?? req.reasoning?.max_tokens,
           byok,
           tools,
           seed: req.seed,
           topP: req.top_p,
+          topK: req.top_k,
+          frequencyPenalty: req.frequency_penalty,
+          presencePenalty: req.presence_penalty,
+          stop: req.stop,
+          responseFormat: req.response_format,
+          reasoningEffort: req.reasoning?.effort,
         });
         await recordSuccess(endpoint.adapter);
         const billed = await settleUsage({
@@ -119,36 +132,31 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
           isByok: Boolean(byok) && !result.local,
           messages,
         });
-        return Response.json({
-          id: genId,
-          object: "chat.completion",
-          created: Math.floor(Date.now() / 1000),
-          model: candidate.model.id,
-          provider: endpoint.adapter,
-          choices: [
-            {
-              index: 0,
-              finish_reason: result.finishReason,
-              native_finish_reason: result.finishReason,
-              message: { role: "assistant", content: result.text },
-            },
-          ],
-          usage: {
-            prompt_tokens: result.promptTokens,
-            completion_tokens: result.completionTokens,
-            total_tokens: result.promptTokens + result.completionTokens,
-            cost: billed.usd,
-            is_byok: Boolean(byok) && !result.local,
-            cost_details: {
-              upstream_inference_prompt_cost: result.promptTokens * endpoint.pricing.prompt,
-              upstream_inference_completions_cost: result.completionTokens * endpoint.pricing.completion,
-            },
-          },
-        });
+        return jsonCompletion(
+          chatCompletionPayload({
+            id: genId,
+            model: candidate.model.id,
+            provider: endpoint.adapter,
+            text: result.text,
+            finishReason: result.finishReason,
+            promptTokens: result.promptTokens,
+            completionTokens: result.completionTokens,
+            costUsd: billed.usd,
+            isByok: Boolean(byok) && !result.local,
+            pricing: endpoint.pricing,
+            reasoningTokens: result.reasoningTokens,
+            cachedTokens: result.cachedTokens,
+            toolCalls: result.toolCalls,
+            reasoning: req.include_reasoning === false ? null : result.reasoning,
+          }),
+          genId,
+        );
       } catch (error) {
         await recordFailure(endpoint.adapter);
         lastError = error instanceof Error ? error.message : String(error);
-        if (req.provider?.allow_fallbacks === false) break;
+        if (req.provider?.allow_fallbacks === false) {
+          throw Object.assign(new Error(lastError), { status: 502, provider: endpoint.adapter });
+        }
       }
     }
   }
@@ -172,10 +180,16 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
       endpoint,
       messages,
       temperature: req.temperature,
-      maxTokens: req.max_tokens ?? req.max_completion_tokens,
+      maxTokens: req.max_tokens ?? req.max_completion_tokens ?? req.reasoning?.max_tokens,
       tools: buildServerTools(req, candidate.variants),
       seed: req.seed,
       topP: req.top_p,
+      topK: req.top_k,
+      frequencyPenalty: req.frequency_penalty,
+      presencePenalty: req.presence_penalty,
+      stop: req.stop,
+      responseFormat: req.response_format,
+      reasoningEffort: req.reasoning?.effort,
     });
     const billed = await settleUsage({
       auth,
@@ -200,31 +214,26 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
       isByok: false,
       messages,
     });
-    return Response.json({
-      id: genId,
-      object: "chat.completion",
-      created: Math.floor(Date.now() / 1000),
-      model: candidate.model.id,
-      provider: "local",
-      choices: [
-        {
-          index: 0,
-          finish_reason: result.finishReason,
-          native_finish_reason: result.finishReason,
-          message: { role: "assistant", content: result.text },
-        },
-      ],
-      usage: {
-        prompt_tokens: result.promptTokens,
-        completion_tokens: result.completionTokens,
-        total_tokens: result.promptTokens + result.completionTokens,
-        cost: 0,
-        is_byok: false,
-      },
-    });
+    return jsonCompletion(
+      chatCompletionPayload({
+        id: genId,
+        model: candidate.model.id,
+        provider: "local",
+        text: result.text,
+        finishReason: result.finishReason,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        costUsd: 0,
+        isByok: false,
+        pricing: endpoint.pricing,
+        reasoning: result.reasoning,
+        toolCalls: result.toolCalls,
+      }),
+      genId,
+    );
   }
 
-  throw Object.assign(new Error(lastError), { status: 502 });
+  throw Object.assign(new Error(lastError), { status: 502, provider: lastUnwired?.adapter });
 }
 
 async function streamCompletion(opts: {
@@ -243,11 +252,15 @@ async function streamCompletion(opts: {
     endpoint: opts.endpoint,
     messages: opts.messages,
     temperature: opts.req.temperature,
-    maxTokens: opts.req.max_tokens ?? opts.req.max_completion_tokens,
+    maxTokens: opts.req.max_tokens ?? opts.req.max_completion_tokens ?? opts.req.reasoning?.max_tokens,
     byok: opts.byok,
     tools: opts.tools,
     seed: opts.req.seed,
     topP: opts.req.top_p,
+    topK: opts.req.top_k,
+    frequencyPenalty: opts.req.frequency_penalty,
+    presencePenalty: opts.req.presence_penalty,
+    stop: opts.req.stop,
   });
 
   const encoder = new TextEncoder();
@@ -262,20 +275,15 @@ async function streamCompletion(opts: {
         if ("textStream" in streamed && streamed.textStream) {
           for await (const delta of streamed.textStream) {
             full += delta;
-            send({
-              id: opts.genId,
-              object: "chat.completion.chunk",
-              created: Math.floor(Date.now() / 1000),
-              model: opts.candidate.model.id,
-              choices: [
-                {
-                  index: 0,
-                  delta: { role: "assistant", content: delta },
-                  finish_reason: null,
-                  native_finish_reason: null,
-                },
-              ],
-            });
+            send(
+              chatChunkPayload({
+                id: opts.genId,
+                model: opts.candidate.model.id,
+                provider: opts.endpoint.adapter,
+                delta: { role: "assistant", content: delta },
+                finishReason: null,
+              }),
+            );
           }
           const usage = await streamed.usage;
           const promptTokens = usage.inputTokens ?? estimateTokens(opts.messages);
@@ -289,26 +297,25 @@ async function streamCompletion(opts: {
             isFree: opts.candidate.model.free,
             isByok: Boolean(opts.byok),
           });
-          send({
-            id: opts.genId,
-            object: "chat.completion.chunk",
-            created: Math.floor(Date.now() / 1000),
-            model: opts.candidate.model.id,
-            choices: [
-              {
-                index: 0,
-                delta: { content: "" },
-                finish_reason: "stop",
-                native_finish_reason: "stop",
-              },
-            ],
-            usage: {
-              prompt_tokens: promptTokens,
-              completion_tokens: completionTokens,
-              total_tokens: promptTokens + completionTokens,
-              cost: billed.usd,
-            },
-          });
+          const includeUsage = opts.req.stream_options?.include_usage === true;
+          send(
+            chatChunkPayload({
+              id: opts.genId,
+              model: opts.candidate.model.id,
+              provider: opts.endpoint.adapter,
+              delta: { content: "" },
+              finishReason: "stop",
+              usage: includeUsage
+                ? usagePayload({
+                    promptTokens,
+                    completionTokens,
+                    costUsd: billed.usd,
+                    isByok: Boolean(opts.byok),
+                    pricing: opts.endpoint.pricing,
+                  })
+                : undefined,
+            }),
+          );
           await persistGeneration({
             genId: opts.genId,
             auth: opts.auth,
@@ -323,21 +330,57 @@ async function streamCompletion(opts: {
             isByok: Boolean(opts.byok),
             messages: opts.messages,
           });
-        } else {
+        } else if ("text" in streamed) {
           full = streamed.text;
-          send({
-            id: opts.genId,
-            object: "chat.completion.chunk",
-            created: Math.floor(Date.now() / 1000),
-            model: opts.candidate.model.id,
-            choices: [
-              {
-                index: 0,
-                delta: { role: "assistant", content: full },
-                finish_reason: "stop",
-                native_finish_reason: "stop",
-              },
-            ],
+          const promptTokens = streamed.promptTokens ?? estimateTokens(opts.messages);
+          const completionTokens = streamed.completionTokens ?? estimateTokens(full);
+          const billed = await settleUsage({
+            auth: opts.auth,
+            generationId: opts.genId,
+            promptTokens,
+            completionTokens,
+            pricing: opts.endpoint.pricing,
+            isFree: true,
+            isByok: false,
+          });
+          const includeUsage = opts.req.stream_options?.include_usage === true;
+          send(
+            chatChunkPayload({
+              id: opts.genId,
+              model: opts.candidate.model.id,
+              provider: "local",
+              delta: { role: "assistant", content: full },
+              finishReason: "stop",
+              usage: includeUsage
+                ? usagePayload({
+                    promptTokens,
+                    completionTokens,
+                    costUsd: 0,
+                    isByok: false,
+                    pricing: opts.endpoint.pricing,
+                  })
+                : undefined,
+            }),
+          );
+          await persistGeneration({
+            genId: opts.genId,
+            auth: opts.auth,
+            headers: opts.headers,
+            requested: opts.req.model ?? "nexus/auto",
+            routed: opts.candidate.model.id,
+            provider: "local",
+            result: {
+              text: full,
+              promptTokens,
+              completionTokens,
+              finishReason: "stop",
+              local: true,
+            },
+            costMicros: billed.micros,
+            latencyMs: Date.now() - opts.started,
+            streamed: true,
+            isByok: false,
+            messages: opts.messages,
           });
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -353,8 +396,13 @@ async function streamCompletion(opts: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Request-Id": opts.genId,
     },
   });
+}
+
+function jsonCompletion(payload: unknown, genId: string) {
+  return Response.json(payload, { headers: { "X-Request-Id": genId } });
 }
 
 async function persistGeneration(opts: {
@@ -364,7 +412,15 @@ async function persistGeneration(opts: {
   requested: string;
   routed: string;
   provider: string;
-  result: { text: string; promptTokens: number; completionTokens: number; finishReason: string; local: boolean };
+  result: {
+    text: string;
+    promptTokens: number;
+    completionTokens: number;
+    finishReason: string;
+    local: boolean;
+    reasoningTokens?: number;
+    cachedTokens?: number;
+  };
   costMicros: number;
   latencyMs: number;
   streamed: boolean;
@@ -382,6 +438,7 @@ async function persistGeneration(opts: {
     finishReason: opts.result.finishReason,
     promptTokens: opts.result.promptTokens,
     completionTokens: opts.result.completionTokens,
+    reasoningTokens: opts.result.reasoningTokens ?? 0,
     costMicros: opts.costMicros,
     latencyMs: opts.latencyMs,
     streamed: opts.streamed,
@@ -390,7 +447,7 @@ async function persistGeneration(opts: {
     appTitle: opts.headers.get("x-nexus-title") ?? opts.headers.get("x-title"),
     prompt: opts.auth.logPrompts ? JSON.stringify(opts.messages) : null,
     completion: opts.auth.logPrompts ? opts.result.text : null,
-    metadata: { local: opts.result.local },
+    metadata: { local: opts.result.local, cached_tokens: opts.result.cachedTokens ?? 0 },
   });
   await dispatchGenerationWebhook(opts.auth.userId, {
     id: opts.genId,

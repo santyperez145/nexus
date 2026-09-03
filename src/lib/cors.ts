@@ -75,7 +75,7 @@ export function publicCorsHeaders(req: Request) {
     "Access-Control-Allow-Methods": ALLOW_METHODS,
     "Access-Control-Allow-Headers": requestedHeaders(req),
     "Access-Control-Max-Age": "86400",
-    "Access-Control-Expose-Headers": "X-Request-Id",
+    "Access-Control-Expose-Headers": "X-Request-Id, X-Title",
     Vary: "Origin",
   };
 }

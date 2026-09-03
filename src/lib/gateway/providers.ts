@@ -1,4 +1,4 @@
-import { generateText, streamText, embed, embedMany, stepCountIs, type ToolSet } from "ai";
+import { generateText, streamText, embed, embedMany, stepCountIs, type ModelMessage, type ToolSet } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -13,16 +13,21 @@ function envKey(adapter: string, override?: string) {
   return spec ? envFor(spec) : undefined;
 }
 
-function toCoreMessages(messages: ChatMessage[]) {
+function toCoreMessages(messages: ChatMessage[]): ModelMessage[] {
   return messages.map((m) => {
-    const content =
-      typeof m.content === "string"
-        ? m.content
-        : m.content
-            .map((p) => p.text ?? (p.image_url ? `[image] ${p.image_url.url}` : ""))
-            .join("\n");
-    return { role: m.role === "tool" ? "assistant" : m.role, content };
-  }) as { role: "system" | "user" | "assistant"; content: string }[];
+    const role = m.role === "tool" ? "assistant" : m.role;
+    if (typeof m.content === "string") {
+      return { role, content: m.content };
+    }
+    const parts = (m.content ?? []).map((p) => {
+      if (p.image_url?.url) return { type: "image" as const, image: p.image_url.url };
+      if (p.type === "image_url" && p.image_url?.url) {
+        return { type: "image" as const, image: p.image_url.url };
+      }
+      return { type: "text" as const, text: p.text ?? "" };
+    });
+    return { role, content: parts };
+  }) as ModelMessage[];
 }
 
 function languageModel(endpoint: ModelEndpoint, apiKey: string) {
@@ -56,11 +61,26 @@ export async function completeChat(opts: {
   tools?: ToolSet;
   seed?: number;
   topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  stop?: string | string[];
+  responseFormat?: { type: string; json_schema?: unknown };
+  reasoningEffort?: "low" | "medium" | "high";
 }) {
   const apiKey = envKey(opts.endpoint.adapter, opts.byok);
   if (!apiKey) {
     return localComplete(opts.messages, opts.endpoint);
   }
+  const stop = opts.stop == null ? undefined : Array.isArray(opts.stop) ? opts.stop : [opts.stop];
+  const openai: {
+    responseFormat?: { type: "json_object" };
+    reasoningEffort?: "low" | "medium" | "high";
+  } = {};
+  if (opts.responseFormat?.type === "json_object" || opts.responseFormat?.type === "json_schema") {
+    openai.responseFormat = { type: "json_object" };
+  }
+  if (opts.reasoningEffort) openai.reasoningEffort = opts.reasoningEffort;
   const result = await generateText({
     model: languageModel(opts.endpoint, apiKey),
     messages: toCoreMessages(opts.messages),
@@ -68,13 +88,23 @@ export async function completeChat(opts: {
     maxOutputTokens: opts.maxTokens,
     seed: opts.seed,
     topP: opts.topP,
+    topK: opts.topK,
+    frequencyPenalty: opts.frequencyPenalty,
+    presencePenalty: opts.presencePenalty,
+    stopSequences: stop,
+    ...(Object.keys(openai).length ? { providerOptions: { openai } } : {}),
     ...(opts.tools ? { tools: opts.tools, stopWhen: stepCountIs(6) } : {}),
   });
+  const reasoning = typeof result.reasoningText === "string" ? result.reasoningText : null;
   return {
     text: result.text,
     promptTokens: result.usage.inputTokens ?? estimateTokens(opts.messages),
     completionTokens: result.usage.outputTokens ?? estimateTokens(result.text),
+    reasoningTokens: result.usage.outputTokenDetails?.reasoningTokens ?? 0,
+    cachedTokens: result.usage.inputTokenDetails?.cacheReadTokens ?? 0,
     finishReason: result.finishReason ?? "stop",
+    toolCalls: result.toolCalls?.length ? result.toolCalls : undefined,
+    reasoning,
     local: false,
   };
 }
@@ -88,12 +118,17 @@ export async function streamChat(opts: {
   tools?: ToolSet;
   seed?: number;
   topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  stop?: string | string[];
 }) {
   const apiKey = envKey(opts.endpoint.adapter, opts.byok);
   if (!apiKey) {
     const local = await localComplete(opts.messages, opts.endpoint);
     return { ...local, stream: null as ReadableStream<string> | null };
   }
+  const stop = opts.stop == null ? undefined : Array.isArray(opts.stop) ? opts.stop : [opts.stop];
   const result = streamText({
     model: languageModel(opts.endpoint, apiKey),
     messages: toCoreMessages(opts.messages),
@@ -101,6 +136,10 @@ export async function streamChat(opts: {
     maxOutputTokens: opts.maxTokens,
     seed: opts.seed,
     topP: opts.topP,
+    topK: opts.topK,
+    frequencyPenalty: opts.frequencyPenalty,
+    presencePenalty: opts.presencePenalty,
+    stopSequences: stop,
     ...(opts.tools ? { tools: opts.tools, stopWhen: stepCountIs(6) } : {}),
   });
   return {
@@ -136,6 +175,10 @@ async function localComplete(messages: ChatMessage[], endpoint: ModelEndpoint) {
     promptTokens: estimateTokens(messages),
     completionTokens: estimateTokens(reply),
     finishReason: "stop",
+    toolCalls: undefined,
+    reasoning: null,
+    reasoningTokens: 0,
+    cachedTokens: 0,
     local: true,
   };
 }

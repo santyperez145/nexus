@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
@@ -36,16 +37,29 @@ export default async function ActivityPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-white/5">
-                <td className="p-3 font-mono text-xs">{r.id}</td>
-                <td className="p-3">{r.routedModel}</td>
-                <td className="p-3">{r.provider}</td>
-                <td className="p-3">{r.promptTokens + r.completionTokens}</td>
-                <td className="p-3">{formatUsd(microsToUsd(r.costMicros))}</td>
-                <td className="p-3">{r.latencyMs ?? "—"}</td>
+            {rows.length === 0 ? (
+              <tr>
+                <td className="p-4 text-zinc-500" colSpan={6}>
+                  Todavía no hay generaciones. Probá el playground o pegale a{" "}
+                  <code>/api/v1/chat/completions</code>.
+                </td>
               </tr>
-            ))}
+            ) : (
+              rows.map((r) => (
+                <tr key={r.id} className="border-t border-white/5 hover:bg-white/5">
+                  <td className="p-3 font-mono text-xs">
+                    <Link href={`/activity/${r.id}`} className="text-amber-400 hover:underline">
+                      {r.id}
+                    </Link>
+                  </td>
+                  <td className="p-3">{r.routedModel}</td>
+                  <td className="p-3">{r.provider}</td>
+                  <td className="p-3">{r.promptTokens + r.completionTokens}</td>
+                  <td className="p-3">{formatUsd(microsToUsd(r.costMicros))}</td>
+                  <td className="p-3">{r.latencyMs ?? "—"}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

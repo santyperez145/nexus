@@ -17,6 +17,16 @@ export async function assertCredits(auth: AuthContext, estimatedMicros: number, 
     (err as Error & { status: number }).status = 402;
     throw err;
   }
+  if (auth.workspaceId) {
+    const [budget] = await db
+      .select()
+      .from(schema.workspaceBudgets)
+      .where(eq(schema.workspaceBudgets.workspaceId, auth.workspaceId))
+      .limit(1);
+    if (budget && budget.spentMicros + estimatedMicros > budget.limitMicros) {
+      throw Object.assign(new Error("Workspace budget exceeded"), { status: 402 });
+    }
+  }
 }
 
 export async function settleUsage(opts: {
@@ -45,15 +55,21 @@ export async function settleUsage(opts: {
       micros: -micros,
       generationId: opts.generationId,
     });
-    if (opts.auth.apiKeyId) {
-      await db
-        .update(schema.apiKeys)
-        .set({
-          usageMicros: sql`${schema.apiKeys.usageMicros} + ${micros}`,
-          lastUsedAt: new Date(),
-        })
-        .where(eq(schema.apiKeys.id, opts.auth.apiKeyId));
-    }
+  }
+  if (opts.auth.apiKeyId) {
+    await db
+      .update(schema.apiKeys)
+      .set({
+        usageMicros: sql`${schema.apiKeys.usageMicros} + ${micros}`,
+        lastUsedAt: new Date(),
+      })
+      .where(eq(schema.apiKeys.id, opts.auth.apiKeyId));
+  }
+  if (opts.auth.workspaceId && micros > 0) {
+    await db
+      .update(schema.workspaceBudgets)
+      .set({ spentMicros: sql`${schema.workspaceBudgets.spentMicros} + ${micros}` })
+      .where(eq(schema.workspaceBudgets.workspaceId, opts.auth.workspaceId));
   }
   return { usd, micros };
 }

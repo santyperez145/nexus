@@ -43,6 +43,12 @@ export type ChatRequest = {
   plugins?: Array<{ id: string; [key: string]: unknown }>;
   user?: string;
   seed?: number;
+  logprobs?: boolean;
+  top_logprobs?: number;
+  include_reasoning?: boolean;
+  reasoning?: { effort?: "low" | "medium" | "high"; max_tokens?: number };
+  transforms?: Array<"middle-out">;
+  stream_options?: { include_usage?: boolean };
 };
 
 export type AuthContext = {

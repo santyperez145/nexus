@@ -11,12 +11,14 @@ export async function POST(req: Request) {
       ? input
       : [{ role: "user", content: String(input ?? "") }];
     const mapped: ChatRequest = {
+      ...body,
       model: body.model,
       messages,
       stream: body.stream,
       temperature: body.temperature,
-      max_tokens: body.max_output_tokens,
+      max_tokens: body.max_output_tokens ?? body.max_tokens,
       tools: body.tools,
+      provider: body.provider,
     };
     return await handleChat(mapped, auth, req.headers);
   } catch (error) {

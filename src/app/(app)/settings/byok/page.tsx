@@ -1,29 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type Lab = { name: string; label?: string };
+type Row = { id: string; provider: string; label: string | null };
 
 export default function ByokPage() {
   const [provider, setProvider] = useState("openai");
   const [key, setKey] = useState("");
   const [labs, setLabs] = useState<Lab[]>([]);
-  const [rows, setRows] = useState<Array<{ id: string; provider: string; label: string | null }>>([]);
+  const [rows, setRows] = useState<Row[]>([]);
 
-  async function load() {
-    const [keys, providers] = await Promise.all([
+  const reload = useCallback(() => {
+    Promise.all([
       fetch("/api/v1/byok").then((r) => r.json()),
       fetch("/api/v1/providers").then((r) => r.json()),
-    ]);
-    setRows(keys.data ?? []);
-    const list = (providers.data ?? []) as Lab[];
-    setLabs(list);
-    if (list[0] && !list.some((l) => l.name === provider)) setProvider(list[0].name);
-  }
+    ]).then(([keys, providers]) => {
+      setRows(keys.data ?? []);
+      const list = (providers.data ?? []) as Lab[];
+      setLabs(list);
+      setProvider((current) =>
+        list.some((l) => l.name === current) ? current : (list[0]?.name ?? current),
+      );
+    });
+  }, []);
+
   useEffect(() => {
-    void load();
+    const ac = new AbortController();
+    Promise.all([
+      fetch("/api/v1/byok", { signal: ac.signal }).then((r) => r.json()),
+      fetch("/api/v1/providers", { signal: ac.signal }).then((r) => r.json()),
+    ]).then(([keys, providers]) => {
+      if (ac.signal.aborted) return;
+      setRows(keys.data ?? []);
+      const list = (providers.data ?? []) as Lab[];
+      setLabs(list);
+      setProvider((current) =>
+        list.some((l) => l.name === current) ? current : (list[0]?.name ?? current),
+      );
+    });
+    return () => ac.abort();
   }, []);
 
   async function save() {
@@ -33,7 +51,7 @@ export default function ByokPage() {
       body: JSON.stringify({ provider, key }),
     });
     setKey("");
-    await load();
+    reload();
   }
 
   return (

@@ -16,18 +16,25 @@ export async function GET(req: Request) {
       data: {
         id: row.id,
         model: row.routedModel,
-        provider_name: row.provider,
         streamed: row.streamed,
+        cancelled: false,
+        provider_name: row.provider,
         generation_time: row.latencyMs,
         tokens_prompt: row.promptTokens,
         tokens_completion: row.completionTokens,
         native_tokens_prompt: row.promptTokens,
         native_tokens_completion: row.completionTokens,
+        native_tokens_reasoning: row.reasoningTokens,
+        native_tokens_cached: Number(
+          (row.metadata as { cached_tokens?: number } | null)?.cached_tokens ?? 0,
+        ),
         total_cost: microsToUsd(row.costMicros),
         finish_reason: row.finishReason,
-        created_at: row.createdAt,
+        created_at: Math.floor(new Date(row.createdAt).getTime() / 1000),
         origin: row.appTitle,
         is_byok: row.isByok,
+        app_referer: row.appReferer,
+        latency: row.latencyMs,
       },
     });
   } catch (error) {

@@ -1,8 +1,21 @@
 import { allModels } from "@/lib/catalog";
 import { usdPerMillion } from "@/lib/catalog";
 
-export async function GET() {
-  const data = allModels().map((m) => ({
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const output = url.searchParams.get("output_modalities");
+  const category = url.searchParams.get("category");
+  const supported = url.searchParams.get("supported_parameters");
+  let models = allModels();
+  if (output) {
+    const wanted = output.split(",").map((s) => s.trim());
+    models = models.filter((m) => wanted.every((w) => m.architecture.outputModalities.includes(w)));
+  }
+  if (category === "free") models = models.filter((m) => m.free);
+  if (supported) {
+    models = models.filter((m) => m.supportedParameters.includes(supported));
+  }
+  const data = models.map((m) => ({
     id: m.id,
     canonical_slug: m.canonicalSlug,
     hugging_face_id: m.huggingFaceId,

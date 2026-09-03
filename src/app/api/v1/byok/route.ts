@@ -50,6 +50,14 @@ export async function DELETE(req: Request) {
     const auth = await authenticateRequest(req);
     const idParam = new URL(req.url).searchParams.get("id");
     if (!idParam) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
+    const [row] = await db
+      .select()
+      .from(schema.byokCredentials)
+      .where(eq(schema.byokCredentials.id, idParam))
+      .limit(1);
+    if (!row || row.userId !== auth.userId) {
+      return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+    }
     await db
       .update(schema.byokCredentials)
       .set({ deleted: true, encryptedKey: "" })

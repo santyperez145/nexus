@@ -1,21 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useRemoteData } from "@/lib/use-remote-data";
 
 export default function GuardrailsPage() {
+  const [rows, reload] = useRemoteData<Array<{ id: string; name: string }>>("/api/v1/guardrails");
   const [name, setName] = useState("Default");
-  const [rows, setRows] = useState<Array<{ id: string; name: string }>>([]);
-
-  async function load() {
-    const res = await fetch("/api/v1/guardrails");
-    const json = await res.json();
-    setRows(json.data ?? []);
-  }
-  useEffect(() => {
-    void load();
-  }, []);
+  const list = rows ?? [];
 
   return (
     <div>
@@ -32,14 +25,14 @@ export default function GuardrailsPage() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ name, prompt_injection: true, sensitive_info: true }),
             });
-            await load();
+            reload();
           }}
         >
           Crear
         </Button>
       </div>
       <div className="grid gap-2">
-        {rows.map((g) => (
+        {list.map((g) => (
           <div key={g.id} className="rounded-lg border border-white/10 px-3 py-2 text-sm">
             {g.name}
           </div>

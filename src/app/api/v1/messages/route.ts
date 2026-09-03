@@ -7,8 +7,9 @@ export async function POST(req: Request) {
     const auth = await authenticateRequest(req);
     const body = await req.json();
     const mapped: ChatRequest = {
+      ...body,
       model: body.model,
-      models: body.fallbacks?.map((f: { model?: string }) => f.model).filter(Boolean),
+      models: body.fallbacks?.map((f: { model?: string }) => f.model).filter(Boolean) ?? body.models,
       messages: (body.messages ?? []) as ChatMessage[],
       max_tokens: body.max_tokens,
       temperature: body.temperature,

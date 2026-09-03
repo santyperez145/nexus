@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useRemoteData } from "@/lib/use-remote-data";
 
 type Status = {
   appUrl: string;
@@ -25,18 +26,9 @@ function Dot({ on }: { on: boolean }) {
 }
 
 export default function ConnectionsPage() {
-  const [status, setStatus] = useState<Status | null>(null);
+  const [status, reload] = useRemoteData<Status>("/api/internal/connections");
   const [probes, setProbes] = useState<ProbeMap | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-
-  async function load() {
-    const res = await fetch("/api/internal/connections");
-    const json = await res.json();
-    setStatus(json.data ?? null);
-  }
-  useEffect(() => {
-    void load();
-  }, []);
 
   if (!status) return <p className="text-sm text-zinc-500">Cargando conexiones…</p>;
 
@@ -140,7 +132,7 @@ export default function ConnectionsPage() {
             });
             const json = await res.json();
             setMsg(json.data ? `Catálogo: ${json.data.count} modelos` : json.error);
-            await load();
+            reload();
           }}
         >
           Sync catálogo (todos los labs)

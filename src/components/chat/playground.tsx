@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -10,8 +11,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatUsd } from "@/lib/money";
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
+type Stats = {
+  id: string;
+  provider: string;
+  model: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  cost?: number;
+};
 
 export function Playground({ models }: { models: { id: string; name: string }[] }) {
   const [model, setModel] = useState("nexus/auto");
@@ -21,19 +31,26 @@ export function Playground({ models }: { models: { id: string; name: string }[] 
   const [online, setOnline] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
+  const [stats, setStats] = useState<Stats | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const list = useMemo(() => models, [models]);
   const slug = online && !model.includes(":online") ? `${model}:online` : model;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const snippet = `import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "${typeof window !== "undefined" ? window.location.origin : ""}/api/v1",
+  baseURL: "${origin}/api/v1",
   apiKey: process.env.NEXUS_API_KEY,
+  defaultHeaders: {
+    "HTTP-Referer": "${origin}",
+    "X-Title": "Nexus Playground",
+  },
 });
 
 await client.chat.completions.create({
   model: "${slug}",
   messages: [{ role: "user", content: "Hola" }],
+  stream_options: { include_usage: true },
   ${online ? 'tools: [{ type: "nexus:web_search" }],' : ""}
 });`;
 
@@ -52,18 +69,24 @@ await client.chat.completions.create({
     setMessages(next.filter((m) => m.role !== "system"));
     setInput("");
     setBusy(true);
+    setStats(null);
     const ac = new AbortController();
     abortRef.current = ac;
     try {
       const res = await fetch("/api/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "HTTP-Referer": origin,
+          "X-Title": "Nexus Playground",
+        },
         signal: ac.signal,
         body: JSON.stringify({
           model: slug,
           messages: next,
           stream: true,
           temperature,
+          stream_options: { include_usage: true },
           ...(online ? { tools: [{ type: "nexus:web_search" }] } : {}),
         }),
       });
@@ -76,6 +99,11 @@ await client.chat.completions.create({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistant = "";
+      let meta: Stats = {
+        id: res.headers.get("x-request-id") ?? "",
+        provider: "",
+        model: slug,
+      };
       setMessages([...visible, { role: "assistant", content: "" }]);
       let buffer = "";
       while (true) {
@@ -88,7 +116,24 @@ await client.chat.completions.create({
           const line = part.replace(/^data: /, "");
           if (line === "[DONE]") continue;
           try {
-            const json = JSON.parse(line);
+            const json = JSON.parse(line) as {
+              id?: string;
+              provider?: string;
+              model?: string;
+              usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
+              choices?: Array<{ delta?: { content?: string } }>;
+            };
+            if (json.id) meta = { ...meta, id: json.id };
+            if (json.provider) meta = { ...meta, provider: json.provider };
+            if (json.model) meta = { ...meta, model: json.model };
+            if (json.usage) {
+              meta = {
+                ...meta,
+                promptTokens: json.usage.prompt_tokens,
+                completionTokens: json.usage.completion_tokens,
+                cost: json.usage.cost,
+              };
+            }
             const delta = json.choices?.[0]?.delta?.content ?? "";
             assistant += delta;
             setMessages([...visible, { role: "assistant", content: assistant }]);
@@ -97,6 +142,7 @@ await client.chat.completions.create({
           }
         }
       }
+      setStats(meta);
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
         setMessages((m) => [...m, { role: "assistant", content: "Error de red" }]);
@@ -160,6 +206,20 @@ await client.chat.completions.create({
           ))
         )}
       </div>
+      {stats ? (
+        <p className="font-mono text-xs text-zinc-500">
+          {stats.id ? (
+            <Link href={`/activity/${stats.id}`} className="text-amber-400 hover:underline">
+              {stats.id}
+            </Link>
+          ) : null}
+          {stats.provider ? ` · ${stats.provider}` : ""}
+          {stats.promptTokens != null
+            ? ` · ${stats.promptTokens}+${stats.completionTokens ?? 0} tok`
+            : ""}
+          {stats.cost != null ? ` · ${formatUsd(stats.cost)}` : ""}
+        </p>
+      ) : null}
       <div className="grid gap-2">
         <Textarea
           value={input}
