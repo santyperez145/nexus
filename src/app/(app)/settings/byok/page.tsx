@@ -82,7 +82,16 @@ export default function ByokPage() {
         {rows.map((r) => (
           <div key={r.id} className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
             <span>{r.provider}</span>
-            <span className="text-zinc-500">{r.label}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                await fetch(`/api/v1/byok?id=${r.id}`, { method: "DELETE" });
+                reload();
+              }}
+            >
+              Quitar
+            </Button>
           </div>
         ))}
       </div>

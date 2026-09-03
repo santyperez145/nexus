@@ -37,8 +37,20 @@ export default function PresetsPage() {
       </div>
       <div className="grid gap-2">
         {list.map((p) => (
-          <div key={p.id} className="rounded-lg border border-white/10 px-3 py-2 font-mono text-sm">
-            @{p.slug} → {String(p.config.model ?? "—")}
+          <div key={p.id} className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 font-mono text-sm">
+            <span>
+              @{p.slug} → {String(p.config.model ?? "—")}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                await fetch(`/api/v1/presets?id=${p.id}`, { method: "DELETE" });
+                reload();
+              }}
+            >
+              Borrar
+            </Button>
           </div>
         ))}
       </div>

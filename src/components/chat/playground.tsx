@@ -17,6 +17,7 @@ type Stats = {
   cost?: number;
 };
 type FileRow = { id: string; filename: string; bytes: number };
+type PresetRow = { id: string; slug: string };
 
 export function Playground({
   models,
@@ -37,6 +38,7 @@ export function Playground({
   const [stats, setStats] = useState<Stats | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const files = useRemoteData<FileRow[]>("/api/v1/files")[0] ?? [];
+  const presets = useRemoteData<PresetRow[]>("/api/v1/presets")[0] ?? [];
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = q
@@ -45,7 +47,7 @@ export function Playground({
     return list.slice(0, 40);
   }, [models, query]);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const slug = online && !model.includes(":online") ? `${model}:online` : model;
+  const slug = online && !model.startsWith("@") && !model.includes(":online") ? `${model}:online` : model;
 
   function stop() {
     abortRef.current?.abort();
@@ -195,6 +197,25 @@ export function Playground({
           </label>
         </div>
       </div>
+      {presets.length ? (
+        <div className="flex flex-wrap gap-1">
+          {presets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => {
+                setModel(`@${p.slug}`);
+                setQuery("");
+              }}
+              className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
+                model === `@${p.slug}` ? "border-amber-400/60 text-amber-300" : "border-white/10 text-zinc-500"
+              }`}
+            >
+              @{p.slug}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {files.length ? (
         <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
           {files.map((f) => {

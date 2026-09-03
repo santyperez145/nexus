@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { id } from "@/lib/ids";
+import { slugify } from "@/lib/slug";
 
 export async function GET(req: Request) {
   try {
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
     const row = {
       id: id("pre"),
       userId: auth.userId,
-      slug: body.slug ?? `preset-${Date.now()}`,
+      slug: slugify(String(body.slug ?? `preset-${Date.now()}`), "preset"),
       version: 1,
       config: {
         model: body.model,
@@ -35,6 +36,22 @@ export async function POST(req: Request) {
     };
     await db.insert(schema.presets).values(row);
     return Response.json({ data: row });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const auth = await authenticateRequest(req);
+    const presetId = new URL(req.url).searchParams.get("id");
+    if (!presetId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
+    const [row] = await db.select().from(schema.presets).where(eq(schema.presets.id, presetId)).limit(1);
+    if (!row || row.userId !== auth.userId) {
+      return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+    }
+    await db.delete(schema.presets).where(eq(schema.presets.id, presetId));
+    return Response.json({ data: { success: true } });
   } catch (error) {
     return jsonError(error);
   }

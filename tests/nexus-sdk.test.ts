@@ -104,4 +104,18 @@ describe("nexus-sdk", () => {
     const analytics = await nexus.analytics.get();
     assert.equal(analytics.data.totals.requests, 1);
   });
+
+  it("rotates keys via rotate_id", async () => {
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (_url, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { rotate_id?: string };
+        assert.equal(body.rotate_id, "key_1");
+        return Response.json({ data: { key: "sk-nx-rotated" } });
+      },
+    });
+    const res = await nexus.keys.rotate("key_1");
+    assert.equal(res.data.key, "sk-nx-rotated");
+  });
 });

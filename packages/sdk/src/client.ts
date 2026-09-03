@@ -207,6 +207,9 @@ class KeysResource {
   create(body: { name?: string; limit?: number; is_management?: boolean; workspace_id?: string } = {}) {
     return this.client.request<{ data: { key: string } }>("/keys", { method: "POST", body });
   }
+  rotate(id: string) {
+    return this.client.request<{ data: { key: string } }>("/keys", { method: "POST", body: { rotate_id: id } });
+  }
   update(body: { id: string; name?: string; disabled?: boolean; limit?: number | null }) {
     return this.client.request<{ data: unknown }>("/keys", { method: "PATCH", body });
   }

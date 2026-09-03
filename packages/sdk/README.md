@@ -65,7 +65,7 @@ await nexus.chat.completions.create({
 | `nexus.embeddings.create` | `/embeddings` |
 | `nexus.images.generate` | `/images/generations` |
 | `nexus.audio.speech` | `/audio/speech` |
-| `nexus.keys.list` / `.create` / `.update` / `.delete` | `/keys` |
+| `nexus.keys.list` / `.create` / `.rotate` / `.update` / `.delete` | `/keys` |
 | `nexus.providers.list` | `/providers` |
 | `nexus.files.list` / `.upload` / `.delete` | `/files` |
 | `nexus.analytics.get` | `/analytics` |

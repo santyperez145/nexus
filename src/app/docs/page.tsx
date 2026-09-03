@@ -25,7 +25,7 @@ const ENDPOINTS = [
   ["GET", "/api/v1/analytics", "Analytics"],
   ["GET/POST/DELETE", "/api/v1/files", "Files (file_ids en chat)"],
   ["GET/POST", "/api/v1/oauth", "OAuth PKCE → API key"],
-  ["GET/POST", "/api/v1/presets", "Presets (@slug)"],
+  ["GET/POST/DELETE", "/api/v1/presets", "Presets (@slug)"],
   ["GET", "/api/v1/datasets/models", "Rankings"],
   ["GET/POST/DELETE", "/api/v1/organization", "Organizations + miembros"],
   ["GET/POST/DELETE", "/api/v1/observability", "Webhooks de generaciones"],
