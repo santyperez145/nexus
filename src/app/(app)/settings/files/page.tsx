@@ -8,6 +8,18 @@ import { useRemoteData } from "@/lib/use-remote-data";
 
 type FileRow = { id: string; filename: string; bytes: number; mime?: string };
 
+function isImage(mime?: string, filename?: string) {
+  return Boolean(
+    (mime && /^image\//i.test(mime)) || (filename && /\.(png|jpe?g|gif|webp|bmp)$/i.test(filename)),
+  );
+}
+
+function fmtBytes(n: number) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function FilesPage() {
   const [rows, reload] = useRemoteData<FileRow[]>("/api/v1/files");
   const [msg, setMsg] = useState<string | null>(null);
@@ -15,6 +27,7 @@ export default function FilesPage() {
   const [drag, setDrag] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const list = rows ?? [];
+  const images = list.filter((f) => isImage(f.mime, f.filename)).length;
 
   const uploadMany = useCallback(
     async (files: FileList | File[]) => {
@@ -57,9 +70,26 @@ export default function FilesPage() {
           </Button>
         }
       >
-        Subí texto, código o PDF (multi). En el playground marcá el file (<code>file_ids</code>) y el
-        gateway lo inyecta. Máx 8 MB c/u.
+        Texto/PDF → system extract. Imágenes →{" "}
+        <code className="text-amber-400/80">image_url</code> parts (visión). Máx 8 MB.
       </AppPageHeader>
+
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Archivos</div>
+          <div className="mt-1 font-mono text-lg text-amber-200">{list.length}</div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Imágenes</div>
+          <div className="mt-1 font-mono text-lg text-zinc-200">{images}</div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Tip</div>
+          <div className="mt-1 text-xs leading-relaxed text-zinc-500">
+            En Chat marcá el file · o pegá imagen directo
+          </div>
+        </div>
+      </div>
 
       <div
         onDragOver={(e) => {
@@ -77,11 +107,13 @@ export default function FilesPage() {
         }`}
       >
         <p className="text-sm text-zinc-400">Arrastrá uno o varios archivos acá</p>
+        <p className="mt-1 text-xs text-zinc-600">PDF · texto · código · PNG/JPEG (visión)</p>
         <label className="mt-3 inline-block cursor-pointer text-sm text-amber-400 hover:underline">
           o elegí desde el disco
           <input
             type="file"
             multiple
+            accept="image/*,.pdf,.txt,.md,.json,.csv,text/*"
             className="hidden"
             aria-label="Subir archivos"
             onChange={(e) => {
@@ -95,40 +127,59 @@ export default function FilesPage() {
 
       {msg ? <p className="mb-4 text-sm text-amber-300">{msg}</p> : null}
 
-      <div className="grid gap-2">
-        {list.map((f) => (
-          <div
-            key={f.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
-          >
-            <div className="min-w-0">
-              <div className="truncate font-medium text-zinc-200">{f.filename}</div>
-              <div className="font-mono text-[11px] text-zinc-600">
-                {f.id} · {f.bytes} B · {f.mime ?? "—"}
-              </div>
-            </div>
-            <div className="flex gap-1">
-              <Button size="sm" variant="outline" onClick={() => void showPreview(f.id, f.filename)}>
-                Preview
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  await fetch(`/api/v1/files?id=${f.id}`, { method: "DELETE" });
-                  if (preview?.id === f.id) setPreview(null);
-                  reload();
-                }}
+      {list.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-white/15 px-4 py-10 text-center">
+          <p className="text-sm text-zinc-400">Todavía no hay archivos.</p>
+          <Button asChild size="sm" variant="outline" className="mt-4">
+            <Link href="/chat">Abrir Chat con visión</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          {list.map((f) => {
+            const img = isImage(f.mime, f.filename);
+            return (
+              <div
+                key={f.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm"
               >
-                Borrar
-              </Button>
-            </div>
-          </div>
-        ))}
-        {list.length === 0 ? (
-          <p className="text-sm text-zinc-600">Todavía no hay archivos.</p>
-        ) : null}
-      </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-medium text-zinc-200">{f.filename}</span>
+                    {img ? (
+                      <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-300">
+                        vision
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="font-mono text-[11px] text-zinc-600">
+                    {f.id} · {fmtBytes(f.bytes)} · {f.mime ?? "—"}
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => void showPreview(f.id, f.filename)}>
+                    Preview
+                  </Button>
+                  <Button asChild size="sm" variant="ghost">
+                    <Link href="/chat">Chat</Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      await fetch(`/api/v1/files?id=${f.id}`, { method: "DELETE" });
+                      if (preview?.id === f.id) setPreview(null);
+                      reload();
+                    }}
+                  >
+                    Borrar
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {preview ? (
         <section className="mt-6 rounded-xl border border-white/10 bg-black/30 p-3">

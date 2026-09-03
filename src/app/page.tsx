@@ -147,6 +147,47 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="border-y border-zinc-200 bg-[#fafaf9]">
+        <div className="mx-auto max-w-5xl px-4 py-16 md:py-20">
+          <h2 className="font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-zinc-950">
+            Probá el producto
+          </h2>
+          <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-zinc-500">
+            Superficies reales — no demos inventadas. Chat con route trace, Studio media, Arena blind.
+          </p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            {[
+              {
+                href: "/chat",
+                t: "Chat",
+                d: "Playground · envelopes · visión · share",
+              },
+              {
+                href: "/studio",
+                t: "Studio",
+                d: "Imagen · TTS · STT · video · embeddings",
+              },
+              {
+                href: "/arena",
+                t: "Arena",
+                d: "A vs B blind · votos locales",
+              },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 transition-colors hover:border-amber-600/40"
+              >
+                <div className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-950">
+                  {item.t}
+                </div>
+                <p className="mt-1 text-sm text-zinc-500">{item.d}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="border-y border-zinc-200 bg-white">
         <div className="mx-auto grid max-w-5xl gap-12 px-4 py-20 md:grid-cols-2 md:py-28">
           <div>
