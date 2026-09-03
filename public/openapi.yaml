@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.8.0
+  version: 0.9.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference.
 servers:
   - url: /api/v1
@@ -166,6 +166,36 @@ paths:
                 messages: { type: array }
       responses:
         "200": { description: Route hops and live/local_echo mode }
+  /shares:
+    get:
+      summary: Read a public chat share
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Share payload }
+    post:
+      summary: Create a public read-only chat share
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, messages]
+              properties:
+                model: { type: string }
+                messages: { type: array }
+                title: { type: string }
+      responses:
+        "200": { description: Share id and url }
+  /status:
+    get:
+      summary: Instance wiring status
+      responses:
+        "200": { description: Providers and infra flags }
   /credits:
     get:
       summary: Remaining credits

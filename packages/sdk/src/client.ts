@@ -7,7 +7,7 @@ import type {
   NexusClientOptions,
 } from "./types.js";
 
-const DEFAULT_BASE = "https://web-production-ef6b3.up.railway.app/api/v1";
+const DEFAULT_BASE = "http://127.0.0.1:3000/api/v1";
 
 function readEnv(name: string) {
   if (typeof process === "undefined") return undefined;
@@ -41,6 +41,8 @@ export class Nexus {
   readonly organization: OrganizationResource;
   readonly observability: ObservabilityResource;
   readonly routing: RoutingResource;
+  readonly status: StatusResource;
+  readonly shares: SharesResource;
   #fetch: typeof fetch;
   #defaultHeaders: Record<string, string>;
 
@@ -73,6 +75,8 @@ export class Nexus {
     this.organization = new OrganizationResource(this);
     this.observability = new ObservabilityResource(this);
     this.routing = new RoutingResource(this);
+    this.status = new StatusResource(this);
+    this.shares = new SharesResource(this);
   }
 
   async request<T>(
@@ -461,5 +465,39 @@ class RoutingResource {
         guest?: boolean;
       };
     }>("/routing/preview", { method: "POST", body });
+  }
+}
+
+class StatusResource {
+  constructor(private readonly client: Nexus) {}
+  get() {
+    return this.client.request<{
+      data?: Record<string, unknown>;
+      providers?: Record<string, boolean>;
+    }>("/status");
+  }
+}
+
+class SharesResource {
+  constructor(private readonly client: Nexus) {}
+  create(body: {
+    model: string;
+    messages: Array<{ role: string; content: string }>;
+    title?: string;
+    stats?: Record<string, unknown> | null;
+  }) {
+    return this.client.request<{ data: { id: string; url: string; title: string } }>("/shares", {
+      method: "POST",
+      body,
+    });
+  }
+  get(id: string) {
+    return this.client.request<{
+      data: {
+        id: string;
+        title: string | null;
+        payload: { model: string; messages: Array<{ role: string; content: string }> };
+      };
+    }>("/shares", { query: { id } });
   }
 }

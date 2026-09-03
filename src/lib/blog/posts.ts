@@ -44,6 +44,18 @@ export const BLOG_POSTS: BlogPost[] = [
       "Install recomendado vía file:packages/sdk hasta publicar un scope propio — el nombre npm público ya está ocupado.",
     ],
   },
+  {
+    slug: "chat-share-rss",
+    title: "Chat share, recipes y RSS",
+    date: "2026-09-03",
+    summary:
+      "Historial local, /share público, recipes en Apps y feed RSS sin tracción inventada.",
+    body: [
+      "El playground guarda sesiones en el dispositivo y puede publicar un share read-only en /share/{id}.",
+      "/apps suma recipes curados (routing, ZDR, JSON, :online) encima del ranking real por HTTP-Referer.",
+      "GET /rss.xml publica el changelog. Docs ahora cubren streaming, errors y limits.",
+    ],
+  },
 ];
 
 export function getPost(slug: string) {

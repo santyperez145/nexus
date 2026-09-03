@@ -1,17 +1,37 @@
 /**
  * Tip-to-tip smoke: eco local siempre; hop live solo si hay keys de lab.
- * Usage: NEXUS_URL=… NEXUS_API_KEY=… node --import tsx scripts/tip-to-tip.ts
+ * Usage: NEXUS_URL=… NEXUS_API_KEY=… npm run tip-to-tip
  */
 const base = (process.env.NEXUS_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const key = process.env.NEXUS_API_KEY;
 
+type Summary = {
+  status: number;
+  previewMode: string | null;
+  hops: number;
+  wiredHops: number;
+  completionStatus: number | null;
+  provider: string | null;
+  generationId: string | null;
+  ok: boolean;
+};
+
 async function main() {
+  const summary: Summary = {
+    status: 0,
+    previewMode: null,
+    hops: 0,
+    wiredHops: 0,
+    completionStatus: null,
+    provider: null,
+    generationId: null,
+    ok: false,
+  };
+
   const statusRes = await fetch(`${base}/api/v1/status`);
+  summary.status = statusRes.status;
   const status = await statusRes.json();
-  const wired = Object.entries(status.data?.providers ?? status.providers ?? {}).filter(
-    ([, v]) => v === true || (v as { wired?: boolean })?.wired === true,
-  );
-  console.log("status ok", statusRes.status, "wired labs", wired.length || "(eco)");
+  console.log("status", statusRes.status, JSON.stringify(status.data ?? status).slice(0, 200));
 
   const previewRes = await fetch(`${base}/api/v1/routing/preview`, {
     method: "POST",
@@ -22,11 +42,17 @@ async function main() {
     }),
   });
   const preview = await previewRes.json();
-  console.log("preview", preview.data?.mode, "hops", preview.data?.hops?.length ?? 0);
+  const hops = preview.data?.hops ?? [];
+  summary.previewMode = preview.data?.mode ?? null;
+  summary.hops = hops.length;
+  summary.wiredHops = hops.filter((h: { wired?: boolean }) => h.wired).length;
+  console.log("preview", summary.previewMode, "hops", summary.hops, "wired", summary.wiredHops);
 
   if (!key) {
     console.log("skip completion: set NEXUS_API_KEY for authenticated tip-to-tip");
-    process.exit(0);
+    summary.ok = statusRes.ok && previewRes.ok;
+    console.log("SUMMARY", JSON.stringify(summary));
+    process.exit(summary.ok ? 0 : 1);
   }
 
   const chatRes = await fetch(`${base}/api/v1/chat/completions`, {
@@ -44,13 +70,27 @@ async function main() {
     }),
   });
   const chat = await chatRes.json();
-  const provider = chat.provider ?? chat.choices?.[0]?.message?.content;
-  console.log("completion", chatRes.status, "provider", chat.provider ?? "?", "id", chat.id);
-  if (!chatRes.ok) process.exit(1);
-  if (wired.length && chat.provider === "local") {
-    console.warn("warn: labs wired but provider=local — check BYOK/routing");
+  summary.completionStatus = chatRes.status;
+  summary.provider = chat.provider ?? null;
+  summary.generationId = chat.id ?? null;
+  console.log("completion", chatRes.status, "provider", summary.provider, "id", summary.generationId);
+
+  if (chatRes.ok && summary.generationId) {
+    const genRes = await fetch(
+      `${base}/api/v1/generation?id=${encodeURIComponent(summary.generationId)}`,
+      { headers: { Authorization: `Bearer ${key}` } },
+    );
+    const gen = await genRes.json();
+    console.log("generation", genRes.status, gen.data?.provider ?? gen.data?.model ?? "");
   }
-  void provider;
+
+  if (summary.wiredHops > 0 && summary.provider === "local") {
+    console.warn("warn: hops wired but completion provider=local — check BYOK/routing");
+  }
+
+  summary.ok = statusRes.ok && previewRes.ok && chatRes.ok;
+  console.log("SUMMARY", JSON.stringify(summary));
+  process.exit(summary.ok ? 0 : 1);
 }
 
 main().catch((e) => {

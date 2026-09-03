@@ -32,6 +32,7 @@ const ENDPOINTS = [
   ["GET/POST/DELETE", "/api/v1/observability", "Webhooks de generaciones"],
   ["GET", "/api/v1/providers/health", "Circuit breakers"],
   ["POST", "/api/v1/routing/preview", "Preview de hops de routing"],
+  ["GET/POST", "/api/v1/shares", "Chat shares públicos (read-only)"],
   ["GET", "/api/v1/status", "Estado de cables"],
 ];
 
@@ -65,25 +66,26 @@ export default function DocsPage() {
             </a>
           ))}
         </div>
-        <div className="mb-8 grid gap-2 sm:grid-cols-2">
-          <a
-            href="/docs/provider-routing"
-            className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
-          >
-            <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">
-              Provider routing
-            </div>
-            <div className="mt-1 text-xs text-zinc-500">only · ignore · sort · ZDR · fallbacks</div>
-          </a>
-          <a
-            href="/docs/parameters"
-            className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
-          >
-            <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">
-              Parameters
-            </div>
-            <div className="mt-1 text-xs text-zinc-500">sampling · tools · JSON · transforms</div>
-          </a>
+        <div className="mb-8 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            ["/docs/provider-routing", "Provider routing", "only · ignore · sort · ZDR"],
+            ["/docs/parameters", "Parameters", "sampling · tools · JSON · transforms"],
+            ["/docs/streaming", "Streaming", "SSE · usage · X-Request-Id"],
+            ["/docs/errors", "Errors", "códigos gateway tipados"],
+            ["/docs/limits", "Limits", "RPD free · budgets · files"],
+            ["/rss.xml", "RSS", "changelog feed"],
+          ].map(([href, label, note]) => (
+            <a
+              key={href}
+              href={href}
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
+            >
+              <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">
+                {label}
+              </div>
+              <div className="mt-1 text-xs text-zinc-500">{note}</div>
+            </a>
+          ))}
         </div>
         <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`import { Nexus } from "nexus-sdk";
