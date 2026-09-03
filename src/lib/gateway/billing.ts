@@ -3,6 +3,7 @@ import { BYOK_FEE, FREE_MODEL_CREDITS_THRESHOLD_USD, FREE_MODEL_RPD_NO_CREDITS, 
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { microsToUsd, tokenCostUsd, usdToMicros } from "@/lib/money";
+import { maybeNotifyKeyLimit, maybeNotifyLowBalance } from "@/lib/notify";
 import { chargeAmountCents, getStripe } from "@/lib/stripe";
 import type { AuthContext } from "./types";
 
@@ -94,6 +95,7 @@ export async function settleUsage(opts: {
       generationId: opts.generationId,
       note: opts.isByok ? `BYOK fee ${(BYOK_FEE * 100).toFixed(0)}%` : null,
     });
+    void maybeNotifyLowBalance(opts.auth.userId, after.creditMicros);
   }
   if (opts.auth.apiKeyId) {
     await db
@@ -103,6 +105,19 @@ export async function settleUsage(opts: {
         lastUsedAt: new Date(),
       })
       .where(eq(schema.apiKeys.id, opts.auth.apiKeyId));
+    const [key] = await db
+      .select()
+      .from(schema.apiKeys)
+      .where(eq(schema.apiKeys.id, opts.auth.apiKeyId))
+      .limit(1);
+    if (key?.limitMicros != null) {
+      void maybeNotifyKeyLimit({
+        userId: opts.auth.userId,
+        keyName: key.name,
+        usage: microsToUsd(key.usageMicros),
+        limit: microsToUsd(key.limitMicros),
+      });
+    }
   }
   if (opts.auth.workspaceId && micros > 0) {
     let chargeBudget = true;

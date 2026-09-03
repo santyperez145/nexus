@@ -36,6 +36,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
       { href: "/settings/byok", label: "BYOK" },
       { href: "/settings/presets", label: "Presets" },
       { href: "/settings/privacy", label: "Privacy" },
+      { href: "/settings/notifications", label: "Notifications" },
       { href: "/settings/preferences", label: "Preferences" },
     ],
   },

@@ -34,6 +34,12 @@ export class Nexus {
   readonly providers: ProvidersResource;
   readonly files: FilesResource;
   readonly analytics: AnalyticsResource;
+  readonly presets: PresetsResource;
+  readonly guardrails: GuardrailsResource;
+  readonly byok: ByokResource;
+  readonly workspaces: WorkspacesResource;
+  readonly organization: OrganizationResource;
+  readonly observability: ObservabilityResource;
   #fetch: typeof fetch;
   #defaultHeaders: Record<string, string>;
 
@@ -59,6 +65,12 @@ export class Nexus {
     this.providers = new ProvidersResource(this);
     this.files = new FilesResource(this);
     this.analytics = new AnalyticsResource(this);
+    this.presets = new PresetsResource(this);
+    this.guardrails = new GuardrailsResource(this);
+    this.byok = new ByokResource(this);
+    this.workspaces = new WorkspacesResource(this);
+    this.organization = new OrganizationResource(this);
+    this.observability = new ObservabilityResource(this);
   }
 
   async request<T>(
@@ -322,12 +334,111 @@ class FilesResource {
 
 class AnalyticsResource {
   constructor(private readonly client: Nexus) {}
-  get() {
+  get(days?: number) {
     return this.client.request<{
       data: {
         totals: { requests: number; tokens: number; cost: number };
         by_model: Array<{ model: string; tokens: number; cost: number; requests: number }>;
       };
-    }>("/analytics");
+    }>("/analytics", { query: days != null ? { days } : {} });
+  }
+}
+
+class PresetsResource {
+  constructor(private readonly client: Nexus) {}
+  list() {
+    return this.client.request<{ data: unknown[] }>("/presets");
+  }
+  create(body: Record<string, unknown>) {
+    return this.client.request<{ data: unknown }>("/presets", { method: "POST", body });
+  }
+  delete(id: string) {
+    return this.client.request<{ data: { success: boolean } }>("/presets", {
+      method: "DELETE",
+      query: { id },
+    });
+  }
+}
+
+class GuardrailsResource {
+  constructor(private readonly client: Nexus) {}
+  list() {
+    return this.client.request<{ data: unknown[] }>("/guardrails");
+  }
+  create(body: Record<string, unknown>) {
+    return this.client.request<{ data: unknown }>("/guardrails", { method: "POST", body });
+  }
+  delete(id: string) {
+    return this.client.request<{ data: { success: boolean } }>("/guardrails", {
+      method: "DELETE",
+      query: { id },
+    });
+  }
+}
+
+class ByokResource {
+  constructor(private readonly client: Nexus) {}
+  list() {
+    return this.client.request<{ data: unknown[] }>("/byok");
+  }
+  create(body: { provider: string; key: string }) {
+    return this.client.request<{ data: unknown }>("/byok", { method: "POST", body });
+  }
+  delete(id: string) {
+    return this.client.request<{ data: { success: boolean } }>("/byok", {
+      method: "DELETE",
+      query: { id },
+    });
+  }
+}
+
+class WorkspacesResource {
+  constructor(private readonly client: Nexus) {}
+  list() {
+    return this.client.request<{ data: unknown[] }>("/workspaces");
+  }
+  create(body: { name?: string; limit?: number; interval?: string } = {}) {
+    return this.client.request<{ data: unknown }>("/workspaces", { method: "POST", body });
+  }
+  update(body: Record<string, unknown> & { id: string }) {
+    return this.client.request<{ data: unknown }>("/workspaces", { method: "PATCH", body });
+  }
+  delete(id: string) {
+    return this.client.request<{ data: { success: boolean } }>("/workspaces", {
+      method: "DELETE",
+      query: { id },
+    });
+  }
+}
+
+class OrganizationResource {
+  constructor(private readonly client: Nexus) {}
+  get() {
+    return this.client.request<{ data: unknown }>("/organization");
+  }
+  create(body: Record<string, unknown>) {
+    return this.client.request<{ data: unknown }>("/organization", { method: "POST", body });
+  }
+  delete(id: string) {
+    return this.client.request<{ data: { success: boolean } }>("/organization", {
+      method: "DELETE",
+      query: { id },
+    });
+  }
+}
+
+class ObservabilityResource {
+  constructor(private readonly client: Nexus) {}
+  list() {
+    return this.client.request<{ data: unknown[] }>("/observability");
+  }
+  create(body: { url: string; secret?: string }) {
+    return this.client.request<{ data: unknown }>("/observability", { method: "POST", body });
+  }
+  delete(id: string) {
+    return this.client.request<{ data: { success: boolean } }>("/observability", {
+      method: "DELETE",
+      query: { id },
+    });
   }
 }

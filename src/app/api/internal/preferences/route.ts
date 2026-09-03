@@ -15,6 +15,10 @@ export async function GET() {
       autoTopupEnabled: user?.autoTopupEnabled ?? false,
       autoTopupThresholdUsd: user?.autoTopupThresholdUsd,
       autoTopupAmountUsd: user?.autoTopupAmountUsd,
+      notifyLowBalance: user?.notifyLowBalance ?? true,
+      notifyKeyLimit: user?.notifyKeyLimit ?? true,
+      notifyOrgInvite: user?.notifyOrgInvite ?? true,
+      lowBalanceThresholdUsd: user?.lowBalanceThresholdUsd ?? "5",
     },
   });
 }
@@ -34,6 +38,11 @@ export async function POST(req: Request) {
       autoTopupThresholdUsd:
         body.autoTopupThresholdUsd != null ? String(body.autoTopupThresholdUsd) : undefined,
       autoTopupAmountUsd: body.autoTopupAmountUsd != null ? String(body.autoTopupAmountUsd) : undefined,
+      notifyLowBalance: body.notifyLowBalance != null ? Boolean(body.notifyLowBalance) : undefined,
+      notifyKeyLimit: body.notifyKeyLimit != null ? Boolean(body.notifyKeyLimit) : undefined,
+      notifyOrgInvite: body.notifyOrgInvite != null ? Boolean(body.notifyOrgInvite) : undefined,
+      lowBalanceThresholdUsd:
+        body.lowBalanceThresholdUsd != null ? String(body.lowBalanceThresholdUsd) : undefined,
     })
     .where(eq(schema.users.id, session.user.id));
   return Response.json({ ok: true });

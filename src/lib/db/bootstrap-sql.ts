@@ -18,6 +18,10 @@ export const SCHEMA_SQL = [
     stripe_customer_id text
   )`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS stripe_customer_id text`,
+  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_low_balance boolean NOT NULL DEFAULT true`,
+  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_key_limit boolean NOT NULL DEFAULT true`,
+  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_org_invite boolean NOT NULL DEFAULT true`,
+  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS low_balance_threshold_usd numeric DEFAULT 5`,
   `ALTER TABLE "user" ALTER COLUMN allow_training SET DEFAULT true`,
   `CREATE TABLE IF NOT EXISTS "session" (
     id text PRIMARY KEY,

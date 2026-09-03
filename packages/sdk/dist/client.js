@@ -26,6 +26,12 @@ export class Nexus {
     providers;
     files;
     analytics;
+    presets;
+    guardrails;
+    byok;
+    workspaces;
+    organization;
+    observability;
     #fetch;
     #defaultHeaders;
     constructor(opts = {}) {
@@ -50,6 +56,12 @@ export class Nexus {
         this.providers = new ProvidersResource(this);
         this.files = new FilesResource(this);
         this.analytics = new AnalyticsResource(this);
+        this.presets = new PresetsResource(this);
+        this.guardrails = new GuardrailsResource(this);
+        this.byok = new ByokResource(this);
+        this.workspaces = new WorkspacesResource(this);
+        this.organization = new OrganizationResource(this);
+        this.observability = new ObservabilityResource(this);
     }
     async request(path, init = {}) {
         const url = new URL(this.baseURL + (path.startsWith("/") ? path : `/${path}`));
@@ -307,7 +319,118 @@ class AnalyticsResource {
     constructor(client) {
         this.client = client;
     }
+    get(days) {
+        return this.client.request("/analytics", { query: days != null ? { days } : {} });
+    }
+}
+class PresetsResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    list() {
+        return this.client.request("/presets");
+    }
+    create(body) {
+        return this.client.request("/presets", { method: "POST", body });
+    }
+    delete(id) {
+        return this.client.request("/presets", {
+            method: "DELETE",
+            query: { id },
+        });
+    }
+}
+class GuardrailsResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    list() {
+        return this.client.request("/guardrails");
+    }
+    create(body) {
+        return this.client.request("/guardrails", { method: "POST", body });
+    }
+    delete(id) {
+        return this.client.request("/guardrails", {
+            method: "DELETE",
+            query: { id },
+        });
+    }
+}
+class ByokResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    list() {
+        return this.client.request("/byok");
+    }
+    create(body) {
+        return this.client.request("/byok", { method: "POST", body });
+    }
+    delete(id) {
+        return this.client.request("/byok", {
+            method: "DELETE",
+            query: { id },
+        });
+    }
+}
+class WorkspacesResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    list() {
+        return this.client.request("/workspaces");
+    }
+    create(body = {}) {
+        return this.client.request("/workspaces", { method: "POST", body });
+    }
+    update(body) {
+        return this.client.request("/workspaces", { method: "PATCH", body });
+    }
+    delete(id) {
+        return this.client.request("/workspaces", {
+            method: "DELETE",
+            query: { id },
+        });
+    }
+}
+class OrganizationResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
     get() {
-        return this.client.request("/analytics");
+        return this.client.request("/organization");
+    }
+    create(body) {
+        return this.client.request("/organization", { method: "POST", body });
+    }
+    delete(id) {
+        return this.client.request("/organization", {
+            method: "DELETE",
+            query: { id },
+        });
+    }
+}
+class ObservabilityResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    list() {
+        return this.client.request("/observability");
+    }
+    create(body) {
+        return this.client.request("/observability", { method: "POST", body });
+    }
+    delete(id) {
+        return this.client.request("/observability", {
+            method: "DELETE",
+            query: { id },
+        });
     }
 }

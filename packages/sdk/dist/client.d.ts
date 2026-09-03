@@ -20,6 +20,12 @@ export declare class Nexus {
     readonly providers: ProvidersResource;
     readonly files: FilesResource;
     readonly analytics: AnalyticsResource;
+    readonly presets: PresetsResource;
+    readonly guardrails: GuardrailsResource;
+    readonly byok: ByokResource;
+    readonly workspaces: WorkspacesResource;
+    readonly organization: OrganizationResource;
+    readonly observability: ObservabilityResource;
     constructor(opts?: NexusClientOptions);
     request<T>(path: string, init?: {
         method?: string;
@@ -250,7 +256,7 @@ declare class FilesResource {
 declare class AnalyticsResource {
     private readonly client;
     constructor(client: Nexus);
-    get(): Promise<{
+    get(days?: number): Promise<{
         data: {
             totals: {
                 requests: number;
@@ -263,6 +269,111 @@ declare class AnalyticsResource {
                 cost: number;
                 requests: number;
             }>;
+        };
+    }>;
+}
+declare class PresetsResource {
+    private readonly client;
+    constructor(client: Nexus);
+    list(): Promise<{
+        data: unknown[];
+    }>;
+    create(body: Record<string, unknown>): Promise<{
+        data: unknown;
+    }>;
+    delete(id: string): Promise<{
+        data: {
+            success: boolean;
+        };
+    }>;
+}
+declare class GuardrailsResource {
+    private readonly client;
+    constructor(client: Nexus);
+    list(): Promise<{
+        data: unknown[];
+    }>;
+    create(body: Record<string, unknown>): Promise<{
+        data: unknown;
+    }>;
+    delete(id: string): Promise<{
+        data: {
+            success: boolean;
+        };
+    }>;
+}
+declare class ByokResource {
+    private readonly client;
+    constructor(client: Nexus);
+    list(): Promise<{
+        data: unknown[];
+    }>;
+    create(body: {
+        provider: string;
+        key: string;
+    }): Promise<{
+        data: unknown;
+    }>;
+    delete(id: string): Promise<{
+        data: {
+            success: boolean;
+        };
+    }>;
+}
+declare class WorkspacesResource {
+    private readonly client;
+    constructor(client: Nexus);
+    list(): Promise<{
+        data: unknown[];
+    }>;
+    create(body?: {
+        name?: string;
+        limit?: number;
+        interval?: string;
+    }): Promise<{
+        data: unknown;
+    }>;
+    update(body: Record<string, unknown> & {
+        id: string;
+    }): Promise<{
+        data: unknown;
+    }>;
+    delete(id: string): Promise<{
+        data: {
+            success: boolean;
+        };
+    }>;
+}
+declare class OrganizationResource {
+    private readonly client;
+    constructor(client: Nexus);
+    get(): Promise<{
+        data: unknown;
+    }>;
+    create(body: Record<string, unknown>): Promise<{
+        data: unknown;
+    }>;
+    delete(id: string): Promise<{
+        data: {
+            success: boolean;
+        };
+    }>;
+}
+declare class ObservabilityResource {
+    private readonly client;
+    constructor(client: Nexus);
+    list(): Promise<{
+        data: unknown[];
+    }>;
+    create(body: {
+        url: string;
+        secret?: string;
+    }): Promise<{
+        data: unknown;
+    }>;
+    delete(id: string): Promise<{
+        data: {
+            success: boolean;
         };
     }>;
 }

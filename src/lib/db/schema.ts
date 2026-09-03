@@ -28,6 +28,10 @@ export const users = pgTable("user", {
   autoTopupThresholdUsd: numeric("auto_topup_threshold_usd"),
   autoTopupAmountUsd: numeric("auto_topup_amount_usd"),
   stripeCustomerId: text("stripe_customer_id"),
+  notifyLowBalance: boolean("notify_low_balance").notNull().default(true),
+  notifyKeyLimit: boolean("notify_key_limit").notNull().default(true),
+  notifyOrgInvite: boolean("notify_org_invite").notNull().default(true),
+  lowBalanceThresholdUsd: numeric("low_balance_threshold_usd").default("5"),
 });
 
 export const sessions = pgTable(
