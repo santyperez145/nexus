@@ -52,10 +52,30 @@ export async function settleUsage(opts: {
   if (opts.auth.logPrompts && micros > 0) micros = Math.floor(micros * 0.99);
 
   if (micros > 0) {
-    await db
+    const [row] = await db
+      .select({ creditMicros: schema.users.creditMicros })
+      .from(schema.users)
+      .where(eq(schema.users.id, opts.auth.userId))
+      .limit(1);
+    if (!row || row.creditMicros < micros) {
+      throw Object.assign(new Error("Insufficient credits"), { status: 402 });
+    }
+    const debited = await db
       .update(schema.users)
-      .set({ creditMicros: sql`${schema.users.creditMicros} - ${micros}` })
-      .where(eq(schema.users.id, opts.auth.userId));
+      .set({ creditMicros: row.creditMicros - micros })
+      .where(
+        and(eq(schema.users.id, opts.auth.userId), eq(schema.users.creditMicros, row.creditMicros)),
+      );
+    // Si otra request ganó la carrera, creditMicros ya no coincide
+    void debited;
+    const [after] = await db
+      .select({ creditMicros: schema.users.creditMicros })
+      .from(schema.users)
+      .where(eq(schema.users.id, opts.auth.userId))
+      .limit(1);
+    if (!after || after.creditMicros !== row.creditMicros - micros) {
+      throw Object.assign(new Error("Insufficient credits"), { status: 402 });
+    }
     await db.insert(schema.creditLedger).values({
       id: id("led"),
       userId: opts.auth.userId,

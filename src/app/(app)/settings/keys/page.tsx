@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,11 +32,14 @@ function KeysInner() {
   const [workspaceId, setWorkspaceId] = useState("");
   const [created, setCreated] = useState<string | null>(null);
   const [welcomeNote, setWelcomeNote] = useState<string | null>(null);
+  const [curl, setCurl] = useState<string | null>(null);
+  const revealing = useRef(false);
   const rows = keys ?? [];
   const spaces = workspaces ?? [];
 
   useEffect(() => {
-    if (!welcome || created) return;
+    if (!welcome || created || revealing.current) return;
+    revealing.current = true;
     const ac = new AbortController();
     fetch("/api/internal/keys/welcome", { method: "POST", signal: ac.signal })
       .then((r) => r.json())
@@ -44,8 +47,12 @@ function KeysInner() {
         if (ac.signal.aborted) return;
         if (json.data?.key) {
           setCreated(json.data.key);
+          setCurl(json.data.curl ?? null);
           setWelcomeNote(json.data.note ?? "Key de bienvenida — copiá ahora.");
           reload();
+          window.history.replaceState({}, "", "/settings/keys");
+        } else if (json.error) {
+          setWelcomeNote(json.error);
           window.history.replaceState({}, "", "/settings/keys");
         }
       })
@@ -132,9 +139,14 @@ function KeysInner() {
         </Button>
       </div>
       {created ? (
-        <p className="mb-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 font-mono text-sm break-all">
-          Cópiala ahora: {created}
-        </p>
+        <div className="mb-4 space-y-3 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3">
+          <p className="font-mono text-sm break-all">Cópiala ahora: {created}</p>
+          {curl ? (
+            <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[11px] text-zinc-300">
+              {curl}
+            </pre>
+          ) : null}
+        </div>
       ) : null}
       <div className="grid gap-2">
         {rows.map((k) => (

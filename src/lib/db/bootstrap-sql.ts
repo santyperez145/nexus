@@ -117,6 +117,7 @@ export const SCHEMA_SQL = [
     created_at timestamp NOT NULL DEFAULT now()
   )`,
   `CREATE INDEX IF NOT EXISTS ledger_user_idx ON "credit_ledger"(user_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ledger_stripe_session_uidx ON "credit_ledger"(stripe_session_id)`,
   `CREATE TABLE IF NOT EXISTS "generation" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,

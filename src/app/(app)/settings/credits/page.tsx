@@ -1,9 +1,10 @@
 "use client";
 
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CREDIT_PACKS } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
 import { formatUsd } from "@/lib/money";
 import { useRemoteData } from "@/lib/use-remote-data";
 
@@ -15,11 +16,41 @@ type Credits = {
   ledger: Array<{ id: string; type: string; amount: number; note: string | null; created_at: string }>;
 };
 
-export default function CreditsPage() {
+function CreditsInner() {
+  const params = useSearchParams();
+  const checkoutOk = params.get("ok") === "1";
+  const canceled = params.get("canceled") === "1";
   const [credits, reload] = useRemoteData<Credits>("/api/v1/credits");
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(
+    canceled ? "Checkout cancelado." : checkoutOk ? "Confirmando pago con Stripe…" : null,
+  );
   const [threshold, setThreshold] = useState("5");
   const [amount, setAmount] = useState("25");
+  const baseline = useRef<number | null>(null);
+  const polls = useRef(0);
+
+  useEffect(() => {
+    if (!checkoutOk) return;
+    if (credits && baseline.current == null) baseline.current = credits.remaining;
+    const timer = window.setInterval(() => {
+      polls.current += 1;
+      reload();
+      if (polls.current >= 12) {
+        window.clearInterval(timer);
+        setMsg("Si el saldo no cambió, el webhook puede demorar unos segundos. Refrescá.");
+        window.history.replaceState({}, "", "/settings/credits");
+      }
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [checkoutOk, reload, credits]);
+
+  useEffect(() => {
+    if (!checkoutOk || credits == null || baseline.current == null) return;
+    if (credits.remaining > baseline.current) {
+      setMsg(`Créditos acreditados. Saldo ${formatUsd(credits.remaining, 2)}.`);
+      window.history.replaceState({}, "", "/settings/credits");
+    }
+  }, [checkoutOk, credits]);
 
   async function buy(packId: string) {
     setMsg(null);
@@ -112,16 +143,36 @@ export default function CreditsPage() {
           <h2 className="mt-10 mb-3 text-lg font-medium">Ledger</h2>
           <div className="grid gap-2">
             {credits.ledger.map((l) => (
-              <div key={l.id} className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
+              <div
+                key={l.id}
+                className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm"
+              >
                 <span>
                   {l.type} {l.note ? <span className="text-zinc-500">· {l.note}</span> : null}
                 </span>
-                <span className={l.amount < 0 ? "text-zinc-400" : "text-amber-300"}>{formatUsd(l.amount)}</span>
+                <span className={l.amount < 0 ? "text-zinc-400" : "text-amber-300"}>
+                  {formatUsd(l.amount)}
+                </span>
               </div>
             ))}
           </div>
         </>
       ) : null}
     </div>
+  );
+}
+
+export default function CreditsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div>
+          <h1 className="mb-2 text-2xl font-semibold">Credits</h1>
+          <p className="text-sm text-zinc-500">Cargando…</p>
+        </div>
+      }
+    >
+      <CreditsInner />
+    </Suspense>
   );
 }

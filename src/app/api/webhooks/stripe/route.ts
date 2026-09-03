@@ -1,34 +1,7 @@
-import { eq, sql } from "drizzle-orm";
 import { CREDIT_PURCHASE_FEE } from "@/lib/config";
-import { db, ensureDb, schema } from "@/lib/db";
-import { id } from "@/lib/ids";
-import { usdToMicros } from "@/lib/money";
+import { creditPurchaseOnce } from "@/lib/billing/stripe-credit";
+import { ensureDb } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
-
-async function creditPurchase(opts: {
-  userId: string;
-  creditsUsd: number;
-  stripeSessionId?: string;
-  note: string;
-  customerId?: string | null;
-}) {
-  const micros = usdToMicros(opts.creditsUsd);
-  await db
-    .update(schema.users)
-    .set({
-      creditMicros: sql`${schema.users.creditMicros} + ${micros}`,
-      ...(opts.customerId ? { stripeCustomerId: opts.customerId } : {}),
-    })
-    .where(eq(schema.users.id, opts.userId));
-  await db.insert(schema.creditLedger).values({
-    id: id("led"),
-    userId: opts.userId,
-    type: "purchase",
-    micros,
-    stripeSessionId: opts.stripeSessionId,
-    note: opts.note,
-  });
-}
 
 export async function POST(req: Request) {
   const stripe = getStripe();
@@ -45,14 +18,14 @@ export async function POST(req: Request) {
     const session = event.data.object;
     const userId = session.metadata?.userId;
     const creditsUsd = Number(session.metadata?.creditsUsd ?? 0);
-    if (userId && creditsUsd > 0) {
+    if (userId && creditsUsd > 0 && session.id) {
       const customerId =
         typeof session.customer === "string"
           ? session.customer
           : session.customer && "id" in session.customer
             ? session.customer.id
             : undefined;
-      await creditPurchase({
+      await creditPurchaseOnce({
         userId,
         creditsUsd,
         stripeSessionId: session.id,

@@ -30,6 +30,13 @@ function createDb(): Db {
       get: () => () => Promise.resolve([]),
     });
   }
+  const allowPglite =
+    process.env.ENABLE_PGLITE === "true" || process.env.NODE_ENV !== "production";
+  if (!allowPglite) {
+    throw new Error(
+      "DATABASE_URL is required in production. Set ENABLE_PGLITE=true only for ephemeral demos.",
+    );
+  }
   const dataDir = process.env.PGLITE_DATA_DIR ?? "./data/nexus";
   mkdirSync(dataDir, { recursive: true });
   const pglite = globalForDb.nexusPglite ?? new PGlite(dataDir);

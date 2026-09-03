@@ -177,7 +177,10 @@ export const creditLedger = pgTable(
     note: text("note"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("ledger_user_idx").on(t.userId)],
+  (t) => [
+    index("ledger_user_idx").on(t.userId),
+    uniqueIndex("ledger_stripe_session_uidx").on(t.stripeSessionId),
+  ],
 );
 
 export const generations = pgTable(
