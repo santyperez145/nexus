@@ -39,10 +39,26 @@ export default function DocsPage() {
       <div className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="mb-4 text-3xl font-semibold">API</h1>
         <p className="mb-8 text-zinc-400">
-          Compatible con el SDK de OpenAI. Un modelo, varios labs. Variantes{" "}
-          <code>:fast</code> <code>:cheap</code> <code>:quality</code> <code>:free</code>{" "}
-          <code>:online</code>. Routers <code>nexus/auto</code> y <code>nexus/free</code>.
+          SDK propio <code>nexus-sdk</code> (425 modelos) o el SDK de OpenAI apuntando a{" "}
+          <code>/api/v1</code>. Variantes <code>:fast</code> <code>:cheap</code>{" "}
+          <code>:quality</code> <code>:free</code> <code>:online</code>. Routers{" "}
+          <code>nexus/auto</code> y <code>nexus/free</code>.
         </p>
+        <pre className="mb-8 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm">
+{`import { Nexus } from "nexus-sdk";
+
+const nexus = new Nexus({
+  apiKey: process.env.NEXUS_API_KEY,
+  httpReferer: "https://tu-app.example",
+  title: "Tu App",
+});
+
+const res = await nexus.chat.send({
+  model: "openai/gpt-5",
+  messages: [{ role: "user", content: "Hola" }],
+  provider: { sort: "throughput", allow_fallbacks: true },
+});`}
+        </pre>
         <pre className="mb-8 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm">
 {`curl $NEXUS_URL/api/v1/chat/completions \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\

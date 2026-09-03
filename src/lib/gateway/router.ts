@@ -105,7 +105,20 @@ export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
 
   for (const slug of slugs) {
     const { id, variants } = parseVariant(slug);
-    if (id === "nexus/auto") {
+    if (id === "nexus/free") {
+      for (const model of allModels().filter((m) => m.free && !m.id.startsWith("nexus/"))) {
+        const endpoints = filterEndpoints(model.endpoints, req.provider, auth);
+        if (endpoints.length) models.push({ model, endpoints, variants: ["free"] });
+      }
+      continue;
+    }
+    if (
+      id === "nexus/auto" ||
+      id === "nexus/auto-beta" ||
+      id === "nexus/fusion" ||
+      id === "nexus/pareto-code" ||
+      id === "nexus/bodybuilder"
+    ) {
       const prompt =
         typeof req.messages?.at(-1)?.content === "string"
           ? (req.messages!.at(-1)!.content as string)
@@ -121,13 +134,6 @@ export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
           req.provider,
         );
         if (endpoints.length) models.push({ model, endpoints, variants });
-      }
-      continue;
-    }
-    if (id === "nexus/free") {
-      for (const model of allModels().filter((m) => m.free && !m.id.startsWith("nexus/"))) {
-        const endpoints = filterEndpoints(model.endpoints, req.provider, auth);
-        if (endpoints.length) models.push({ model, endpoints, variants: ["free"] });
       }
       continue;
     }

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "packages/sdk/dist/**",
+    "src/lib/catalog/full.json",
   ]),
 ]);
 

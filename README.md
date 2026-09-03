@@ -36,6 +36,27 @@ Webhook Stripe: `{APP_URL}/api/webhooks/stripe` evento `checkout.session.complet
 
 Producción: [https://web-production-ef6b3.up.railway.app](https://web-production-ef6b3.up.railway.app) (Railway + Neon + Stripe Checkout/Link).
 
+## SDK
+
+Paquete propio en `packages/sdk` (`nexus-sdk`). Misma idea que un unified client: un key, 425 slugs.
+
+```bash
+npm add nexus-sdk
+# o desde este repo: npm add ./packages/sdk
+```
+
+```ts
+import { Nexus } from "nexus-sdk";
+
+const nexus = new Nexus({ apiKey: process.env.NEXUS_API_KEY });
+const res = await nexus.chat.send({
+  model: "openai/gpt-5",
+  messages: [{ role: "user", content: "Hola" }],
+});
+```
+
+También sirve el SDK de OpenAI con `baseURL: .../api/v1`.
+
 ## API
 
 ```ts

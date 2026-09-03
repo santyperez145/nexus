@@ -1,9 +1,9 @@
-import { OWNED_CATALOG } from "./owned";
+import { bundledModels } from "./bundled";
 import { readCatalogFile } from "./store";
 import type { CatalogModel, ModelEndpoint } from "./types";
 
 export type { CatalogModel, ModelEndpoint };
-export const MODEL_CATALOG = OWNED_CATALOG;
+export const MODEL_CATALOG = bundledModels();
 
 export const BUILTIN_ROUTERS: CatalogModel[] = [
   {
@@ -69,7 +69,15 @@ export const BUILTIN_ROUTERS: CatalogModel[] = [
 ];
 
 export function allModels(): CatalogModel[] {
-  return [...BUILTIN_ROUTERS, ...(readCatalogFile() ?? MODEL_CATALOG)];
+  const bundled = MODEL_CATALOG;
+  const live = readCatalogFile();
+  const byId = new Map<string, CatalogModel>();
+  for (const m of bundled) byId.set(m.id, m);
+  if (live?.length) {
+    for (const m of live) byId.set(m.id, m);
+  }
+  const routers = BUILTIN_ROUTERS.filter((r) => !byId.has(r.id));
+  return [...routers, ...byId.values()];
 }
 
 export function findModel(slug: string): CatalogModel | undefined {

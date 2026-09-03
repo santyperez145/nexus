@@ -37,14 +37,14 @@ export default function HomePage() {
       </section>
       <section className="mx-auto max-w-6xl px-4 pb-16">
         <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/50 p-4 text-sm text-amber-100/90">
-{`import OpenAI from "openai";
+{`import { Nexus } from "nexus-sdk";
 
-const client = new OpenAI({
-  baseURL: "${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/v1",
+const nexus = new Nexus({
   apiKey: process.env.NEXUS_API_KEY,
+  baseURL: "${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/v1",
 });
 
-const res = await client.chat.completions.create({
+const res = await nexus.chat.send({
   model: "meta-llama/llama-3.3-70b-instruct",
   provider: { sort: "throughput", only: ["groq", "together"] },
   messages: [{ role: "user", content: "Hola" }],
@@ -61,7 +61,7 @@ const res = await client.chat.completions.create({
         <div className="grid gap-6 text-sm text-zinc-400 md:grid-cols-3">
           <div>
             <div className="text-2xl font-semibold text-white">{models.length}+</div>
-            modelos en catálogo propio + discovery de cada lab cableado
+            modelos en catálogo (425 del mercado + routers Nexus)
           </div>
           <div>
             <div className="text-2xl font-semibold text-white">{labs}</div>

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cache } from "@/lib/redis";
 import type { CatalogModel } from "./types";
-import { OWNED_CATALOG } from "./owned";
+import { bundledModels } from "./bundled";
 
 const FILE = join(process.cwd(), "data", "catalog.json");
 const REDIS_KEY = "catalog:models";
@@ -10,7 +10,7 @@ const REDIS_KEY = "catalog:models";
 let memory: CatalogModel[] | null = null;
 
 export function bundledCatalog() {
-  return OWNED_CATALOG;
+  return bundledModels();
 }
 
 export function readCatalogFile(): CatalogModel[] | null {
@@ -52,7 +52,7 @@ export async function loadCatalog(): Promise<CatalogModel[]> {
     memory = file;
     return file;
   }
-  return OWNED_CATALOG;
+  return bundledModels();
 }
 
 export function catalogPath() {

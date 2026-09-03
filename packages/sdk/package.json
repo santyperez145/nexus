@@ -1,0 +1,28 @@
+{
+  "name": "nexus-sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for the Nexus model gateway. 425 models, one API.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "sideEffects": false,
+  "engines": { "node": ">=18" },
+  "keywords": ["nexus", "ai", "llm", "openai", "sdk", "gateway"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/santyperez145/nexus.git",
+    "directory": "packages/sdk"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

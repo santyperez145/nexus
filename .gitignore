@@ -37,6 +37,7 @@ yarn-error.log*
 # local pglite + generated dumps
 /data
 /_models_raw.json
+packages/sdk/dist
 
 # vercel
 .vercel

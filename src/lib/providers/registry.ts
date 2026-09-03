@@ -296,6 +296,16 @@ export const NEXUS_PROVIDERS: NexusProvider[] = [
     auth: "bearer",
   },
   {
+    id: "z-ai",
+    label: "Z.AI",
+    env: "ZAI_API_KEY",
+    extraEnv: ["Z_AI_API_KEY"],
+    kind: "openai",
+    baseURL: "https://api.z.ai/api/paas/v4",
+    modelsPath: "/models",
+    auth: "bearer",
+  },
+  {
     id: "huggingface",
     label: "Hugging Face",
     env: "HF_TOKEN",
