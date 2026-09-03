@@ -23,7 +23,7 @@ export default async function ProvidersPage() {
     circuits = [];
   }
   const circuitBy = new Map(circuits.map((c) => [c.name, c]));
-  const openCircuits = circuits.filter((c) => c.circuit === "open").length;
+  const modelCount = allModels().filter((model) => !model.id.startsWith("nexus/")).length;
 
   return (
     <MarketingShell>
@@ -32,16 +32,16 @@ export default async function ProvidersPage() {
           aria-hidden
           className="pointer-events-none absolute inset-x-0 -top-8 h-48 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
-        <MarketingPageHeader title="Providers">
-          Hosts de inferencia del catálogo. Conteos = slugs que listan el adapter. Circuitos desde
-          Redis — sin uptime inventado.
+        <MarketingPageHeader title="Proveedores">
+          Compará el catálogo disponible en cada proveedor y elegí cómo ejecutar tus modelos desde
+          una sola cuenta.
         </MarketingPageHeader>
 
         <div className="mb-10 grid gap-3 sm:grid-cols-3">
           {[
-            { k: "Hosts", v: String(NEXUS_PROVIDERS.length) },
-            { k: "Cableados", v: `${wired}/${NEXUS_PROVIDERS.length}` },
-            { k: "Circuit open", v: String(openCircuits) },
+            { k: "Proveedores compatibles", v: String(NEXUS_PROVIDERS.length) },
+            { k: "Modelos en catálogo", v: modelCount.toLocaleString() },
+            { k: "Disponibles ahora", v: String(wired) },
           ].map((s) => (
             <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
@@ -69,24 +69,20 @@ export default async function ProvidersPage() {
                     <div className="text-lg font-semibold text-zinc-950 group-hover:text-zinc-950">
                       {p.label}
                     </div>
-                    <div className="mt-0.5 font-mono text-xs text-violet-700">{p.id}</div>
                   </div>
                   <span
                     className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
                       on
                         ? "border-emerald-600/30 bg-emerald-50 text-emerald-800"
-                        : "border-zinc-200 text-zinc-500"
+                        : "border-violet-200 bg-violet-50 text-violet-700"
                     }`}
                   >
-                    {on ? "wired" : "echo"}
+                    {on ? "Disponible" : "Cuenta propia"}
                   </span>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
                   <span className="rounded border border-zinc-200 px-1.5 py-0.5 font-mono text-zinc-500">
-                    {p.kind}
-                  </span>
-                  <span className="rounded border border-zinc-200 px-1.5 py-0.5 tabular-nums text-zinc-600">
-                    {n} models
+                    {n ? `${n} modelos` : "Integración disponible"}
                   </span>
                   <span
                     className={`rounded border px-1.5 py-0.5 ${
@@ -97,11 +93,11 @@ export default async function ProvidersPage() {
                           : "border-zinc-200 text-zinc-500"
                     }`}
                   >
-                    {circuit === "open" ? "circuit open" : p.zdr ? "ZDR" : circuit}
+                    {circuit === "open" ? "Interrupción detectada" : p.zdr ? "Sin retención" : "Estándar"}
                   </span>
                 </div>
                 <div className="mt-3 text-xs text-violet-700 opacity-0 transition-opacity group-hover:opacity-100">
-                  Ficha →
+                  Ver proveedor →
                 </div>
               </Link>
             );
@@ -109,11 +105,10 @@ export default async function ProvidersPage() {
         </div>
 
         <p className="mt-10 text-sm text-zinc-500">
-          En el request:{" "}
-          <code className="text-zinc-700">provider.only: [&quot;groq&quot;, &quot;together&quot;]</code>.{" "}
-          Health: <code className="text-zinc-700">GET /api/v1/providers/health</code>.{" "}
+          ¿Necesitás priorizar precio, velocidad o privacidad? Nexus puede elegir automáticamente o
+          respetar el orden que definas.{" "}
           <Link href="/docs/provider-routing" className="text-violet-700 hover:underline">
-            Routing docs →
+            Cómo funciona el enrutamiento →
           </Link>
         </p>
       </div>
