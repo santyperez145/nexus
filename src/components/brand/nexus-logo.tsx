@@ -46,7 +46,7 @@ export function NexusWordmark({
       <NexusMark
         className={cn(
           "size-6 shrink-0",
-          tone === "light" ? "text-amber-600" : "text-amber-400",
+          tone === "light" ? "text-zinc-950" : "text-zinc-100",
           markClassName,
         )}
       />

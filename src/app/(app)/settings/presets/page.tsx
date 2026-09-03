@@ -48,7 +48,7 @@ export default function PresetsPage() {
         campos del preset.
       </AppPageHeader>
 
-      <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+      <section className="mb-8 rounded-2xl border border-zinc-200 bg-white p-4">
         <div className="mb-3 grid gap-2 md:grid-cols-2">
           <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug" />
           <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="modelo" />
@@ -84,10 +84,10 @@ export default function PresetsPage() {
           const cfg = p.config ?? {};
           const curl = `curl $NEXUS_URL/api/v1/chat/completions -H "Authorization: Bearer $NEXUS_API_KEY" -H "Content-Type: application/json" -d '{"model":"@${p.slug}","messages":[{"role":"user","content":"Hola"}]}'`;
           return (
-            <div key={p.id} className="rounded-xl border border-white/10 px-4 py-3">
+            <div key={p.id} className="rounded-xl border border-zinc-200 px-4 py-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <div className="font-mono text-sm text-amber-300/90">@{p.slug}</div>
+                  <div className="font-mono text-sm text-zinc-950/90">@{p.slug}</div>
                   <div className="mt-1 text-xs text-zinc-500">
                     {String(cfg.model ?? "—")}
                     {cfg.temperature != null ? ` · temp ${cfg.temperature}` : ""}
@@ -132,7 +132,7 @@ export default function PresetsPage() {
                 </div>
               </div>
               {typeof cfg.system === "string" && cfg.system ? (
-                <pre className="mt-3 overflow-x-auto rounded-lg border border-white/5 bg-black/30 p-2 text-[11px] text-zinc-400">
+                <pre className="mt-3 overflow-x-auto rounded-lg border border-zinc-100 bg-zinc-50 p-2 text-[11px] text-zinc-400">
                   {cfg.system}
                 </pre>
               ) : null}

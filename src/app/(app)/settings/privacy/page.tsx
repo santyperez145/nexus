@@ -46,12 +46,12 @@ export default async function PrivacyPage() {
 
       <PrivacyForm zdr={zdr} logPrompts={logPrompts} allowTraining={allowTraining} />
 
-      <section className="mt-8 rounded-2xl border border-white/10 p-4 text-sm text-zinc-400">
-        <div className="font-medium text-zinc-200">Cómo se aplica</div>
+      <section className="mt-8 rounded-2xl border border-zinc-200 p-4 text-sm text-zinc-400">
+        <div className="font-medium text-zinc-800">Cómo se aplica</div>
         <ul className="mt-2 list-inside list-disc space-y-1 text-zinc-500">
           <li>
             ZDR y allowTraining se evalúan en el router antes del hop (preview en{" "}
-            <Link href="/chat" className="text-amber-400 hover:underline">
+            <Link href="/chat" className="text-violet-700 hover:underline">
               Chat
             </Link>
             ).
@@ -61,11 +61,11 @@ export default async function PrivacyPage() {
           </li>
           <li>
             Guardrails de contenido viven en{" "}
-            <Link href="/settings/guardrails" className="text-amber-400 hover:underline">
+            <Link href="/settings/guardrails" className="text-violet-700 hover:underline">
               Guardrails
             </Link>
             ; webhooks en{" "}
-            <Link href="/settings/observability" className="text-amber-400 hover:underline">
+            <Link href="/settings/observability" className="text-violet-700 hover:underline">
               Observability
             </Link>
             .
@@ -88,9 +88,9 @@ function Metric({
   on: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
       <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">{label}</div>
-      <div className={`mt-1 font-mono text-sm ${on ? "text-amber-300" : "text-zinc-300"}`}>{value}</div>
+      <div className={`mt-1 font-mono text-sm ${on ? "text-zinc-950" : "text-zinc-600"}`}>{value}</div>
       <div className="mt-1 text-xs text-zinc-600">{hint}</div>
     </div>
   );

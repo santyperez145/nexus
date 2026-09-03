@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { NexusWordmark } from "@/components/brand/nexus-logo";
-import { HeroMesh } from "@/components/brand/hero-mesh";
 import { AuthTrustStrip } from "@/components/layout/auth-trust-strip";
 
-/** Shell claro para login / register / forgot / reset — atmósfera marketing. */
 export function AuthShell({
   title,
   subtitle,
@@ -14,41 +12,23 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#fafaf9] text-zinc-900">
-      <HeroMesh className="pointer-events-none absolute inset-0 h-full w-full opacity-90" />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.55),transparent_55%)]"
-      />
-      <div className="relative mx-auto grid min-h-screen max-w-5xl md:grid-cols-[1.05fr_0.95fr]">
-        <aside className="hidden flex-col justify-between px-8 py-12 md:flex lg:px-12">
+    <div className="min-h-screen bg-white text-zinc-900">
+      <div className="mx-auto grid min-h-screen max-w-5xl md:grid-cols-[1.05fr_0.95fr]">
+        <aside className="hidden flex-col justify-between border-r border-zinc-100 px-8 py-12 md:flex lg:px-12">
           <Link href="/" className="text-[15px] text-zinc-950">
             <NexusWordmark tone="light" />
           </Link>
           <div className="max-w-md">
-            <p className="font-[family-name:var(--font-syne)] text-4xl font-semibold tracking-tight text-zinc-950 lg:text-5xl">
-              Una API.
-              <br />
-              Cientos de modelos.
+            <p className="text-4xl font-semibold tracking-tight text-zinc-950 lg:text-5xl">
+              The unified interface for every model.
             </p>
-            <p className="mt-4 text-sm leading-relaxed text-zinc-600">
-              Gateway de producción: una política, una factura, BYOK y routing medido. Keys de
-              inferencia y management separadas.
+            <p className="mt-4 text-sm leading-relaxed text-zinc-500">
+              Una API, una política, una factura. BYOK, ZDR fail-closed y routing con fallbacks.
             </p>
             <ul className="mt-8 space-y-2 text-sm text-zinc-600">
-              <li className="flex gap-2">
-                <span className="text-amber-700">→</span> OpenAI-compatible · keys{" "}
-                <code className="text-zinc-800">sk-nx-</code> /{" "}
-                <code className="text-zinc-800">sk-nx-mgmt-</code>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-amber-700">→</span> Créditos vía Stripe. Sin bonus de signup
-                ni grants anónimos.
-              </li>
-              <li className="flex gap-2">
-                <span className="text-amber-700">→</span> ZDR fail-closed. Sin eco en la API de
-                producción.
-              </li>
+              <li>OpenAI-compatible · keys sk-nx- / sk-nx-mgmt-</li>
+              <li>Créditos vía Stripe. Sin grants anónimos.</li>
+              <li>ZDR fail-closed. Sin eco en producción.</li>
             </ul>
             <AuthTrustStrip />
           </div>
@@ -60,30 +40,16 @@ export function AuthShell({
             <Link href="/docs" className="hover:text-zinc-600">
               Docs
             </Link>
-            {" · "}
-            <Link href="/credits" className="hover:text-zinc-600">
-              Credits
-            </Link>
-            {" · "}
-            <Link href="/chat" className="hover:text-zinc-600">
-              Chat
-            </Link>
           </p>
         </aside>
 
-        <div className="flex flex-col justify-center px-4 py-12 md:px-8">
+        <div className="flex flex-col justify-center px-4 py-12 md:px-10">
           <Link href="/" className="mb-8 text-[15px] text-zinc-950 md:hidden">
             <NexusWordmark tone="light" />
           </Link>
-          <div className="rounded-2xl border border-zinc-200/80 bg-white/80 p-6 shadow-[0_20px_60px_-40px_rgba(180,83,9,0.35)] backdrop-blur-md md:p-8">
-            <h1 className="mb-2 font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-zinc-950">
-              {title}
-            </h1>
-            {subtitle ? (
-              <p className="mb-6 text-sm leading-relaxed text-zinc-500">{subtitle}</p>
-            ) : (
-              <div className="mb-6" />
-            )}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 md:border-0 md:p-0">
+            <h1 className="mb-2 text-2xl font-semibold tracking-tight text-zinc-950">{title}</h1>
+            {subtitle ? <p className="mb-6 text-sm leading-relaxed text-zinc-500">{subtitle}</p> : <div className="mb-6" />}
             {children}
           </div>
         </div>

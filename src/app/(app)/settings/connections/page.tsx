@@ -46,26 +46,26 @@ export default function ConnectionsPage() {
       </AppPageHeader>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
           <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Mode</div>
-          <div className="mt-1 font-mono text-sm text-amber-200">{mode}</div>
+          <div className="mt-1 font-mono text-sm text-zinc-700">{mode}</div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
           <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Labs wired</div>
-          <div className="mt-1 font-mono text-sm text-zinc-200">
+          <div className="mt-1 font-mono text-sm text-zinc-800">
             {wiredLabs}/{status.providers.length}
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
           <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Atajos</div>
           <div className="mt-1 flex flex-wrap gap-2 text-xs">
-            <Link href="/settings/byok" className="text-amber-400 hover:underline">
+            <Link href="/settings/byok" className="text-violet-700 hover:underline">
               BYOK
             </Link>
-            <Link href="/status" className="text-amber-400 hover:underline">
+            <Link href="/status" className="text-violet-700 hover:underline">
               Status
             </Link>
-            <Link href="/api/v1/status" className="text-amber-400 hover:underline">
+            <Link href="/api/v1/status" className="text-violet-700 hover:underline">
               JSON
             </Link>
           </div>
@@ -74,7 +74,7 @@ export default function ConnectionsPage() {
 
       <div className="mb-8 grid gap-3">
         {blocks.map((b) => (
-          <div key={b.label} className="rounded-xl border border-white/10 p-4">
+          <div key={b.label} className="rounded-xl border border-zinc-200 p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-medium">
                 <Dot on={b.wired} /> {b.label}
@@ -89,17 +89,17 @@ export default function ConnectionsPage() {
       <h2 className="mb-3 text-lg font-medium">Laboratorios</h2>
       <p className="mb-3 text-xs text-zinc-500">
         Sin key de plataforma: usá{" "}
-        <Link href="/settings/byok" className="text-amber-400 hover:underline">
+        <Link href="/settings/byok" className="text-violet-700 hover:underline">
           BYOK
         </Link>{" "}
         o esperá eco local honesto.
       </p>
       <div className="mb-8 grid gap-2 md:grid-cols-2">
         {status.providers.map((p) => (
-          <div key={p.id} className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
+          <div key={p.id} className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 text-sm">
             <span className="flex items-center gap-2">
               <Dot on={p.wired} />{" "}
-              <Link href={`/providers/${p.id}`} className="hover:text-amber-300">
+              <Link href={`/providers/${p.id}`} className="hover:text-zinc-950">
                 {p.label}
               </Link>
             </span>
@@ -118,7 +118,7 @@ export default function ConnectionsPage() {
           <h2 className="mb-3 text-lg font-medium">Búsqueda web</h2>
           <div className="mb-8 grid gap-2 md:grid-cols-2">
             {status.search.map((p) => (
-              <div key={p.id} className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
+              <div key={p.id} className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 text-sm">
                 <span className="flex items-center gap-2">
                   <Dot on={p.wired} /> {p.label}
                 </span>
@@ -128,8 +128,8 @@ export default function ConnectionsPage() {
         </>
       ) : null}
 
-      <div className="mb-8 rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm">
-        <div className="font-medium text-amber-200">Webhook Stripe</div>
+      <div className="mb-8 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm">
+        <div className="font-medium text-zinc-700">Webhook Stripe</div>
         <p className="mt-1 font-mono text-xs text-zinc-400">{status.webhookUrl}</p>
         <p className="mt-2 text-zinc-500">
           En el dashboard de Stripe → Webhooks → este URL. Evento:{" "}
@@ -194,7 +194,7 @@ export default function ConnectionsPage() {
           </Button>
         ) : null}
       </div>
-      {msg ? <p className="mt-4 text-sm text-amber-300">{msg}</p> : null}
+      {msg ? <p className="mt-4 text-sm text-zinc-950">{msg}</p> : null}
     </div>
   );
 }

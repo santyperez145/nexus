@@ -111,30 +111,30 @@ export default async function OverviewPage() {
       </AppPageHeader>
 
       {labs === 0 ? (
-        <p className="mb-6 rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-sm text-amber-100">
+        <p className="mb-6 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-zinc-800">
           No hay labs cableados: el playground responde en eco local.{" "}
-          <Link href="/settings/connections" className="text-amber-400 hover:underline">
+          <Link href="/settings/connections" className="text-violet-700 hover:underline">
             Conexiones
           </Link>
           {" · "}
-          <Link href="/settings/byok" className="text-amber-400 hover:underline">
+          <Link href="/settings/byok" className="text-violet-700 hover:underline">
             BYOK
           </Link>
         </p>
       ) : null}
       {unusedKeys.length ? (
-        <p className="mb-6 rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-400">
+        <p className="mb-6 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
           Hay {unusedKeys.length} key(s) sin usar.{" "}
-          <Link href="/settings/keys?welcome=1" className="text-amber-400 hover:underline">
+          <Link href="/settings/keys?welcome=1" className="text-violet-700 hover:underline">
             Revelar bienvenida
           </Link>
         </p>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
           <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Wallet</div>
-          <div className="mt-2 font-[family-name:var(--font-syne)] text-4xl font-semibold tracking-tight text-amber-300">
+          <div className="mt-2 text-4xl font-semibold tracking-tight text-zinc-950">
             {balance}
           </div>
           <p className="mt-1 text-xs text-zinc-500">
@@ -144,7 +144,7 @@ export default async function OverviewPage() {
                 ? "Burn ~$0 · runway ilimitado a este ritmo"
                 : `~${runwayDays}d de runway (burn 7d)`}
           </p>
-          <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
+          <div className="mt-6 grid grid-cols-3 gap-3 border-t border-zinc-200 pt-4">
             <div>
               <div className="text-[10px] uppercase tracking-wide text-zinc-600">Keys</div>
               <div className="mt-1 text-xl font-semibold tabular-nums">{keys.length}</div>
@@ -171,10 +171,10 @@ export default async function OverviewPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
           <div className="flex items-baseline justify-between gap-2">
             <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Últimos 7d</div>
-            <Link href="/analytics" className="text-[11px] text-amber-400/90 hover:underline">
+            <Link href="/analytics" className="text-[11px] text-violet-700 hover:underline">
               Analytics →
             </Link>
           </div>
@@ -194,12 +194,12 @@ export default async function OverviewPage() {
           </p>
           <Sparkline values={spark} className="mt-4 h-12 w-full" />
           {topModels.length ? (
-            <div className="mt-4 border-t border-white/10 pt-3">
+            <div className="mt-4 border-t border-zinc-200 pt-3">
               <div className="text-[10px] uppercase tracking-wide text-zinc-600">Top modelos</div>
               <ul className="mt-2 space-y-1">
                 {topModels.map(([id, n]) => (
                   <li key={id} className="flex justify-between gap-2 font-mono text-[11px] text-zinc-400">
-                    <span className="truncate text-amber-400/80">{id}</span>
+                    <span className="truncate text-violet-700">{id}</span>
                     <span className="tabular-nums">{n}</span>
                   </li>
                 ))}
@@ -223,29 +223,29 @@ export default async function OverviewPage() {
 
         <section>
           <div className="mb-3 flex items-baseline justify-between gap-2">
-            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">Reciente</h2>
-            <Link href="/activity" className="text-xs text-amber-400/90 hover:underline">
+            <h2 className="text-lg font-semibold text-zinc-900">Reciente</h2>
+            <Link href="/activity" className="text-xs text-violet-700 hover:underline">
               Ver activity →
             </Link>
           </div>
           {recent.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8">
+            <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-8">
               <p className="text-center text-sm text-zinc-400">Todavía no hay generaciones.</p>
               <ol className="mx-auto mt-4 max-w-md space-y-2 text-sm text-zinc-500">
                 <li>
                   1.{" "}
-                  <Link href="/settings/keys" className="text-amber-400 hover:underline">
+                  <Link href="/settings/keys" className="text-violet-700 hover:underline">
                     Revelá tu API key
                   </Link>{" "}
                   Default
                 </li>
                 <li>
                   2.{" "}
-                  <Link href="/welcome" className="text-amber-400 hover:underline">
+                  <Link href="/welcome" className="text-violet-700 hover:underline">
                     Ping en Welcome
                   </Link>{" "}
                   o abrí{" "}
-                  <Link href="/chat" className="text-amber-400 hover:underline">
+                  <Link href="/chat" className="text-violet-700 hover:underline">
                     Chat
                   </Link>
                 </li>
@@ -267,17 +267,17 @@ export default async function OverviewPage() {
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-white/10">
+            <div className="overflow-hidden rounded-2xl border border-zinc-200">
               {recent.map((r, i) => (
                 <Link
                   key={r.id}
                   href={`/activity/${r.id}`}
-                  className={`grid grid-cols-[1fr_auto] gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-white/[0.03] ${
-                    i ? "border-t border-white/5" : ""
+                  className={`grid grid-cols-[1fr_auto] gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-zinc-50 ${
+                    i ? "border-t border-zinc-100" : ""
                   }`}
                 >
                   <div className="min-w-0">
-                    <div className="truncate font-mono text-[13px] text-amber-400/85">{r.routedModel}</div>
+                    <div className="truncate font-mono text-[13px] text-violet-700">{r.routedModel}</div>
                     <div className="mt-0.5 truncate text-xs text-zinc-600">
                       {r.provider}
                       {r.metadata && typeof r.metadata === "object" && "modality" in r.metadata
@@ -299,7 +299,7 @@ export default async function OverviewPage() {
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <RateLimitsCard />
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5">
           <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Atajos</div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">

@@ -70,13 +70,16 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+const activeCls = "bg-zinc-100 text-zinc-950";
+const idleCls = "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950";
+
 export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile" }) {
   const pathname = usePathname() || "/overview";
   const [open, setOpen] = useState(false);
 
   if (variant === "mobile") {
     return (
-      <div className="border-b border-white/10 md:hidden">
+      <div className="border-b border-zinc-200 bg-white md:hidden">
         <nav className="flex items-center gap-1 px-3 py-2 text-xs">
           {MOBILE_PRIMARY.map((item) => {
             const active = isActive(pathname, item.href);
@@ -84,9 +87,7 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
               <Link
                 key={item.href}
                 href={item.href}
-                className={`shrink-0 rounded-md px-2.5 py-1.5 ${
-                  active ? "bg-amber-400/15 text-amber-200" : "text-zinc-500 hover:text-zinc-200"
-                }`}
+                className={`shrink-0 rounded-md px-2.5 py-1.5 ${active ? activeCls : idleCls}`}
               >
                 {item.label}
               </Link>
@@ -95,19 +96,17 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className={`ml-auto shrink-0 rounded-md px-2.5 py-1.5 ${
-              open ? "bg-white/10 text-zinc-100" : "text-zinc-500 hover:text-zinc-200"
-            }`}
+            className={`ml-auto shrink-0 rounded-md px-2.5 py-1.5 ${open ? activeCls : idleCls}`}
             aria-expanded={open}
           >
             Más
           </button>
         </nav>
         {open ? (
-          <div className="max-h-[60vh] space-y-4 overflow-y-auto border-t border-white/10 bg-zinc-950/95 px-3 py-3 text-sm backdrop-blur">
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto border-t border-zinc-200 bg-white px-3 py-3 text-sm">
             {GROUPS.map((group) => (
               <div key={group.title}>
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
                   {group.title}
                 </div>
                 <div className="grid grid-cols-2 gap-1">
@@ -117,9 +116,7 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
                       href={item.href}
                       onClick={() => setOpen(false)}
                       className={`rounded-md px-2 py-1.5 ${
-                        isActive(pathname, item.href)
-                          ? "bg-white/[0.06] text-amber-300"
-                          : "text-zinc-400 hover:bg-white/[0.04]"
+                        isActive(pathname, item.href) ? activeCls : idleCls
                       }`}
                     >
                       {item.label}
@@ -128,15 +125,12 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
                 </div>
               </div>
             ))}
-            <div className="grid grid-cols-2 gap-1 border-t border-white/10 pt-3">
-              <Link href="/status" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-400">
+            <div className="grid grid-cols-2 gap-1 border-t border-zinc-200 pt-3">
+              <Link href="/status" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-600">
                 Status
               </Link>
-              <Link href="/docs" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-400">
+              <Link href="/docs" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-600">
                 Docs
-              </Link>
-              <Link href="/compare" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-400">
-                Compare
               </Link>
             </div>
           </div>
@@ -150,7 +144,7 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
       <nav className="flex-1 space-y-5 overflow-y-auto pb-4 text-sm">
         {GROUPS.map((group) => (
           <div key={group.title}>
-            <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">
+            <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
               {group.title}
             </div>
             <div className="grid gap-0.5">
@@ -160,11 +154,7 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-md px-2 py-1.5 transition-colors ${
-                      active
-                        ? "bg-white/[0.06] text-amber-300"
-                        : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
-                    }`}
+                    className={`rounded-md px-2 py-1.5 transition-colors ${active ? activeCls : idleCls}`}
                   >
                     {item.label}
                   </Link>
@@ -174,26 +164,16 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
           </div>
         ))}
         <div>
-          <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-600">
-            Docs
-          </div>
+          <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">Docs</div>
           <Link
             href="/status"
-            className={`block rounded-md px-2 py-1.5 ${
-              pathname.startsWith("/status")
-                ? "bg-white/[0.06] text-amber-300"
-                : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
-            }`}
+            className={`block rounded-md px-2 py-1.5 ${pathname.startsWith("/status") ? activeCls : idleCls}`}
           >
             Status
           </Link>
           <Link
             href="/docs"
-            className={`block rounded-md px-2 py-1.5 ${
-              pathname.startsWith("/docs")
-                ? "bg-white/[0.06] text-amber-300"
-                : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
-            }`}
+            className={`block rounded-md px-2 py-1.5 ${pathname.startsWith("/docs") ? activeCls : idleCls}`}
           >
             API reference
           </Link>

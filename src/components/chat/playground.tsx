@@ -447,8 +447,8 @@ export function Playground({
               type="button"
               className={`max-w-[10rem] truncate rounded border px-2 py-1 text-left ${
                 s.id === sessionId
-                  ? "border-amber-400/40 text-amber-200"
-                  : "border-white/10 text-zinc-400 hover:text-zinc-200"
+                  ? "border-violet-300 text-zinc-700"
+                  : "border-zinc-200 text-zinc-400 hover:text-zinc-900"
               }`}
               onClick={() => {
                 setSessionId(s.id);
@@ -461,7 +461,7 @@ export function Playground({
           ))}
           <button
             type="button"
-            className="text-amber-400 hover:underline"
+            className="text-violet-700 hover:underline"
             onClick={() => {
               setSessionId(newSessionId());
               setLanes([{ model: defaultModel, query: "", messages: [], stats: null }]);
@@ -482,35 +482,35 @@ export function Playground({
         </div>
       ) : null}
       {guest ? (
-        <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-sm text-amber-100/90">
+        <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-sm text-zinc-800/90">
           Guest demo · completions en eco local (sin keys de lab), rate-limit por IP. Signup incluye $1
           para hops live / BYOK.{" "}
-          <Link href="/register" className="text-amber-400 hover:underline">
+          <Link href="/register" className="text-violet-700 hover:underline">
             Crear cuenta
           </Link>
         </p>
       ) : null}
       {echoRisk || sawLocal ? (
-        <p className="rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-sm text-amber-100">
+        <p className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-zinc-800">
           {sawLocal
             ? "La última respuesta fue eco local (sin key de lab)."
             : "Sin labs de plataforma ni BYOK: el chat responderá en eco local."}{" "}
-          <Link href="/settings/byok" className="text-amber-400 hover:underline">
+          <Link href="/settings/byok" className="text-violet-700 hover:underline">
             BYOK
           </Link>
           {" · "}
-          <Link href="/settings/connections" className="text-amber-400 hover:underline">
+          <Link href="/settings/connections" className="text-violet-700 hover:underline">
             Conexiones
           </Link>
         </p>
       ) : null}
       {route ? (
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-zinc-400">
+        <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-400">
           <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-            <span className="font-medium text-zinc-200">
-              Route trace · <span className="font-mono text-amber-400/90">{route.requested}</span>
+            <span className="font-medium text-zinc-800">
+              Route trace · <span className="font-mono text-violet-700">{route.requested}</span>
             </span>
-            <span className="rounded border border-white/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-zinc-300">
+            <span className="rounded border border-zinc-200 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-zinc-600">
               {route.mode}
             </span>
           </div>
@@ -522,7 +522,7 @@ export function Playground({
                 className={`rounded border px-1.5 py-0.5 font-mono ${
                   hop.wired
                     ? "border-emerald-500/40 text-emerald-300/90"
-                    : "border-white/10 text-zinc-500"
+                    : "border-zinc-200 text-zinc-500"
                 }`}
                 title={hop.zdr ? "ZDR" : "standard"}
               >
@@ -555,7 +555,7 @@ export function Playground({
       {!comparing ? (
         <button
           type="button"
-          className="text-left text-sm text-amber-400 hover:underline"
+          className="text-left text-sm text-violet-700 hover:underline"
           onClick={() =>
             setLanes((prev) => [
               ...prev,
@@ -572,7 +572,7 @@ export function Playground({
           <select
             value={envelope}
             onChange={(e) => setEnvelope(e.target.value as ApiEnvelope)}
-            className="h-8 rounded-md border border-white/10 bg-zinc-950 px-2 font-mono text-xs text-zinc-200"
+            className="h-8 rounded-md border border-zinc-200 bg-zinc-50 px-2 font-mono text-xs text-zinc-800"
             aria-label="API envelope"
           >
             <option value="chat">/chat/completions</option>
@@ -606,7 +606,7 @@ export function Playground({
           />
           <span className="w-8 font-mono text-xs">{temperature.toFixed(1)}</span>
         </label>
-        <label className="cursor-pointer text-amber-400 hover:underline">
+        <label className="cursor-pointer text-violet-700 hover:underline">
           Subir archivo
           <input
             type="file"
@@ -618,12 +618,12 @@ export function Playground({
             }}
           />
         </label>
-        <Link href="/docs/provider-routing" className="text-amber-400/80 hover:underline">
+        <Link href="/docs/provider-routing" className="text-violet-700 hover:underline">
           Docs routing
         </Link>
       </div>
-      <details className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
-        <summary className="cursor-pointer text-sm text-zinc-300">
+      <details className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
+        <summary className="cursor-pointer text-sm text-zinc-600">
           Provider prefs · sort / only / ignore / ZDR
         </summary>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -632,7 +632,7 @@ export function Playground({
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as typeof sort)}
-              className="h-9 rounded-md border border-white/15 bg-black/40 px-2 font-mono text-sm text-zinc-200"
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 font-mono text-sm text-zinc-800"
             >
               <option value="default">default</option>
               <option value="price">price</option>
@@ -660,7 +660,7 @@ export function Playground({
               value={onlyRaw}
               onChange={(e) => setOnlyRaw(e.target.value)}
               placeholder="groq, together"
-              className="h-9 rounded-md border border-white/15 bg-black/40 px-2 font-mono text-sm text-zinc-200"
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 font-mono text-sm text-zinc-800"
             />
           </label>
           <label className="grid gap-1 text-xs text-zinc-500">
@@ -669,7 +669,7 @@ export function Playground({
               value={ignoreRaw}
               onChange={(e) => setIgnoreRaw(e.target.value)}
               placeholder="deepseek"
-              className="h-9 rounded-md border border-white/15 bg-black/40 px-2 font-mono text-sm text-zinc-200"
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 font-mono text-sm text-zinc-800"
             />
           </label>
         </div>
@@ -703,15 +703,15 @@ export function Playground({
       />
       <div className={`grid gap-4 ${comparing ? "md:grid-cols-2" : ""}`}>
         {lanes.map((lane, index) => (
-          <div key={index} className="min-h-[320px] space-y-3 border-t border-white/10 pt-4">
-            <div className="font-mono text-[11px] text-amber-400/80">{applyOnline(lane.model, online)}</div>
+          <div key={index} className="min-h-[320px] space-y-3 border-t border-zinc-200 pt-4">
+            <div className="font-mono text-[11px] text-violet-700">{applyOnline(lane.model, online)}</div>
             {lane.messages.length === 0 ? (
               <p className="text-sm text-zinc-500">
                 Un prompt, {comparing ? "dos modelos" : "un modelo"}. La key <code>sk-nx-</code> es para apps.
               </p>
             ) : (
               lane.messages.map((m, i) => (
-                <div key={i} className={m.role === "user" ? "text-amber-100" : "text-zinc-200"}>
+                <div key={i} className={m.role === "user" ? "text-zinc-800" : "text-zinc-800"}>
                   <div className="mb-1 text-xs uppercase tracking-wide text-zinc-500">{m.role}</div>
                   {m.images?.length ? (
                     <div className="mb-2 flex flex-wrap gap-2">
@@ -721,7 +721,7 @@ export function Playground({
                           key={j}
                           src={src}
                           alt=""
-                          className="max-h-28 rounded-lg border border-white/10"
+                          className="max-h-28 rounded-lg border border-zinc-200"
                         />
                       ))}
                     </div>
@@ -733,7 +733,7 @@ export function Playground({
             {lane.stats ? (
               <p className="font-mono text-xs text-zinc-500">
                 {lane.stats.id ? (
-                  <Link href={`/activity/${lane.stats.id}`} className="text-amber-400 hover:underline">
+                  <Link href={`/activity/${lane.stats.id}`} className="text-violet-700 hover:underline">
                     {lane.stats.id}
                   </Link>
                 ) : null}
@@ -754,7 +754,7 @@ export function Playground({
               key={s}
               type="button"
               onClick={() => setInput(s)}
-              className="text-left text-sm text-zinc-500 hover:text-amber-300"
+              className="text-left text-sm text-zinc-500 hover:text-zinc-950"
             >
               {s}
             </button>
@@ -767,10 +767,10 @@ export function Playground({
             {pendingImages.map((src, i) => (
               <div key={i} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="h-16 w-16 rounded-lg border border-white/10 object-cover" />
+                <img src={src} alt="" className="h-16 w-16 rounded-lg border border-zinc-200 object-cover" />
                 <button
                   type="button"
-                  className="absolute -right-1 -top-1 rounded-full bg-zinc-900 px-1.5 text-[10px] text-zinc-300"
+                  className="absolute -right-1 -top-1 rounded-full bg-zinc-900 px-1.5 text-[10px] text-zinc-600"
                   onClick={() => setPendingImages((prev) => prev.filter((_, j) => j !== i))}
                   aria-label="Quitar imagen"
                 >
@@ -781,7 +781,7 @@ export function Playground({
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-          <label className="cursor-pointer rounded-md border border-white/10 px-2 py-1 hover:border-amber-500/40 hover:text-amber-200">
+          <label className="cursor-pointer rounded-md border border-zinc-200 px-2 py-1 hover:border-amber-500/40 hover:text-zinc-700">
             + imagen
             <input
               type="file"
@@ -795,7 +795,7 @@ export function Playground({
             />
           </label>
           <span>o pegá (Ctrl+V) · vision content[] · máx 4 · 4MB</span>
-          <Link href="/docs/parameters" className="text-amber-400/80 hover:underline">
+          <Link href="/docs/parameters" className="text-violet-700 hover:underline">
             docs
           </Link>
         </div>
@@ -832,7 +832,7 @@ export function Playground({
             </Button>
           ) : null}
         </div>
-        {shareMsg ? <p className="text-xs text-amber-300/90">{shareMsg}</p> : null}
+        {shareMsg ? <p className="text-xs text-zinc-950/90">{shareMsg}</p> : null}
       </div>
     </div>
   );
@@ -860,7 +860,7 @@ function LanePicker({
           value={lane.query || lane.model}
           onChange={(e) => onChange({ query: e.target.value, model: e.target.value })}
           placeholder="Buscar modelo…"
-          className="h-9 flex-1 rounded-md border border-white/10 bg-transparent px-3 font-mono text-sm"
+          className="h-9 flex-1 rounded-md border border-zinc-200 bg-transparent px-3 font-mono text-sm"
           aria-label="Modelo"
         />
         {canRemove ? (
@@ -876,7 +876,7 @@ function LanePicker({
             type="button"
             onClick={() => onChange({ model: m.id, query: "" })}
             className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
-              lane.model === m.id ? "border-amber-400/60 text-amber-300" : "border-white/10 text-zinc-500"
+              lane.model === m.id ? "border-amber-400/60 text-zinc-950" : "border-zinc-200 text-zinc-500"
             }`}
           >
             {m.id}
@@ -891,7 +891,7 @@ function LanePicker({
               type="button"
               onClick={() => onChange({ model: `@${p.slug}`, query: "" })}
               className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
-                lane.model === `@${p.slug}` ? "border-amber-400/60 text-amber-300" : "border-white/10 text-zinc-500"
+                lane.model === `@${p.slug}` ? "border-amber-400/60 text-zinc-950" : "border-zinc-200 text-zinc-500"
               }`}
             >
               @{p.slug}

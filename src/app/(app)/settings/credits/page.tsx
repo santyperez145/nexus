@@ -131,11 +131,11 @@ function CreditsInner() {
 
       {credits ? (
         <div className="mb-6 grid gap-3 lg:grid-cols-[1.2fr_1fr]">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Saldo</div>
-                <div className="mt-1 font-[family-name:var(--font-syne)] text-3xl font-semibold text-amber-300">
+                <div className="mt-1 text-3xl font-semibold text-zinc-950">
                   {formatUsd(credits.remaining, 2)}
                 </div>
               </div>
@@ -155,16 +155,16 @@ function CreditsInner() {
               </div>
             ) : null}
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-xl border border-white/10 px-3 py-2">
+              <div className="rounded-xl border border-zinc-200 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wide text-zinc-500">Burn 7d</div>
-                <div className="mt-0.5 font-[family-name:var(--font-syne)] text-lg text-zinc-100">
+                <div className="mt-0.5 text-lg text-zinc-900">
                   {formatUsd(burn7d, 2)}
                 </div>
                 <div className="text-[11px] text-zinc-500">~{formatUsd(dailyBurn, 4)}/día</div>
               </div>
-              <div className="rounded-xl border border-white/10 px-3 py-2">
+              <div className="rounded-xl border border-zinc-200 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wide text-zinc-500">Runway</div>
-                <div className="mt-0.5 font-[family-name:var(--font-syne)] text-lg text-zinc-100">
+                <div className="mt-0.5 text-lg text-zinc-900">
                   {runway == null
                     ? "n/d"
                     : runway === Infinity
@@ -176,12 +176,12 @@ function CreditsInner() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">
                 Burn diario · 7d
               </div>
-              <Link href="/analytics" className="text-[11px] text-amber-400 hover:underline">
+              <Link href="/analytics" className="text-[11px] text-violet-700 hover:underline">
                 Analytics →
               </Link>
             </div>
@@ -204,14 +204,14 @@ function CreditsInner() {
         </div>
       ) : null}
 
-      <h2 className="mb-3 font-[family-name:var(--font-syne)] text-lg font-medium">Packs</h2>
+      <h2 className="mb-3 text-lg font-medium">Packs</h2>
       <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {CREDIT_PACKS.map((p) => {
           const charge = p.usd * (1 + CREDIT_PURCHASE_FEE);
           const fee = charge - p.usd;
           return (
-            <div key={p.id} className="rounded-xl border border-white/10 p-4">
-              <div className="font-[family-name:var(--font-syne)] text-2xl font-semibold">
+            <div key={p.id} className="rounded-xl border border-zinc-200 p-4">
+              <div className="text-2xl font-semibold">
                 {p.label}
               </div>
               <p className="mt-1 text-xs text-zinc-500">
@@ -230,7 +230,7 @@ function CreditsInner() {
           Stripe no es obligatorio en este entorno.{" "}
           <button
             type="button"
-            className="text-amber-400 hover:underline"
+            className="text-violet-700 hover:underline"
             onClick={async () => {
               const res = await fetch("/api/internal/credits/grant", {
                 method: "POST",
@@ -247,7 +247,7 @@ function CreditsInner() {
         </p>
       ) : null}
 
-      <h2 className="mt-10 mb-3 font-[family-name:var(--font-syne)] text-lg font-medium">
+      <h2 className="mt-10 mb-3 text-lg font-medium">
         Auto top-up
       </h2>
       <p className="mb-3 max-w-xl text-sm text-zinc-500">
@@ -283,13 +283,13 @@ function CreditsInner() {
         </Button>
       </div>
 
-      {msg ? <p className="mt-4 text-sm text-amber-300">{msg}</p> : null}
+      {msg ? <p className="mt-4 text-sm text-zinc-950">{msg}</p> : null}
 
       {credits?.ledger?.length ? (
         <>
           <div className="mt-10 mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-[family-name:var(--font-syne)] text-lg font-medium">Ledger</h2>
-            <div className="flex gap-1 rounded-lg border border-white/10 p-0.5">
+            <h2 className="text-lg font-medium">Ledger</h2>
+            <div className="flex gap-1 rounded-lg border border-zinc-200 p-0.5">
               {(
                 [
                   ["all", "All"],
@@ -303,8 +303,8 @@ function CreditsInner() {
                   onClick={() => setLedgerFilter(id)}
                   className={`rounded-md px-2.5 py-1 text-xs ${
                     ledgerFilter === id
-                      ? "bg-white/10 text-zinc-100"
-                      : "text-zinc-500 hover:text-zinc-300"
+                      ? "bg-white/10 text-zinc-900"
+                      : "text-zinc-500 hover:text-zinc-800"
                   }`}
                 >
                   {label}
@@ -316,7 +316,7 @@ function CreditsInner() {
             {ledger.map((l) => (
               <div
                 key={l.id}
-                className="flex justify-between gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm"
+                className="flex justify-between gap-3 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
               >
                 <div className="min-w-0">
                   <span className="font-mono text-xs text-zinc-400">{l.type}</span>
@@ -325,7 +325,7 @@ function CreditsInner() {
                     {new Date(l.created_at).toISOString().slice(0, 19)}Z
                   </div>
                 </div>
-                <span className={l.amount < 0 ? "text-zinc-400" : "text-amber-300"}>
+                <span className={l.amount < 0 ? "text-zinc-400" : "text-zinc-950"}>
                   {formatUsd(l.amount)}
                 </span>
               </div>

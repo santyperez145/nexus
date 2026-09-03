@@ -63,7 +63,7 @@ export default function PreferencesPage() {
       </AppPageHeader>
 
       <section className="mb-10">
-        <h2 className="mb-3 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
+        <h2 className="mb-3 text-lg font-semibold text-zinc-900">
           Modelo por defecto
         </h2>
         <div className="mb-4 flex flex-wrap gap-1.5">
@@ -77,8 +77,8 @@ export default function PreferencesPage() {
               }}
               className={`rounded-full border px-3 py-1 font-mono text-xs ${
                 base === s
-                  ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
-                  : "border-white/10 text-zinc-500 hover:text-zinc-300"
+                  ? "border-violet-300 bg-amber-400/10 text-zinc-700"
+                  : "border-zinc-200 text-zinc-500 hover:text-zinc-800"
               }`}
             >
               {s}
@@ -96,8 +96,8 @@ export default function PreferencesPage() {
                 onClick={() => applyVariant(v)}
                 className={`rounded-md border px-2.5 py-1 font-mono text-xs ${
                   active
-                    ? "border-amber-400/40 text-amber-200"
-                    : "border-white/10 text-zinc-500 hover:text-zinc-300"
+                    ? "border-violet-300 text-zinc-700"
+                    : "border-zinc-200 text-zinc-500 hover:text-zinc-800"
                 }`}
               >
                 {v}
@@ -110,7 +110,7 @@ export default function PreferencesPage() {
               setDefaultModel(base);
               void save(base);
             }}
-            className="rounded-md border border-white/10 px-2.5 py-1 text-xs text-zinc-500 hover:text-zinc-300"
+            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-500 hover:text-zinc-800"
           >
             sin variante
           </button>
@@ -132,12 +132,12 @@ export default function PreferencesPage() {
       </section>
 
       <section className="mb-8 max-w-xl">
-        <h2 className="mb-1 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
+        <h2 className="mb-1 text-lg font-semibold text-zinc-900">
           Routing defaults
         </h2>
         <p className="mb-4 text-sm text-zinc-500">
           Se aplican al abrir Chat en este dispositivo. Privacy de cuenta (ZDR / training) sigue en{" "}
-          <Link href="/settings/privacy" className="text-amber-400 hover:underline">
+          <Link href="/settings/privacy" className="text-violet-700 hover:underline">
             Privacy
           </Link>
           .
@@ -146,7 +146,7 @@ export default function PreferencesPage() {
         <label className="mb-3 block text-sm text-zinc-400">
           Sort
           <select
-            className="mt-1 h-9 w-full rounded-md border border-white/10 bg-zinc-950 px-3 text-sm text-zinc-100"
+            className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900"
             value={routing.sort}
             onChange={(e) =>
               saveRouting({
@@ -162,7 +162,7 @@ export default function PreferencesPage() {
           </select>
         </label>
 
-        <div className="mb-3 flex flex-wrap gap-4 text-sm text-zinc-300">
+        <div className="mb-3 flex flex-wrap gap-4 text-sm text-zinc-600">
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -212,7 +212,7 @@ export default function PreferencesPage() {
         </Button>
       </section>
 
-      {msg ? <p className="text-sm text-amber-300">{msg}</p> : null}
+      {msg ? <p className="text-sm text-zinc-950">{msg}</p> : null}
     </div>
   );
 }

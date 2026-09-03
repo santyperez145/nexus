@@ -94,9 +94,9 @@ export default function ByokPage() {
         (después del allowance). El router las usa cuando el pool no tiene ese adapter.
       </AppPageHeader>
 
-      <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-zinc-400">
+      <div className="mb-4 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-400">
         Fee de carga de créditos ≠ fee BYOK. Inferencia pool = 0% markup.{" "}
-        <Link href="/docs/limits" className="text-amber-400 hover:underline">
+        <Link href="/docs/limits" className="text-violet-700 hover:underline">
           Limits
         </Link>
       </div>
@@ -106,7 +106,7 @@ export default function ByokPage() {
           value={provider}
           onChange={(e) => setProvider(e.target.value)}
           aria-label="Proveedor"
-          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm"
+          className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm"
         >
           {labs.map((l) => (
             <option key={l.name} value={l.name}>
@@ -127,16 +127,16 @@ export default function ByokPage() {
         </div>
       </div>
       {preview ? <p className="mb-4 font-mono text-xs text-zinc-500">{preview}</p> : null}
-      {msg ? <p className="mb-4 text-sm text-amber-200/90">{msg}</p> : null}
+      {msg ? <p className="mb-4 text-sm text-zinc-600">{msg}</p> : null}
 
       <div className="grid gap-2">
         {rows.map((r) => (
           <div
             key={r.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
           >
             <div>
-              <div className="font-mono text-amber-400/85">{r.provider}</div>
+              <div className="font-mono text-violet-700">{r.provider}</div>
               <div className="text-xs text-zinc-500">
                 {r.label ?? "—"}
                 {r.created_at ? ` · ${new Date(r.created_at).toISOString().slice(0, 10)}` : ""}
@@ -155,9 +155,9 @@ export default function ByokPage() {
           </div>
         ))}
         {!rows.length ? (
-          <p className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-zinc-500">
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-500">
             Todavía no hay BYOK. Guardá una key o usá{" "}
-            <Link href="/settings/connections" className="text-amber-400 hover:underline">
+            <Link href="/settings/connections" className="text-violet-700 hover:underline">
               Conexiones
             </Link>{" "}
             de plataforma.

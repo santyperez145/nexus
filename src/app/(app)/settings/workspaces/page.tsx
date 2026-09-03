@@ -30,7 +30,7 @@ export default function WorkspacesPage() {
         Separa proyectos y budgets. Las keys pueden anclarse a un workspace; el gateway corta al
         superar el límite.
       </AppPageHeader>
-      <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+      <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
         <Input
           value={limit}
@@ -60,10 +60,10 @@ export default function WorkspacesPage() {
               ? Math.min(100, (w.budget.spent / w.budget.limit) * 100)
               : 0;
           return (
-            <div key={w.id} className="rounded-2xl border border-white/10 px-4 py-3">
+            <div key={w.id} className="rounded-2xl border border-zinc-200 px-4 py-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
+                  <div className="text-lg font-semibold text-zinc-900">
                     {w.name}
                     {w.isDefault ? (
                       <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-500/80">
@@ -137,7 +137,7 @@ export default function WorkspacesPage() {
               )}
 
               {editId === w.id ? (
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-white/5 pt-3">
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-zinc-100 pt-3">
                   <Input
                     value={editLimit}
                     onChange={(e) => setEditLimit(e.target.value)}

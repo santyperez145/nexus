@@ -60,21 +60,21 @@ export default function AnalyticsPage() {
     <div>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-zinc-50 md:text-[2rem]">
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 md:text-[2rem]">
             Analytics
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
             Uso real de generaciones (chat + media). Ventana {data.window_days}d · sin tracción inventada.
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-white/10 p-1">
+        <div className="flex gap-1 rounded-lg border border-zinc-200 p-1">
           {RANGES.map((r) => (
             <button
               key={r.days}
               type="button"
               onClick={() => setDays(r.days)}
               className={`rounded-md px-3 py-1 text-xs ${
-                days === r.days ? "bg-amber-400/20 text-amber-200" : "text-zinc-500 hover:text-zinc-300"
+                days === r.days ? "bg-amber-400/20 text-zinc-700" : "text-zinc-500 hover:text-zinc-800"
               }`}
             >
               {r.label}
@@ -84,9 +84,9 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-amber-400/[0.07] to-transparent p-5">
+        <div className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-amber-400/[0.07] to-transparent p-5">
           <div className="text-[10px] uppercase tracking-[0.14em] text-amber-500/80">Insight {days}d</div>
-          <div className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-zinc-50 md:text-4xl">
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950 md:text-4xl">
             {t.requests.toLocaleString()}{" "}
             <span className="text-lg font-medium text-zinc-500">requests</span>
           </div>
@@ -101,11 +101,11 @@ export default function AnalyticsPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href="/chat"
-                className="rounded-md bg-amber-500/20 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-500/30"
+                className="rounded-md bg-amber-500/20 px-3 py-1.5 text-sm text-zinc-700 hover:bg-amber-500/30"
               >
                 Abrir Chat
               </Link>
-              <Link href="/studio" className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200">
+              <Link href="/studio" className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-900">
                 Studio
               </Link>
             </div>
@@ -134,9 +134,9 @@ export default function AnalyticsPage() {
               hint: "ms avg",
             },
           ].map((c) => (
-            <div key={c.k} className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3">
+            <div key={c.k} className="rounded-xl border border-zinc-200 bg-white px-3 py-3">
               <div className="text-[10px] uppercase tracking-wide text-zinc-600">{c.k}</div>
-              <div className="mt-1 font-mono text-lg tabular-nums text-zinc-100">{c.v}</div>
+              <div className="mt-1 font-mono text-lg tabular-nums text-zinc-900">{c.v}</div>
               <div className="text-[11px] text-zinc-600">{c.hint}</div>
             </div>
           ))}
@@ -149,18 +149,18 @@ export default function AnalyticsPage() {
           { k: "Tokens", v: t.tokens.toLocaleString() },
           { k: "Costo", v: formatUsd(t.cost) },
         ].map((c) => (
-          <div key={c.k} className="rounded-xl border border-white/10 px-3 py-2.5">
+          <div key={c.k} className="rounded-xl border border-zinc-200 px-3 py-2.5">
             <div className="text-[10px] uppercase tracking-wide text-zinc-600">{c.k}</div>
-            <div className="mt-0.5 font-[family-name:var(--font-syne)] text-xl font-semibold tabular-nums text-zinc-100">
+            <div className="mt-0.5 text-xl font-semibold tabular-nums text-zinc-900">
               {c.v}
             </div>
           </div>
         ))}
       </div>
 
-      <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+      <section className="mb-8 rounded-2xl border border-zinc-200 bg-white p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-[family-name:var(--font-syne)] text-base font-semibold text-zinc-200">
+          <h2 className="text-base font-semibold text-zinc-800">
             Serie diaria
           </h2>
           <div className="flex gap-1">
@@ -170,7 +170,7 @@ export default function AnalyticsPage() {
                 type="button"
                 onClick={() => setMetric(m)}
                 className={`rounded px-2 py-0.5 text-[11px] uppercase tracking-wide ${
-                  metric === m ? "bg-amber-400/15 text-amber-200" : "text-zinc-600 hover:text-zinc-400"
+                  metric === m ? "bg-violet-50 text-zinc-700" : "text-zinc-600 hover:text-zinc-400"
                 }`}
               >
                 {m}
@@ -196,7 +196,7 @@ export default function AnalyticsPage() {
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-3 text-sm font-medium text-zinc-300">Por provider</h2>
+          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por provider</h2>
           <div className="grid gap-2">
             {(data.by_provider ?? [])
               .slice()
@@ -204,9 +204,9 @@ export default function AnalyticsPage() {
               .map((row) => (
                 <div
                   key={row.provider}
-                  className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm"
+                  className="flex justify-between rounded-lg border border-zinc-200 px-3 py-2 text-sm"
                 >
-                  <span className="font-mono text-zinc-200">{row.provider}</span>
+                  <span className="font-mono text-zinc-800">{row.provider}</span>
                   <span className="text-zinc-500">
                     {row.requests} · {row.tokens.toLocaleString()} · {formatUsd(row.cost)}
                   </span>
@@ -218,14 +218,14 @@ export default function AnalyticsPage() {
           </div>
         </section>
         <section>
-          <h2 className="mb-3 text-sm font-medium text-zinc-300">Por app (X-Title)</h2>
+          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por app (X-Title)</h2>
           <div className="grid gap-2">
             {(data.by_app ?? []).map((row) => (
               <div
                 key={row.app}
-                className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm"
+                className="flex justify-between rounded-lg border border-zinc-200 px-3 py-2 text-sm"
               >
-                <span className="truncate text-zinc-200">{row.app}</span>
+                <span className="truncate text-zinc-800">{row.app}</span>
                 <span className="shrink-0 text-zinc-500">
                   {row.requests} · {formatUsd(row.cost)}
                 </span>
@@ -238,15 +238,15 @@ export default function AnalyticsPage() {
         </section>
       </div>
 
-      <h2 className="mb-3 text-sm font-medium text-zinc-300">Por modelo</h2>
+      <h2 className="mb-3 text-sm font-medium text-zinc-600">Por modelo</h2>
       <div className="mb-8 grid gap-2">
         {data.by_model
           .slice()
           .sort((a, b) => b.tokens - a.tokens)
           .map((row) => (
-            <div key={row.model} className="rounded-lg border border-white/10 px-3 py-2 text-sm">
+            <div key={row.model} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm">
               <div className="mb-1.5 flex justify-between gap-2">
-                <Link href={`/models/${row.model}`} className="font-mono text-amber-400/80 hover:underline">
+                <Link href={`/models/${row.model}`} className="font-mono text-violet-700 hover:underline">
                   {row.model}
                 </Link>
                 <span className="shrink-0 text-zinc-500">
@@ -255,7 +255,7 @@ export default function AnalyticsPage() {
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-white/5">
                 <div
-                  className="h-full rounded-full bg-amber-400/50"
+                  className="h-full rounded-full bg-violet-500"
                   style={{ width: `${Math.max(4, (row.tokens / maxModelTok) * 100)}%` }}
                 />
               </div>
@@ -265,12 +265,12 @@ export default function AnalyticsPage() {
 
       {data.by_key?.length ? (
         <>
-          <h2 className="mb-3 text-sm font-medium text-zinc-300">Por API key</h2>
+          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por API key</h2>
           <div className="mb-8 grid gap-2">
             {data.by_key.map((row) => (
               <div
                 key={row.key}
-                className="flex justify-between rounded-lg border border-white/10 px-3 py-2 font-mono text-xs text-zinc-400"
+                className="flex justify-between rounded-lg border border-zinc-200 px-3 py-2 font-mono text-xs text-zinc-400"
               >
                 <span className="truncate">{row.key}</span>
                 <span>
@@ -285,22 +285,22 @@ export default function AnalyticsPage() {
       {data.recent?.length ? (
         <>
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-sm font-medium text-zinc-300">Reciente</h2>
-            <Link href="/activity" className="text-xs text-amber-400 hover:underline">
+            <h2 className="text-sm font-medium text-zinc-600">Reciente</h2>
+            <Link href="/activity" className="text-xs text-violet-700 hover:underline">
               Activity →
             </Link>
           </div>
-          <div className="overflow-hidden rounded-xl border border-white/10">
+          <div className="overflow-hidden rounded-xl border border-zinc-200">
             {data.recent.map((r, i) => (
               <Link
                 key={r.id}
                 href={`/activity/${r.id}`}
-                className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm hover:bg-white/[0.03] ${
-                  i ? "border-t border-white/5" : ""
+                className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm hover:bg-zinc-50 ${
+                  i ? "border-t border-zinc-100" : ""
                 }`}
               >
                 <div className="min-w-0">
-                  <div className="truncate font-mono text-amber-400/85">{r.model}</div>
+                  <div className="truncate font-mono text-violet-700">{r.model}</div>
                   <div className="text-xs text-zinc-600">
                     {r.provider}
                     {r.error ? " · err" : ""}

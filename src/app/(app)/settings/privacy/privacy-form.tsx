@@ -43,7 +43,7 @@ export function PrivacyForm(props: { zdr: boolean; logPrompts: boolean; allowTra
           onCheckedChange={(allowTraining) => void update({ allowTraining })}
         />
       </Row>
-      {msg ? <p className="text-sm text-amber-300">{msg}</p> : null}
+      {msg ? <p className="text-sm text-zinc-950">{msg}</p> : null}
     </div>
   );
 }
@@ -58,9 +58,9 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 p-4">
+    <label className="flex items-start justify-between gap-4 rounded-2xl border border-zinc-200 p-4">
       <div className="min-w-0">
-        <Label className="text-zinc-100">{title}</Label>
+        <Label className="text-zinc-900">{title}</Label>
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">{body}</p>
       </div>
       <div className="pt-0.5">{children}</div>

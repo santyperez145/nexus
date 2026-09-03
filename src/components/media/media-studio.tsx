@@ -189,14 +189,14 @@ export function MediaStudio() {
   return (
     <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-1">
+        <div className="flex flex-wrap gap-1 rounded-xl border border-zinc-200 bg-white p-1">
           {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
               className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                tab === t.id ? "bg-amber-400/15 text-amber-200" : "text-zinc-500 hover:text-zinc-200"
+                tab === t.id ? "bg-violet-50 text-zinc-700" : "text-zinc-500 hover:text-zinc-900"
               }`}
             >
               {t.label}
@@ -223,7 +223,7 @@ export function MediaStudio() {
             <select
               value={imageModel}
               onChange={(e) => setImageModel(e.target.value)}
-              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
               aria-label="Modelo imagen"
             >
               {IMAGE_MODELS.map((m) => (
@@ -235,7 +235,7 @@ export function MediaStudio() {
             <select
               value={imageSize}
               onChange={(e) => setImageSize(e.target.value)}
-              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
               aria-label="Tamaño"
             >
               {["1024x1024", "1792x1024", "1024x1792"].map((s) => (
@@ -248,7 +248,7 @@ export function MediaStudio() {
           <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
           {imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageUrl} alt="Nexus studio" className="mt-4 max-h-80 rounded-xl border border-white/10" />
+            <img src={imageUrl} alt="Nexus studio" className="mt-4 max-h-80 rounded-xl border border-zinc-200" />
           ) : null}
         </Panel>
       ) : null}
@@ -264,7 +264,7 @@ export function MediaStudio() {
             <select
               value={ttsModel}
               onChange={(e) => setTtsModel(e.target.value)}
-              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
               aria-label="Modelo TTS"
             >
               {TTS_MODELS.map((m) => (
@@ -276,7 +276,7 @@ export function MediaStudio() {
             <select
               value={voice}
               onChange={(e) => setVoice(e.target.value)}
-              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
               aria-label="Voz"
             >
               {TTS_VOICES.map((v) => (
@@ -290,7 +290,7 @@ export function MediaStudio() {
           {audioUrl ? (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <audio className="w-full max-w-md" controls src={audioUrl} />
-              <a href={audioUrl} download="nexus-tts.wav" className="text-sm text-amber-400 hover:underline">
+              <a href={audioUrl} download="nexus-tts.wav" className="text-sm text-violet-700 hover:underline">
                 Download
               </a>
             </div>
@@ -303,7 +303,7 @@ export function MediaStudio() {
           <select
             value={sttModel}
             onChange={(e) => setSttModel(e.target.value)}
-            className="mb-3 h-9 w-full max-w-md rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+            className="mb-3 h-9 w-full max-w-md rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
             aria-label="Modelo STT"
           >
             {STT_MODELS.map((m) => (
@@ -322,12 +322,12 @@ export function MediaStudio() {
           />
           {transcript ? (
             <div className="mt-4">
-              <pre className="whitespace-pre-wrap rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-zinc-300">
+              <pre className="whitespace-pre-wrap rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
                 {transcript}
               </pre>
               <button
                 type="button"
-                className="mt-2 text-xs text-amber-400 hover:underline"
+                className="mt-2 text-xs text-violet-700 hover:underline"
                 onClick={() => void navigator.clipboard.writeText(transcript)}
               >
                 Copiar transcript
@@ -346,13 +346,13 @@ export function MediaStudio() {
         >
           <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
           {videoJob ? (
-            <div className="mt-4 rounded-xl border border-white/10 px-3 py-2 text-sm text-zinc-400">
-              <div className="font-mono text-amber-400/80">{videoJob.id}</div>
+            <div className="mt-4 rounded-xl border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
+              <div className="font-mono text-violet-700">{videoJob.id}</div>
               <div className="mt-1">status: {videoJob.status}</div>
               {videoJob.resultUrl ? (
                 <a
                   href={videoJob.resultUrl}
-                  className="mt-1 block text-amber-400 hover:underline"
+                  className="mt-1 block text-violet-700 hover:underline"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -374,7 +374,7 @@ export function MediaStudio() {
           <select
             value={embedModel}
             onChange={(e) => setEmbedModel(e.target.value)}
-            className="mb-3 h-9 w-full max-w-md rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+            className="mb-3 h-9 w-full max-w-md rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
             aria-label="Modelo embeddings"
           >
             {EMBED_MODELS.map((m) => (
@@ -385,7 +385,7 @@ export function MediaStudio() {
           </select>
           <Textarea value={embed} onChange={(e) => setEmbed(e.target.value)} rows={3} />
           {embedPreview ? (
-            <div className="mt-4 rounded-xl border border-white/10 px-3 py-2 font-mono text-xs text-zinc-400">
+            <div className="mt-4 rounded-xl border border-zinc-200 px-3 py-2 font-mono text-xs text-zinc-400">
               <div>
                 dims={embedPreview.dims} · sample=[{embedPreview.sample.map((n) => n.toFixed(3)).join(", ")}…]
               </div>
@@ -397,7 +397,7 @@ export function MediaStudio() {
       {genId ? (
         <p className="text-xs text-zinc-600">
           Generación{" "}
-          <Link href={`/activity/${genId}`} className="font-mono text-amber-400/80 hover:underline">
+          <Link href={`/activity/${genId}`} className="font-mono text-violet-700 hover:underline">
             {genId}
           </Link>{" "}
           · queda en Activity / Analytics
@@ -405,10 +405,10 @@ export function MediaStudio() {
       ) : null}
 
       {analytics?.recent?.length ? (
-        <section className="rounded-2xl border border-white/10 p-4">
+        <section className="rounded-2xl border border-zinc-200 p-4">
           <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-sm font-medium text-zinc-300">Reciente (7d)</h2>
-            <Link href="/activity" className="text-xs text-amber-400 hover:underline">
+            <h2 className="text-sm font-medium text-zinc-600">Reciente (7d)</h2>
+            <Link href="/activity" className="text-xs text-violet-700 hover:underline">
               Activity →
             </Link>
           </div>
@@ -417,7 +417,7 @@ export function MediaStudio() {
               <li key={r.id}>
                 <Link
                   href={`/activity/${r.id}`}
-                  className="flex justify-between gap-2 font-mono text-[11px] text-zinc-500 hover:text-amber-300"
+                  className="flex justify-between gap-2 font-mono text-[11px] text-zinc-500 hover:text-zinc-950"
                 >
                   <span className="truncate">{r.model}</span>
                   <span>
@@ -447,10 +447,10 @@ function Panel({
   busy?: boolean;
 }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-5">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 md:p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">{title}</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
           <p className="mt-1 text-xs text-zinc-500">{hint}</p>
         </div>
         {onRun ? (

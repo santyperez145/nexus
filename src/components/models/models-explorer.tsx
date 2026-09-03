@@ -187,10 +187,10 @@ export function ModelsExplorer({
               <Link
                 key={t.id}
                 href={`/models/${t.id}`}
-                className="min-w-[10.5rem] shrink-0 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 transition-colors hover:border-amber-600/40"
+                className="min-w-[10.5rem] shrink-0 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 transition-colors hover:border-zinc-400"
               >
                 <div className="font-mono text-[10px] text-zinc-400">#{i + 1}</div>
-                <div className="mt-0.5 truncate font-mono text-xs text-amber-700">{t.id}</div>
+                <div className="mt-0.5 truncate font-mono text-xs text-violet-700">{t.id}</div>
                 <div className="mt-1 tabular-nums text-[11px] text-zinc-500">
                   {t.tokens.toLocaleString()} tok
                 </div>
@@ -200,7 +200,7 @@ export function ModelsExplorer({
         </div>
       ) : null}
 
-      <div className="sticky top-0 z-10 -mx-1 mb-5 space-y-3 border-b border-zinc-200 bg-[#fafaf9]/95 px-1 pb-4 pt-1 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-1 mb-5 space-y-3 border-b border-zinc-200 bg-white/95 px-1 pb-4 pt-1 backdrop-blur">
         <div className="flex flex-wrap gap-1.5">
           {MODALITIES.map((item) => {
             const active = mod === item.id;
@@ -214,12 +214,12 @@ export function ModelsExplorer({
                 }}
                 className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                   active
-                    ? "border-amber-600/40 bg-amber-50 text-amber-800"
+                    ? "border-violet-300 bg-violet-50 text-violet-800"
                     : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-800"
                 }`}
               >
                 {item.label}
-                <span className={`ml-1.5 tabular-nums ${active ? "text-amber-700/70" : "text-zinc-400"}`}>
+                <span className={`ml-1.5 tabular-nums ${active ? "text-violet-700/70" : "text-zinc-400"}`}>
                   {modCounts[item.id] ?? 0}
                 </span>
               </button>
@@ -315,7 +315,7 @@ export function ModelsExplorer({
               {selected.length === 2 ? (
                 <Link
                   href={`/compare?a=${encodeURIComponent(selected[0])}&b=${encodeURIComponent(selected[1])}`}
-                  className="rounded-md border border-amber-600/40 bg-amber-50 px-2 py-1 text-amber-900 hover:underline"
+                  className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-violet-900 hover:underline"
                 >
                   Compare
                 </Link>
@@ -359,7 +359,7 @@ export function ModelsExplorer({
                   return (
                     <tr
                       key={m.id}
-                      className={`border-t border-zinc-100 hover:bg-amber-50/40 ${i % 2 ? "bg-zinc-50/40" : ""}`}
+                      className={`border-t border-zinc-100 hover:bg-zinc-50/70 ${i % 2 ? "bg-zinc-50/40" : ""}`}
                     >
                       <td className="px-2 py-2.5">
                         <input
@@ -370,7 +370,7 @@ export function ModelsExplorer({
                         />
                       </td>
                       <td className="px-3 py-2.5">
-                        <Link href={`/models/${m.id}`} className="font-mono text-[13px] text-amber-700 hover:underline">
+                        <Link href={`/models/${m.id}`} className="font-mono text-[13px] text-violet-700 hover:underline">
                           {m.id}
                         </Link>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
@@ -386,7 +386,7 @@ export function ModelsExplorer({
                             </span>
                           ) : null}
                           {verified ? (
-                            <span className="rounded border border-amber-200 bg-amber-50 px-1 text-[10px] text-amber-900">
+                            <span className="rounded border border-zinc-200 bg-zinc-50 px-1 text-[10px] text-zinc-700">
                               curated
                             </span>
                           ) : (
@@ -445,7 +445,7 @@ export function ModelsExplorer({
                       <td className="px-3 py-2.5">
                         <Link
                           href={`/chat?model=${encodeURIComponent(m.id)}`}
-                          className="text-xs text-amber-700 hover:underline"
+                          className="text-xs text-violet-700 hover:underline"
                         >
                           Try
                         </Link>
@@ -469,13 +469,13 @@ export function ModelsExplorer({
               <div
                 key={m.id}
                 className={`group relative overflow-hidden rounded-2xl border bg-white p-4 transition-colors ${
-                  on ? "border-amber-600/50 ring-1 ring-amber-600/20" : "border-zinc-200 hover:border-amber-600/40"
+                  on ? "border-violet-300 ring-1 ring-violet-200" : "border-zinc-200 hover:border-zinc-400"
                 }`}
               >
                 <div className="absolute right-3 top-3 flex items-center gap-2">
                   <Link
                     href={`/chat?model=${encodeURIComponent(m.id)}`}
-                    className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-amber-800 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-violet-800 opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     Try
                   </Link>
@@ -491,7 +491,7 @@ export function ModelsExplorer({
                   <div className="font-[family-name:var(--font-syne)] text-lg font-semibold tracking-tight text-zinc-950">
                     {m.name}
                   </div>
-                  <div className="mt-0.5 font-mono text-xs text-amber-700">{m.id}</div>
+                  <div className="mt-0.5 font-mono text-xs text-violet-700">{m.id}</div>
                   <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-500">{m.description}</p>
                   <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
                     <span className="font-mono tabular-nums">
@@ -520,7 +520,7 @@ export function ModelsExplorer({
                       </span>
                     ) : null}
                     {verified ? (
-                      <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-900">
+                      <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-700">
                         curated
                       </span>
                     ) : (

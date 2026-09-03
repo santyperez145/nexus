@@ -183,9 +183,9 @@ export default function ActivityPage() {
           { k: "Costo", v: formatUsd(cost) },
           { k: "Avg ms", v: avgMs != null ? String(avgMs) : "—" },
         ].map((s) => (
-          <div key={s.k} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <div key={s.k} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
             <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">{s.k}</div>
-            <div className="mt-1 font-mono text-sm text-amber-200/90">{s.v}</div>
+            <div className="mt-1 font-mono text-sm text-zinc-600">{s.v}</div>
           </div>
         ))}
       </div>
@@ -195,7 +195,7 @@ export default function ActivityPage() {
         </p>
       ) : null}
 
-      <div className="mb-4 grid gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3 md:grid-cols-3 lg:grid-cols-4">
+      <div className="mb-4 grid gap-2 rounded-xl border border-zinc-200 bg-white p-3 md:grid-cols-3 lg:grid-cols-4">
         <Input
           value={model}
           onChange={(e) => setModel(e.target.value)}
@@ -217,7 +217,7 @@ export default function ActivityPage() {
         <select
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-300"
+          className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-600"
           aria-label="API key"
         >
           <option value="">Key: todas</option>
@@ -230,7 +230,7 @@ export default function ActivityPage() {
         <select
           value={workspace}
           onChange={(e) => setWorkspace(e.target.value)}
-          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-300"
+          className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-600"
           aria-label="Workspace"
         >
           <option value="">Workspace: todos</option>
@@ -243,7 +243,7 @@ export default function ActivityPage() {
         <select
           value={byok}
           onChange={(e) => setByok(e.target.value as typeof byok)}
-          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-300"
+          className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-600"
           aria-label="BYOK"
         >
           <option value="all">BYOK: todos</option>
@@ -253,7 +253,7 @@ export default function ActivityPage() {
         <select
           value={days}
           onChange={(e) => setDays(e.target.value as typeof days)}
-          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-300"
+          className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-600"
           aria-label="Ventana"
         >
           <option value="0">Todo</option>
@@ -266,10 +266,10 @@ export default function ActivityPage() {
         </label>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-white/10">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left text-sm">
-            <thead className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 text-[11px] uppercase tracking-[0.08em] text-zinc-500 backdrop-blur">
+            <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-white text-[11px] uppercase tracking-[0.08em] text-zinc-500 backdrop-blur">
               <tr>
                 <th className="px-3 py-2.5 font-medium">Cuando</th>
                 <th className="px-3 py-2.5 font-medium">Status</th>
@@ -290,7 +290,7 @@ export default function ActivityPage() {
                 <tr>
                   <td className="px-4 py-12 text-center text-zinc-500" colSpan={12}>
                     Sin generaciones.{" "}
-                    <Link href="/chat" className="text-amber-400 hover:underline">
+                    <Link href="/chat" className="text-violet-700 hover:underline">
                       Abrí el chat
                     </Link>{" "}
                     — no inventamos activity.
@@ -300,7 +300,7 @@ export default function ActivityPage() {
                 list.map((r, i) => (
                   <tr
                     key={r.id}
-                    className={`border-t border-white/5 hover:bg-white/[0.03] ${i % 2 === 1 ? "bg-white/[0.015]" : ""}`}
+                    className={`border-t border-zinc-100 hover:bg-zinc-50 ${i % 2 === 1 ? "bg-white/[0.015]" : ""}`}
                   >
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs text-zinc-500" title={fmtWhen(r.created_at)}>
                       {relativeWhen(r.created_at)}
@@ -321,14 +321,14 @@ export default function ActivityPage() {
                       ) : null}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs">
-                      <Link href={`/activity/${r.id}`} className="text-amber-400/90 hover:underline" title={r.id}>
+                      <Link href={`/activity/${r.id}`} className="text-violet-700 hover:underline" title={r.id}>
                         {shortId(r.id)}
                       </Link>
                     </td>
                     <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-[13px]">
                       <Link
                         href={`/models/${r.model}`}
-                        className="text-amber-300/80 hover:underline"
+                        className="text-zinc-950/80 hover:underline"
                         title={r.model}
                       >
                         {r.model}
@@ -347,10 +347,10 @@ export default function ActivityPage() {
                     <td className="px-3 py-2.5 text-right tabular-nums text-zinc-400">
                       {r.tokens_prompt.toLocaleString()}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
+                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-600">
                       {r.tokens_completion.toLocaleString()}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
+                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-600">
                       {formatUsd(r.total_cost)}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-zinc-500">

@@ -50,18 +50,18 @@ export default function ObservabilityPage() {
         </Button>
       </div>
       {revealed ? (
-        <div className="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2">
-          <div className="mb-1 flex items-center justify-between gap-2 text-xs text-amber-200/90">
+        <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2">
+          <div className="mb-1 flex items-center justify-between gap-2 text-xs text-zinc-600">
             <span>Secret (una vez)</span>
             <button
               type="button"
-              className="text-amber-400 hover:underline"
+              className="text-violet-700 hover:underline"
               onClick={() => void navigator.clipboard.writeText(revealed)}
             >
               Copiar
             </button>
           </div>
-          <pre className="overflow-x-auto font-mono text-xs text-amber-100">{revealed}</pre>
+          <pre className="overflow-x-auto font-mono text-xs text-zinc-800">{revealed}</pre>
         </div>
       ) : null}
       {msg ? <p className="mb-4 text-sm text-zinc-400">{msg}</p> : null}
@@ -69,10 +69,10 @@ export default function ObservabilityPage() {
         {list.map((d) => (
           <div
             key={d.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
           >
             <div className="min-w-0">
-              <div className="font-medium text-zinc-200">{d.name}</div>
+              <div className="font-medium text-zinc-800">{d.name}</div>
               <div className="truncate font-mono text-xs text-zinc-400">{d.config?.url}</div>
               <div className="mt-0.5 text-[11px] text-zinc-600">
                 {d.config?.has_secret ? "HMAC on" : "sin secret"}
@@ -113,12 +113,12 @@ export default function ObservabilityPage() {
           </div>
         ))}
         {!list.length ? (
-          <p className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-zinc-500">
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-500">
             Sin webhooks. Agregá una URL para recibir generation.completed firmados.
           </p>
         ) : null}
       </div>
-      <pre className="mt-8 overflow-x-auto rounded-xl border border-white/10 bg-black/30 p-3 text-[11px] text-zinc-500">
+      <pre className="mt-8 overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-500">
 {`{
   "event": "generation.completed",
   "data": { "id": "gen-…", "model": "…", "provider": "…", "cost_micros": 0 }

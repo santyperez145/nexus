@@ -71,19 +71,19 @@ export default function FilesPage() {
         }
       >
         Texto/PDF → system extract. Imágenes →{" "}
-        <code className="text-amber-400/80">image_url</code> parts (visión). Máx 8 MB.
+        <code className="text-violet-700">image_url</code> parts (visión). Máx 8 MB.
       </AppPageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
           <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Archivos</div>
-          <div className="mt-1 font-mono text-lg text-amber-200">{list.length}</div>
+          <div className="mt-1 font-mono text-lg text-zinc-700">{list.length}</div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
           <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Imágenes</div>
-          <div className="mt-1 font-mono text-lg text-zinc-200">{images}</div>
+          <div className="mt-1 font-mono text-lg text-zinc-800">{images}</div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
           <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Tip</div>
           <div className="mt-1 text-xs leading-relaxed text-zinc-500">
             En Chat marcá el file · o pegá imagen directo
@@ -103,12 +103,12 @@ export default function FilesPage() {
           if (e.dataTransfer.files?.length) void uploadMany(e.dataTransfer.files);
         }}
         className={`mb-4 rounded-2xl border border-dashed px-4 py-10 text-center transition-colors ${
-          drag ? "border-amber-400/50 bg-amber-400/5" : "border-white/15 bg-white/[0.02]"
+          drag ? "border-amber-400/50 bg-violet-50" : "border-zinc-200 bg-white"
         }`}
       >
         <p className="text-sm text-zinc-400">Arrastrá uno o varios archivos acá</p>
         <p className="mt-1 text-xs text-zinc-600">PDF · texto · código · PNG/JPEG (visión)</p>
-        <label className="mt-3 inline-block cursor-pointer text-sm text-amber-400 hover:underline">
+        <label className="mt-3 inline-block cursor-pointer text-sm text-violet-700 hover:underline">
           o elegí desde el disco
           <input
             type="file"
@@ -125,10 +125,10 @@ export default function FilesPage() {
         {progress ? <p className="mt-2 font-mono text-xs text-zinc-500">Subiendo {progress}</p> : null}
       </div>
 
-      {msg ? <p className="mb-4 text-sm text-amber-300">{msg}</p> : null}
+      {msg ? <p className="mb-4 text-sm text-zinc-950">{msg}</p> : null}
 
       {list.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 px-4 py-10 text-center">
+        <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-10 text-center">
           <p className="text-sm text-zinc-400">Todavía no hay archivos.</p>
           <Button asChild size="sm" variant="outline" className="mt-4">
             <Link href="/chat">Abrir Chat con visión</Link>
@@ -141,13 +141,13 @@ export default function FilesPage() {
             return (
               <div
                 key={f.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-medium text-zinc-200">{f.filename}</span>
+                    <span className="truncate font-medium text-zinc-800">{f.filename}</span>
                     {img ? (
-                      <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-300">
+                      <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-950">
                         vision
                       </span>
                     ) : null}
@@ -182,12 +182,12 @@ export default function FilesPage() {
       )}
 
       {preview ? (
-        <section className="mt-6 rounded-xl border border-white/10 bg-black/30 p-3">
+        <section className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="text-xs text-zinc-500">Preview · {preview.filename}</div>
             <button
               type="button"
-              className="text-xs text-zinc-500 hover:text-zinc-300"
+              className="text-xs text-zinc-500 hover:text-zinc-800"
               onClick={() => setPreview(null)}
             >
               Cerrar

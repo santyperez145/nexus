@@ -1,67 +1,68 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { NexusWordmark } from "@/components/brand/nexus-logo";
 
-export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
+const COLS = [
+  {
+    title: "Product",
+    links: [
+      ["/chat", "Chat"],
+      ["/models", "Models"],
+      ["/rankings", "Rankings"],
+      ["/compare", "Compare"],
+      ["/arena", "Arena"],
+      ["/apps", "Apps"],
+      ["/providers", "Providers"],
+      ["/credits", "Pricing"],
+      ["/enterprise", "Enterprise"],
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      ["/blog", "Blog"],
+      ["/privacy", "Privacy"],
+      ["/terms", "Terms"],
+      ["/status", "Status"],
+    ],
+  },
+  {
+    title: "Developer",
+    links: [
+      ["/docs", "Documentation"],
+      ["/docs", "API Reference"],
+      ["/status", "Status"],
+    ],
+  },
+] as const;
+
+export function SiteFooter({ tone = "light" }: { tone?: "dark" | "light" }) {
   const light = tone === "light";
   return (
-    <footer className={cn("border-t", light ? "border-zinc-200 bg-[#fafaf9]" : "border-white/10")}>
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-[1.2fr_1fr_1fr]">
+    <footer className={cn("border-t", light ? "border-zinc-200 bg-white" : "border-white/10 bg-zinc-950")}>
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <div
-            className={cn(
-              "font-[family-name:var(--font-syne)] text-lg font-semibold tracking-tight",
-              light ? "text-zinc-950" : "text-zinc-100",
-            )}
-          >
-            Nexus
+          <div className={light ? "text-zinc-950" : "text-zinc-100"}>
+            <NexusWordmark tone={light ? "light" : "dark"} />
           </div>
-          <p className={cn("mt-2 max-w-xs text-sm leading-relaxed", light ? "text-zinc-500" : "text-zinc-500")}>
-            Gateway propio de modelos. OpenAI-compatible. Fee solo al cargar créditos.
+          <p className="mt-3 max-w-xs text-sm leading-relaxed text-zinc-500">
+            Una API para cada modelo. Routing, fallbacks, créditos por token y BYOK.
           </p>
         </div>
-        <div className="grid gap-2 text-sm">
-          <div className={light ? "text-zinc-400" : "text-zinc-600"}>Producto</div>
-          {(
-            [
-              ["/models", "Modelos"],
-              ["/providers", "Providers"],
-              ["/rankings", "Rankings"],
-              ["/compare", "Compare"],
-              ["/arena", "Arena"],
-              ["/credits", "Credits"],
-              ["/enterprise", "Enterprise"],
-              ["/blog", "Blog"],
-              ["/apps", "Apps"],
-              ["/status", "Status"],
-              ["/chat", "Chat"],
-              ["/studio", "Studio"],
-              ["/docs", "API"],
-            ] as const
-          ).map(([href, label]) => (
-            <Link
-              key={href}
-              href={href}
-              className={light ? "text-zinc-600 hover:text-zinc-950" : "text-zinc-400 hover:text-white"}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-        <div className="grid gap-2 text-sm">
-          <div className={light ? "text-zinc-400" : "text-zinc-600"}>Legal</div>
-          <Link
-            href="/privacy"
-            className={light ? "text-zinc-600 hover:text-zinc-950" : "text-zinc-400 hover:text-white"}
-          >
-            Privacidad
-          </Link>
-          <Link
-            href="/terms"
-            className={light ? "text-zinc-600 hover:text-zinc-950" : "text-zinc-400 hover:text-white"}
-          >
-            Términos
-          </Link>
-        </div>
+        {COLS.map((col) => (
+          <div key={col.title} className="grid gap-2 text-sm">
+            <div className="font-medium text-zinc-900">{col.title}</div>
+            {col.links.map(([href, label]) => (
+              <Link
+                key={`${col.title}-${href}-${label}`}
+                href={href}
+                className={light ? "text-zinc-500 hover:text-zinc-950" : "text-zinc-400 hover:text-white"}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        ))}
       </div>
     </footer>
   );

@@ -105,7 +105,7 @@ export default async function GenerationPage({
         ].map((b) => (
           <span
             key={b}
-            className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-zinc-400"
+            className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-zinc-400"
           >
             {b}
           </span>
@@ -119,16 +119,16 @@ export default async function GenerationPage({
           { label: "Latencia", value: row.latencyMs != null ? `${row.latencyMs} ms` : "—" },
           { label: "Finish", value: row.finishReason ?? "—" },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3">
+          <div key={s.label} className="rounded-xl border border-zinc-200 bg-white px-3 py-3">
             <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.label}</div>
-            <div className="mt-1 font-[family-name:var(--font-syne)] text-xl font-semibold tabular-nums text-zinc-100">
+            <div className="mt-1 text-xl font-semibold tabular-nums text-zinc-900">
               {s.value}
             </div>
           </div>
         ))}
       </div>
 
-      <section className="mb-8 rounded-2xl border border-white/10 px-4 py-4">
+      <section className="mb-8 rounded-2xl border border-zinc-200 px-4 py-4">
         <div className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Token split</div>
         <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-white/5">
           {tokenParts.map((p) => (
@@ -143,7 +143,7 @@ export default async function GenerationPage({
         <div className="flex flex-wrap gap-3 text-xs text-zinc-500">
           {tokenParts.map((p) => (
             <span key={p.label}>
-              {p.label} <span className="tabular-nums text-zinc-300">{p.n.toLocaleString()}</span>
+              {p.label} <span className="tabular-nums text-zinc-600">{p.n.toLocaleString()}</span>
             </span>
           ))}
         </div>
@@ -158,8 +158,8 @@ export default async function GenerationPage({
                 key={`${h.adapter}-${h.model}-${i}`}
                 className={`rounded border px-1.5 py-0.5 font-mono text-[11px] ${
                   h.adapter === row.provider
-                    ? "border-amber-400/40 text-amber-200"
-                    : "border-white/10 text-zinc-500"
+                    ? "border-violet-300 text-zinc-700"
+                    : "border-zinc-200 text-zinc-500"
                 }`}
                 title={h.zdr ? "ZDR" : "standard"}
               >
@@ -171,7 +171,7 @@ export default async function GenerationPage({
         </section>
       ) : null}
 
-      <dl className="mb-8 grid gap-0 overflow-hidden rounded-2xl border border-white/10 text-sm md:grid-cols-2">
+      <dl className="mb-8 grid gap-0 overflow-hidden rounded-2xl border border-zinc-200 text-sm md:grid-cols-2">
         {[
           ["Pedido", row.requestedModel],
           ["Ruteado", row.routedModel],
@@ -187,12 +187,12 @@ export default async function GenerationPage({
         ].map(([k, v], i) => (
           <div
             key={k}
-            className={`flex justify-between gap-3 px-4 py-2.5 ${i >= 2 ? "border-t border-white/5" : ""} ${
-              i % 2 === 1 ? "md:border-l md:border-white/5" : ""
+            className={`flex justify-between gap-3 px-4 py-2.5 ${i >= 2 ? "border-t border-zinc-100" : ""} ${
+              i % 2 === 1 ? "md:border-l md:border-zinc-100" : ""
             }`}
           >
             <dt className="text-zinc-500">{k}</dt>
-            <dd className="max-w-[65%] truncate text-right font-mono text-xs text-amber-300/80" title={v}>
+            <dd className="max-w-[65%] truncate text-right font-mono text-xs text-zinc-950/80" title={v}>
               {v}
             </dd>
           </div>
@@ -205,7 +205,7 @@ export default async function GenerationPage({
             <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">Prompt</h2>
             <CopyButton value={row.prompt} />
           </div>
-          <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-xs text-zinc-300">
+          <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-600">
             {row.prompt}
           </pre>
         </section>
@@ -216,7 +216,7 @@ export default async function GenerationPage({
             <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">Completion</h2>
             <CopyButton value={row.completion} />
           </div>
-          <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-xs text-zinc-200">
+          <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-800">
             {row.completion}
           </pre>
         </section>
@@ -231,7 +231,7 @@ export default async function GenerationPage({
           <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">JSON (API shape)</h2>
           <CopyButton value={JSON.stringify(payload, null, 2)} />
         </div>
-        <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-[11px] text-zinc-400">
+        <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-[11px] text-zinc-400">
           {JSON.stringify(payload, null, 2)}
         </pre>
       </section>

@@ -48,7 +48,7 @@ export default function SharesSettingsPage() {
     <div>
       <AppPageHeader title="Shares">
         Chats públicos creados desde el playground. Read-only en{" "}
-        <code className="text-amber-400/80">/share/…</code> — listá y revocá los de tu cuenta.
+        <code className="text-violet-700">/share/…</code> — listá y revocá los de tu cuenta.
       </AppPageHeader>
 
       {err ? (
@@ -60,7 +60,7 @@ export default function SharesSettingsPage() {
       {!rows ? (
         <p className="text-sm text-zinc-500">Cargando…</p>
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 px-4 py-10 text-center">
+        <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-10 text-center">
           <p className="text-sm text-zinc-400">Todavía no tenés shares propios.</p>
           <p className="mt-1 text-xs text-zinc-600">
             Desde Chat → Share (logueado) quedan atados a tu userId.
@@ -70,11 +70,11 @@ export default function SharesSettingsPage() {
           </Button>
         </div>
       ) : (
-        <ul className="divide-y divide-white/5 rounded-2xl border border-white/10">
+        <ul className="divide-y divide-white/5 rounded-2xl border border-zinc-200">
           {rows.map((row) => (
             <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <Link href={row.url} className="block truncate text-sm text-zinc-100 hover:text-amber-300">
+                <Link href={row.url} className="block truncate text-sm text-zinc-900 hover:text-zinc-950">
                   {row.title || "Untitled"}
                 </Link>
                 <div className="mt-0.5 font-mono text-[11px] text-zinc-500">

@@ -102,16 +102,16 @@ export default function NotificationsPage() {
             <Link
               key={c.t}
               href={c.href}
-              className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 transition-colors hover:border-amber-400/30"
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-violet-200"
             >
-              <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-100">
+              <div className="font-semibold text-zinc-900">
                 {c.t}
               </div>
               <p className="mt-1 text-xs text-zinc-500">{c.d}</p>
             </Link>
           ) : (
-            <div key={c.t} className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
-              <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-100">
+            <div key={c.t} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+              <div className="font-semibold text-zinc-900">
                 {c.t}
               </div>
               <p className="mt-1 text-xs text-zinc-500">{c.d}</p>
@@ -120,7 +120,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div className="max-w-lg space-y-5 rounded-2xl border border-white/10 px-4 py-4">
+      <div className="max-w-lg space-y-5 rounded-2xl border border-zinc-200 px-4 py-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label>Saldo bajo</Label>
@@ -145,7 +145,7 @@ export default function NotificationsPage() {
             </Button>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-4 border-t border-white/5 pt-4">
+        <div className="flex items-center justify-between gap-4 border-t border-zinc-100 pt-4">
           <div>
             <Label>Key ≥ 90% del límite</Label>
             <p className="mt-0.5 text-xs text-zinc-500">Spend limit por API key</p>
@@ -155,7 +155,7 @@ export default function NotificationsPage() {
             onCheckedChange={(v) => void save({ notifyKeyLimit: v })}
           />
         </div>
-        <div className="flex items-center justify-between gap-4 border-t border-white/5 pt-4">
+        <div className="flex items-center justify-between gap-4 border-t border-zinc-100 pt-4">
           <div>
             <Label>Invites de organización</Label>
             <p className="mt-0.5 text-xs text-zinc-500">Cuando te invitan a una org</p>
@@ -167,8 +167,8 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <div className="mt-6 max-w-lg rounded-2xl border border-dashed border-white/15 px-4 py-4">
-        <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-100">
+      <div className="mt-6 max-w-lg rounded-2xl border border-dashed border-zinc-200 px-4 py-4">
+        <div className="font-semibold text-zinc-900">
           Probar canal
         </div>
         <p className="mt-1 text-sm text-zinc-500">
@@ -185,7 +185,7 @@ export default function NotificationsPage() {
         </Button>
       </div>
 
-      {msg ? <p className="mt-4 text-sm text-amber-300">{msg}</p> : null}
+      {msg ? <p className="mt-4 text-sm text-zinc-950">{msg}</p> : null}
     </div>
   );
 }

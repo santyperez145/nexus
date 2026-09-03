@@ -89,11 +89,11 @@ export default function OauthPage() {
           { n: "2", t: "Code", d: "Nexus emite un code de un solo uso." },
           { n: "3", t: "Key", d: "Canje PKCE → sk-nx- (mostrada una vez)." },
         ].map((s) => (
-          <li key={s.n} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <li key={s.n} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
             <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-amber-500/80">
               Paso {s.n}
             </div>
-            <div className="mt-1 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
+            <div className="mt-1 text-lg font-semibold text-zinc-900">
               {s.t}
             </div>
             <p className="mt-1 text-xs leading-5 text-zinc-500">{s.d}</p>
@@ -119,12 +119,12 @@ export default function OauthPage() {
               {copied === "code" ? "Copiado" : "Copiar"}
             </Button>
           </div>
-          <p className="font-mono text-xs break-all text-amber-200">{code}</p>
+          <p className="font-mono text-xs break-all text-zinc-700">{code}</p>
         </div>
       ) : null}
 
       {verifier ? (
-        <div className="mt-2 rounded-xl border border-white/10 px-3 py-2">
+        <div className="mt-2 rounded-xl border border-zinc-200 px-3 py-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-[10px] uppercase tracking-wide text-zinc-500">verifier (local)</span>
             <Button size="sm" variant="ghost" onClick={() => void flashCopy("verifier", verifier)}>
@@ -146,22 +146,22 @@ export default function OauthPage() {
       </div>
 
       {key ? (
-        <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 px-3 py-3">
+        <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-3 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[10px] uppercase tracking-wide text-amber-400">API key</span>
+            <span className="text-[10px] uppercase tracking-wide text-violet-700">API key</span>
             <Button size="sm" variant="ghost" onClick={() => void flashCopy("key", key)}>
               {copied === "key" ? "Copiado" : "Copiar"}
             </Button>
           </div>
-          <p className="mt-1 font-mono text-sm break-all text-amber-200">{key}</p>
+          <p className="mt-1 font-mono text-sm break-all text-zinc-700">{key}</p>
           <p className="mt-2 text-xs text-zinc-500">Copiá ahora. No se vuelve a mostrar.</p>
         </div>
       ) : null}
 
-      {msg ? <p className="mt-4 text-sm text-amber-300">{msg}</p> : null}
+      {msg ? <p className="mt-4 text-sm text-zinc-950">{msg}</p> : null}
 
-      <section className="mt-8 rounded-2xl border border-white/10 p-4">
-        <div className="mb-2 text-sm font-medium text-zinc-200">curl (server-side app)</div>
+      <section className="mt-8 rounded-2xl border border-zinc-200 p-4">
+        <div className="mb-2 text-sm font-medium text-zinc-800">curl (server-side app)</div>
         <pre className="overflow-x-auto font-mono text-[11px] leading-relaxed text-zinc-500">
 {`# 1) challenge = sha256(verifier) hex
 curl $NEXUS_URL/api/v1/oauth \\
@@ -177,7 +177,7 @@ curl $NEXUS_URL/api/v1/oauth \\
         <p className="mt-3 text-xs leading-5 text-zinc-600">
           Requiere sesión de usuario al emitir el code (cookie o bearer de cuenta). El canje no
           reutiliza codes. Docs:{" "}
-          <Link href="/docs" className="text-amber-400 hover:underline">
+          <Link href="/docs" className="text-violet-700 hover:underline">
             /docs
           </Link>
           .

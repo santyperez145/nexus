@@ -116,8 +116,8 @@ function KeysInner() {
         Plaintext solo al crear, rotar o revelar welcome. Editá límite, reset y BYOK-in-limit como
         en OpenRouter — el gateway corta al agotar.
       </AppPageHeader>
-      {welcomeNote ? <p className="mb-3 text-sm text-amber-300">{welcomeNote}</p> : null}
-      <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+      {welcomeNote ? <p className="mb-3 text-sm text-zinc-950">{welcomeNote}</p> : null}
+      <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
         <Input
           value={limit}
@@ -129,7 +129,7 @@ function KeysInner() {
         <select
           value={workspaceId}
           onChange={(e) => setWorkspaceId(e.target.value)}
-          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm"
+          className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm"
           aria-label="Workspace"
         >
           <option value="">Sin workspace</option>
@@ -145,10 +145,10 @@ function KeysInner() {
         </Button>
       </div>
       {created ? (
-        <div className="mb-4 space-y-3 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3">
+        <div className="mb-4 space-y-3 rounded-lg border border-violet-300 bg-amber-400/10 p-3">
           <p className="font-mono text-sm break-all">Cópiala ahora: {created}</p>
           {curl ? (
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[11px] text-zinc-300">
+            <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[11px] text-zinc-600">
               {curl}
             </pre>
           ) : null}
@@ -159,10 +159,10 @@ function KeysInner() {
           const pct =
             k.limit != null && k.limit > 0 ? Math.min(100, (k.usage / k.limit) * 100) : 0;
           return (
-            <div key={k.id} className="rounded-2xl border border-white/10 px-4 py-3">
+            <div key={k.id} className="rounded-2xl border border-zinc-200 px-4 py-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
+                  <div className="text-lg font-semibold text-zinc-900">
                     {k.name}
                     {k.is_management ? (
                       <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-500/80">
@@ -249,7 +249,7 @@ function KeysInner() {
               </div>
 
               {editId === k.id ? (
-                <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-white/5 pt-3">
+                <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-zinc-100 pt-3">
                   <div>
                     <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">
                       Límite USD
@@ -269,7 +269,7 @@ function KeysInner() {
                     <select
                       value={editReset}
                       onChange={(e) => setEditReset(e.target.value)}
-                      className="h-9 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm"
+                      className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm"
                       aria-label="Periodo de reset"
                     >
                       <option value="daily">daily</option>

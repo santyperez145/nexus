@@ -127,10 +127,10 @@ export default function WelcomePage() {
               key={s.id}
               className={`rounded-xl border px-4 py-3 ${
                 isActive
-                  ? "border-amber-400/40 bg-amber-400/[0.06]"
+                  ? "border-violet-300 bg-amber-400/[0.06]"
                   : isDone
                     ? "border-emerald-500/25 bg-emerald-500/[0.04]"
-                    : "border-white/10 bg-white/[0.02]"
+                    : "border-zinc-200 bg-white"
               }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -141,7 +141,7 @@ export default function WelcomePage() {
                   {isDone ? "listo" : isActive ? "ahora" : "luego"}
                 </span>
               </div>
-              <div className="mt-1 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
+              <div className="mt-1 text-lg font-semibold text-zinc-900">
                 {s.title}
               </div>
               <p className="mt-1 text-sm text-zinc-500">{s.body}</p>
@@ -150,17 +150,17 @@ export default function WelcomePage() {
         })}
       </ol>
 
-      <section className="mb-6 rounded-2xl border border-white/10 p-4">
+      <section className="mb-6 rounded-2xl border border-zinc-200 p-4">
         <div className="text-xs text-zinc-500">Saldo</div>
-        <div className="font-[family-name:var(--font-syne)] text-3xl font-semibold text-amber-300">
+        <div className="text-3xl font-semibold text-zinc-950">
           {credits ? formatUsd(credits.remaining, 2) : "…"}
         </div>
       </section>
 
-      <section className="mb-6 rounded-2xl border border-white/10 p-4">
+      <section className="mb-6 rounded-2xl border border-zinc-200 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="font-medium text-zinc-200">API key</div>
+            <div className="font-medium text-zinc-800">API key</div>
             <div className="text-xs text-zinc-500">
               {(keys ?? []).length} key(s) · revelación one-time
             </div>
@@ -170,17 +170,17 @@ export default function WelcomePage() {
           </Button>
         </div>
         {plain ? (
-          <pre className="overflow-x-auto rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 font-mono text-xs text-amber-100">
+          <pre className="overflow-x-auto rounded-lg border border-violet-200 bg-violet-50 p-3 font-mono text-xs text-zinc-800">
             {plain}
             {curl ? `\n\n${curl}` : ""}
           </pre>
         ) : null}
       </section>
 
-      <section className="mb-8 rounded-2xl border border-white/10 p-4">
+      <section className="mb-8 rounded-2xl border border-zinc-200 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="font-medium text-zinc-200">Primer request</div>
+            <div className="font-medium text-zinc-800">Primer request</div>
             <div className="text-xs text-zinc-500">POST /api/v1/chat/completions · nexus/auto</div>
           </div>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void firstPing()}>
@@ -190,19 +190,19 @@ export default function WelcomePage() {
         {ping ? <p className="font-mono text-xs text-zinc-400">{ping}</p> : null}
         {pingGen ? (
           <p className="mt-2 text-xs text-zinc-500">
-            <Link href={`/activity/${pingGen}`} className="text-amber-400 hover:underline">
+            <Link href={`/activity/${pingGen}`} className="text-violet-700 hover:underline">
               Ver generation →
             </Link>
           </p>
         ) : null}
       </section>
 
-      <section className="mb-8 rounded-2xl border border-white/10 p-4">
-        <div className="font-medium text-zinc-200">Recipes & SDK</div>
+      <section className="mb-8 rounded-2xl border border-zinc-200 p-4">
+        <div className="font-medium text-zinc-800">Recipes & SDK</div>
         <p className="mt-1 text-sm text-zinc-500">
           Starters curados (routing, ZDR, JSON) sin inventar marketplace.
         </p>
-        <pre className="mt-3 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-[11px] text-zinc-400">
+        <pre className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-[11px] text-zinc-400">
 {`import { Nexus } from "nexus-sdk";
 const nexus = new Nexus({ apiKey: process.env.NEXUS_API_KEY });
 await nexus.chat.send({
@@ -223,8 +223,8 @@ await nexus.chat.send({
         </div>
       </section>
 
-      <section className="mb-8 rounded-2xl border border-white/10 p-4">
-        <div className="font-medium text-zinc-200">Cables</div>
+      <section className="mb-8 rounded-2xl border border-zinc-200 p-4">
+        <div className="font-medium text-zinc-800">Cables</div>
         <p className="mt-1 text-sm text-zinc-500">
           {wiredLabs > 0
             ? `${wiredLabs} lab(s) cableados en esta instancia.`

@@ -14,7 +14,7 @@ export function RateLimitsCard() {
   const [data] = useRemoteData<Limits>("/api/internal/rate-limits");
   if (!data) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-sm text-zinc-500">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-500">
         Cargando cuotas…
       </div>
     );
@@ -23,7 +23,7 @@ export function RateLimitsCard() {
   const rpdPct = Math.min(100, (data.free_rpd_used / Math.max(1, data.free_rpd_limit)) * 100);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5">
       <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Rate limits</div>
       <p className="mt-1 text-xs text-zinc-500">Cuotas reales de esta cuenta · sin SLA inventado.</p>
 

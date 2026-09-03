@@ -115,14 +115,14 @@ export default function OrgsPage() {
         />
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+      <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre org" />
         <Button disabled={!name.trim()} onClick={() => void createOrg()}>
           Crear
         </Button>
       </div>
 
-      <div className="mb-6 rounded-2xl border border-dashed border-white/15 p-3">
+      <div className="mb-6 rounded-2xl border border-dashed border-zinc-200 p-3">
         <div className="mb-2 text-xs font-medium uppercase tracking-[0.1em] text-zinc-600">
           Aceptar invite (token)
         </div>
@@ -139,11 +139,11 @@ export default function OrgsPage() {
         </div>
       </div>
 
-      {msg ? <p className="mb-4 text-sm text-amber-300">{msg}</p> : null}
+      {msg ? <p className="mb-4 text-sm text-zinc-950">{msg}</p> : null}
       {lastAcceptUrl ? (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs">
-          <span className="text-amber-200/90">Link invite:</span>
-          <code className="max-w-full truncate font-mono text-amber-100/80">{lastAcceptUrl}</code>
+          <span className="text-zinc-600">Link invite:</span>
+          <code className="max-w-full truncate font-mono text-zinc-800/80">{lastAcceptUrl}</code>
           <Button
             size="sm"
             variant="ghost"
@@ -157,16 +157,16 @@ export default function OrgsPage() {
       {!rows ? (
         <p className="text-sm text-zinc-500">Cargando…</p>
       ) : list.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 px-4 py-10 text-center text-sm text-zinc-500">
+        <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500">
           Sin organizaciones. Creá una o aceptá un invite.
         </div>
       ) : (
         <div className="grid gap-3">
           {list.map((o) => (
-            <div key={o.id} className="rounded-2xl border border-white/10 px-4 py-3 text-sm">
+            <div key={o.id} className="rounded-2xl border border-zinc-200 px-4 py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
+                  <div className="text-lg font-semibold text-zinc-900">
                     {o.name}
                   </div>
                   <div className="font-mono text-xs text-zinc-600">
@@ -199,7 +199,7 @@ export default function OrgsPage() {
                   </div>
                 ))}
                 {o.pending_invites?.map((p) => (
-                  <div key={p.id} className="text-amber-400/80">
+                  <div key={p.id} className="text-violet-700">
                     {p.email} · pending · {p.role}
                     {p.expiresAt
                       ? ` · exp ${new Date(p.expiresAt).toISOString().slice(0, 10)}`
@@ -219,7 +219,7 @@ export default function OrgsPage() {
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+                    className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
                     aria-label="Rol invite"
                   >
                     <option value="member">member</option>
@@ -245,9 +245,9 @@ export default function OrgsPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+    <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
       <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">{label}</div>
-      <div className="mt-1 font-mono text-lg text-amber-200">{value}</div>
+      <div className="mt-1 font-mono text-lg text-zinc-700">{value}</div>
     </div>
   );
 }
