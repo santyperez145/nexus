@@ -74,7 +74,7 @@ function filterEndpoints(
       return true;
     });
   }
-  if (auth.zdr || prefs?.zdr || prefs?.data_collection === "deny") {
+  if (auth.zdr || !auth.allowTraining || prefs?.zdr || prefs?.data_collection === "deny") {
     list = list.filter((e) => e.zdr);
   }
   if (prefs?.order?.length) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatUsd } from "@/lib/money";
@@ -21,15 +22,36 @@ type KeyRow = {
 
 type Workspace = { id: string; name: string; slug: string; isDefault?: boolean };
 
-export default function KeysPage() {
+function KeysInner() {
+  const params = useSearchParams();
+  const welcome = params.get("welcome") === "1";
   const [keys, reload] = useRemoteData<KeyRow[]>("/api/v1/keys");
   const [workspaces] = useRemoteData<Workspace[]>("/api/v1/workspaces");
   const [name, setName] = useState("SDK");
   const [limit, setLimit] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [created, setCreated] = useState<string | null>(null);
+  const [welcomeNote, setWelcomeNote] = useState<string | null>(null);
   const rows = keys ?? [];
   const spaces = workspaces ?? [];
+
+  useEffect(() => {
+    if (!welcome || created) return;
+    const ac = new AbortController();
+    fetch("/api/internal/keys/welcome", { method: "POST", signal: ac.signal })
+      .then((r) => r.json())
+      .then((json) => {
+        if (ac.signal.aborted) return;
+        if (json.data?.key) {
+          setCreated(json.data.key);
+          setWelcomeNote(json.data.note ?? "Key de bienvenida — copiá ahora.");
+          reload();
+          window.history.replaceState({}, "", "/settings/keys");
+        }
+      })
+      .catch(() => undefined);
+    return () => ac.abort();
+  }, [welcome, created, reload]);
 
   async function create(isManagement: boolean) {
     const res = await fetch("/api/v1/keys", {
@@ -44,6 +66,7 @@ export default function KeysPage() {
     });
     const json = await res.json();
     setCreated(json.data?.key ?? null);
+    setWelcomeNote(null);
     reload();
   }
 
@@ -55,6 +78,7 @@ export default function KeysPage() {
     });
     const json = await res.json();
     setCreated(json.data?.key ?? null);
+    setWelcomeNote(null);
     reload();
   }
 
@@ -76,8 +100,10 @@ export default function KeysPage() {
     <div>
       <h1 className="mb-2 text-2xl font-semibold">API Keys</h1>
       <p className="mb-6 text-sm text-zinc-500">
-        El plaintext solo se muestra al crear o rotar. Anclá la key a un workspace para que el budget corte.
+        El plaintext solo se muestra al crear, rotar o al revelar la de bienvenida. Anclá la key a un
+        workspace para que el budget corte.
       </p>
+      {welcomeNote ? <p className="mb-3 text-sm text-amber-300">{welcomeNote}</p> : null}
       <div className="mb-6 flex flex-wrap gap-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
         <Input
@@ -106,13 +132,16 @@ export default function KeysPage() {
         </Button>
       </div>
       {created ? (
-        <p className="mb-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 font-mono text-sm">
+        <p className="mb-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 font-mono text-sm break-all">
           Cópiala ahora: {created}
         </p>
       ) : null}
       <div className="grid gap-2">
         {rows.map((k) => (
-          <div key={k.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm">
+          <div
+            key={k.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
+          >
             <span>
               {k.name}{" "}
               <span className="font-mono text-zinc-500">
@@ -122,7 +151,9 @@ export default function KeysPage() {
               <span className="mt-1 block text-xs text-zinc-500">
                 uso {formatUsd(k.usage, 4)}
                 {k.limit != null ? ` / ${formatUsd(k.limit, 2)}` : " · sin límite"}
-                {k.workspace_id ? ` · ws ${spaces.find((w) => w.id === k.workspace_id)?.name ?? k.workspace_id}` : ""}
+                {k.workspace_id
+                  ? ` · ws ${spaces.find((w) => w.id === k.workspace_id)?.name ?? k.workspace_id}`
+                  : ""}
                 {k.last_used ? ` · last ${new Date(k.last_used).toLocaleString()}` : " · nunca usada"}
               </span>
             </span>
@@ -130,7 +161,11 @@ export default function KeysPage() {
               <Button variant="ghost" size="sm" onClick={() => void rotate(k.id)}>
                 Rotar
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => void patch(k.id, { disabled: !k.disabled })}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void patch(k.id, { disabled: !k.disabled })}
+              >
                 {k.disabled ? "Activar" : "Pausar"}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => void remove(k.id)}>
@@ -141,5 +176,20 @@ export default function KeysPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function KeysPage() {
+  return (
+    <Suspense
+      fallback={
+        <div>
+          <h1 className="mb-2 text-2xl font-semibold">API Keys</h1>
+          <p className="text-sm text-zinc-500">Cargando…</p>
+        </div>
+      }
+    >
+      <KeysInner />
+    </Suspense>
   );
 }

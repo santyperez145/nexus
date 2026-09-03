@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { resolveByokKey } from "@/lib/gateway/byok";
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { startVideoJob } from "@/lib/media/upstream";
@@ -10,7 +11,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const prompt = String(body.prompt ?? "");
     const model = body.model ?? "nexus/video";
-    const live = await startVideoJob({ prompt, model });
+    const falKey = await resolveByokKey(auth.userId, "fal");
+    const replicateToken = await resolveByokKey(auth.userId, "replicate");
+    const live = await startVideoJob({ prompt, model, falKey, replicateToken });
     const row = {
       id: id("vid"),
       userId: auth.userId,

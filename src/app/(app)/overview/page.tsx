@@ -42,9 +42,10 @@ export default async function OverviewPage() {
       ) : null}
       {unusedKeys.length ? (
         <p className="mb-6 rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-400">
-          Hay {unusedKeys.length} key(s) que nunca se usaron. La de bienvenida no se muestra: rotála en{" "}
-          <Link href="/settings/keys" className="text-amber-400 hover:underline">
-            API Keys
+          Hay {unusedKeys.length} key(s) que nunca se usaron. Si acabás de registrarte y no viste el
+          plaintext, abrí{" "}
+          <Link href="/settings/keys?welcome=1" className="text-amber-400 hover:underline">
+            API Keys → revelar bienvenida
           </Link>
           .
         </p>

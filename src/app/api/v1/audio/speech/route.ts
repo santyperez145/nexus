@@ -1,17 +1,20 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { resolveByokKey } from "@/lib/gateway/byok";
 import { synthesizeSpeech } from "@/lib/media/upstream";
 
 export async function POST(req: Request) {
   try {
-    await authenticateRequest(req);
+    const auth = await authenticateRequest(req);
     const body = await req.json();
     const text = String(body.input ?? body.text ?? "");
     if (!text) return jsonError(Object.assign(new Error("input required"), { status: 400 }));
+    const apiKey = await resolveByokKey(auth.userId, "openai");
     const live = await synthesizeSpeech({
       input: text,
       model: body.model,
       voice: body.voice,
       format: body.response_format,
+      apiKey,
     });
     if (live && "buffer" in live && live.buffer) {
       const bytes = new Uint8Array(live.buffer);

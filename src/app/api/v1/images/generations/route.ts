@@ -1,17 +1,20 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { resolveByokKey } from "@/lib/gateway/byok";
 import { generateImage } from "@/lib/media/upstream";
 
 export async function POST(req: Request) {
   try {
-    await authenticateRequest(req);
+    const auth = await authenticateRequest(req);
     const body = await req.json();
     const prompt = String(body.prompt ?? "");
     if (!prompt) return jsonError(Object.assign(new Error("prompt required"), { status: 400 }));
+    const apiKey = await resolveByokKey(auth.userId, "openai");
     const live = await generateImage({
       prompt,
       model: body.model,
       size: body.size,
       n: body.n,
+      apiKey,
     });
     if (live && "data" in live) return Response.json(live);
     if (live && "error" in live) {
@@ -22,7 +25,7 @@ export async function POST(req: Request) {
     return Response.json({
       created: Math.floor(Date.now() / 1000),
       data: [{ b64_json: b64, url: `data:image/svg+xml;base64,${b64}` }],
-      warning: "OPENAI_API_KEY ausente: imagen placeholder local",
+      warning: "Sin OPENAI_API_KEY ni BYOK openai: imagen placeholder local",
     });
   } catch (error) {
     return jsonError(error);

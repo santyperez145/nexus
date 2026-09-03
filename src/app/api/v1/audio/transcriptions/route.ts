@@ -1,16 +1,18 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { resolveByokKey } from "@/lib/gateway/byok";
 import { transcribeAudio } from "@/lib/media/upstream";
 
 export async function POST(req: Request) {
   try {
-    await authenticateRequest(req);
+    const auth = await authenticateRequest(req);
+    const apiKey = await resolveByokKey(auth.userId, "openai");
     const contentType = req.headers.get("content-type") ?? "";
     if (contentType.includes("multipart/form-data")) {
       const form = await req.formData();
       const file = form.get("file");
       const model = String(form.get("model") ?? "whisper-1");
       if (file instanceof File) {
-        const live = await transcribeAudio(file, file.name, model);
+        const live = await transcribeAudio(file, file.name, model, apiKey);
         if (live && "text" in live) return Response.json(live);
         if (live && "error" in live) {
           return jsonError(Object.assign(new Error(String(live.error)), { status: live.status ?? 502 }));

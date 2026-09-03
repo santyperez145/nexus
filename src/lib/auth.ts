@@ -39,8 +39,9 @@ export const auth = betterAuth({
             .update(schema.users)
             .set({ creditMicros: SIGNUP_BONUS_MICROS })
             .where(eq(schema.users.id, user.id));
+          const workspaceId = id("ws");
           await db.insert(schema.workspaces).values({
-            id: id("ws"),
+            id: workspaceId,
             userId: user.id,
             name: "Default",
             slug: "default",
@@ -53,7 +54,7 @@ export const auth = betterAuth({
             micros: SIGNUP_BONUS_MICROS,
             note: "Crédito de bienvenida",
           });
-          await issueApiKey({ userId: user.id, name: "Default" });
+          await issueApiKey({ userId: user.id, name: "Default", workspaceId });
         },
       },
     },
