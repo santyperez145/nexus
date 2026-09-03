@@ -40,6 +40,7 @@ export class Nexus {
   readonly workspaces: WorkspacesResource;
   readonly organization: OrganizationResource;
   readonly observability: ObservabilityResource;
+  readonly routing: RoutingResource;
   #fetch: typeof fetch;
   #defaultHeaders: Record<string, string>;
 
@@ -71,6 +72,7 @@ export class Nexus {
     this.workspaces = new WorkspacesResource(this);
     this.organization = new OrganizationResource(this);
     this.observability = new ObservabilityResource(this);
+    this.routing = new RoutingResource(this);
   }
 
   async request<T>(
@@ -440,5 +442,24 @@ class ObservabilityResource {
       method: "DELETE",
       query: { id },
     });
+  }
+}
+
+class RoutingResource {
+  constructor(private readonly client: Nexus) {}
+  preview(body: {
+    model: string;
+    messages?: Array<{ role: string; content: string }>;
+    provider?: Record<string, unknown>;
+  }) {
+    return this.client.request<{
+      data: {
+        requested: string;
+        mode: string;
+        hops: Array<{ model: string; adapter: string; wired: boolean; zdr: boolean }>;
+        note: string;
+        guest?: boolean;
+      };
+    }>("/routing/preview", { method: "POST", body });
   }
 }

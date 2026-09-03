@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/money";
 
@@ -19,27 +20,62 @@ function usdPerMillion(perToken: number) {
   return perToken * 1_000_000;
 }
 
-export function CompareClient({ models }: { models: Row[] }) {
-  const [a, setA] = useState(models[0]?.id ?? "nexus/auto");
-  const [b, setB] = useState(models[1]?.id ?? models[0]?.id ?? "nexus/auto");
+export function CompareClient({
+  models,
+  initialA,
+  initialB,
+}: {
+  models: Row[];
+  initialA?: string;
+  initialB?: string;
+}) {
+  const router = useRouter();
+  const [a, setA] = useState(initialA ?? models[0]?.id ?? "nexus/auto");
+  const [b, setB] = useState(initialB ?? models[1]?.id ?? models[0]?.id ?? "nexus/auto");
+  const [qa, setQa] = useState("");
+  const [qb, setQb] = useState("");
   const left = useMemo(() => models.find((m) => m.id === a) ?? models[0], [a, models]);
   const right = useMemo(() => models.find((m) => m.id === b) ?? models[1] ?? models[0], [b, models]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (a) params.set("a", a);
+    if (b) params.set("b", b);
+    router.replace(`/compare?${params.toString()}`, { scroll: false });
+  }, [a, b, router]);
+
+  const optsA = useMemo(() => {
+    const q = qa.trim().toLowerCase();
+    return q ? models.filter((m) => m.id.toLowerCase().includes(q)).slice(0, 80) : models.slice(0, 120);
+  }, [models, qa]);
+  const optsB = useMemo(() => {
+    const q = qb.trim().toLowerCase();
+    return q ? models.filter((m) => m.id.toLowerCase().includes(q)).slice(0, 80) : models.slice(0, 120);
+  }, [models, qb]);
 
   if (!left || !right) {
     return <p className="text-sm text-zinc-500">Catálogo vacío.</p>;
   }
 
-  const rows: Array<{ label: string; av: string; bv: string }> = [
+  const leftPrompt = left.free ? 0 : usdPerMillion(left.pricing.prompt);
+  const rightPrompt = right.free ? 0 : usdPerMillion(right.pricing.prompt);
+  const cheaper = leftPrompt === rightPrompt ? null : leftPrompt < rightPrompt ? "a" : "b";
+  const biggerCtx =
+    left.contextLength === right.contextLength ? null : left.contextLength > right.contextLength ? "a" : "b";
+
+  const rows: Array<{ label: string; av: string; bv: string; win?: "a" | "b" | null }> = [
     { label: "Nombre", av: left.name, bv: right.name },
     {
       label: "Contexto",
       av: `${(left.contextLength / 1000).toFixed(0)}k`,
       bv: `${(right.contextLength / 1000).toFixed(0)}k`,
+      win: biggerCtx,
     },
     {
       label: "Prompt / 1M",
-      av: left.free ? "Gratis" : formatUsd(usdPerMillion(left.pricing.prompt), 2),
-      bv: right.free ? "Gratis" : formatUsd(usdPerMillion(right.pricing.prompt), 2),
+      av: left.free ? "Gratis" : formatUsd(leftPrompt, 2),
+      bv: right.free ? "Gratis" : formatUsd(rightPrompt, 2),
+      win: cheaper,
     },
     {
       label: "Completion / 1M",
@@ -77,12 +113,19 @@ export function CompareClient({ models }: { models: Row[] }) {
       <div className="mb-6 grid gap-3 md:grid-cols-2">
         <label className="grid gap-1 text-sm">
           <span className="text-xs uppercase tracking-[0.08em] text-zinc-500">Modelo A</span>
+          <input
+            value={qa}
+            onChange={(e) => setQa(e.target.value)}
+            placeholder="Filtrar…"
+            className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+            aria-label="Filtrar modelo A"
+          />
           <select
             value={a}
             onChange={(e) => setA(e.target.value)}
             className="h-10 rounded-md border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-900"
           >
-            {models.map((m) => (
+            {optsA.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.id}
               </option>
@@ -91,12 +134,19 @@ export function CompareClient({ models }: { models: Row[] }) {
         </label>
         <label className="grid gap-1 text-sm">
           <span className="text-xs uppercase tracking-[0.08em] text-zinc-500">Modelo B</span>
+          <input
+            value={qb}
+            onChange={(e) => setQb(e.target.value)}
+            placeholder="Filtrar…"
+            className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm"
+            aria-label="Filtrar modelo B"
+          />
           <select
             value={b}
             onChange={(e) => setB(e.target.value)}
             className="h-10 rounded-md border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-900"
           >
-            {models.map((m) => (
+            {optsB.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.id}
               </option>
@@ -119,8 +169,22 @@ export function CompareClient({ models }: { models: Row[] }) {
             }`}
           >
             <div className="text-zinc-500">{r.label}</div>
-            <div className="font-mono text-xs text-zinc-800">{r.av}</div>
-            <div className="font-mono text-xs text-zinc-800">{r.bv}</div>
+            <div
+              className={`font-mono text-xs ${
+                r.win === "a" ? "font-semibold text-emerald-700" : "text-zinc-800"
+              }`}
+            >
+              {r.av}
+              {r.win === "a" ? " ·" : ""}
+            </div>
+            <div
+              className={`font-mono text-xs ${
+                r.win === "b" ? "font-semibold text-emerald-700" : "text-zinc-800"
+              }`}
+            >
+              {r.bv}
+              {r.win === "b" ? " ·" : ""}
+            </div>
           </div>
         ))}
       </div>

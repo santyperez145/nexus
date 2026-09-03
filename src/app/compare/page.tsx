@@ -48,7 +48,7 @@ export default async function ComparePage({
           Precio, contexto, labs y latencia lado a lado — datos del catálogo Nexus, sin métricas
           inventadas. Para correr prompts en paralelo: Chat.
         </MarketingPageHeader>
-        <CompareClient models={ordered} />
+        <CompareClient models={ordered} initialA={q.a} initialB={q.b} />
       </div>
     </MarketingShell>
   );

@@ -153,4 +153,29 @@ describe("nexus-sdk", () => {
     const res = await nexus.keys.rotate("key_1");
     assert.equal(res.data.key, "sk-nx-rotated");
   });
+
+  it("previews routing hops", async () => {
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        assert.ok(String(url).endsWith("/routing/preview"));
+        assert.equal(init?.method, "POST");
+        return Response.json({
+          data: {
+            requested: "nexus/auto",
+            mode: "local_echo",
+            hops: [{ model: "openai/gpt-4o", adapter: "openai", wired: false, zdr: true }],
+            note: "preview",
+          },
+        });
+      },
+    });
+    const res = await nexus.routing.preview({
+      model: "nexus/auto",
+      messages: [{ role: "user", content: "hi" }],
+    });
+    assert.equal(res.data.requested, "nexus/auto");
+    assert.equal(res.data.hops.length, 1);
+  });
 });

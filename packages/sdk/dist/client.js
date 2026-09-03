@@ -32,6 +32,7 @@ export class Nexus {
     workspaces;
     organization;
     observability;
+    routing;
     #fetch;
     #defaultHeaders;
     constructor(opts = {}) {
@@ -62,6 +63,7 @@ export class Nexus {
         this.workspaces = new WorkspacesResource(this);
         this.organization = new OrganizationResource(this);
         this.observability = new ObservabilityResource(this);
+        this.routing = new RoutingResource(this);
     }
     async request(path, init = {}) {
         const url = new URL(this.baseURL + (path.startsWith("/") ? path : `/${path}`));
@@ -432,5 +434,14 @@ class ObservabilityResource {
             method: "DELETE",
             query: { id },
         });
+    }
+}
+class RoutingResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    preview(body) {
+        return this.client.request("/routing/preview", { method: "POST", body });
     }
 }

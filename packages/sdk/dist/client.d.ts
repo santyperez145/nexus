@@ -26,6 +26,7 @@ export declare class Nexus {
     readonly workspaces: WorkspacesResource;
     readonly organization: OrganizationResource;
     readonly observability: ObservabilityResource;
+    readonly routing: RoutingResource;
     constructor(opts?: NexusClientOptions);
     request<T>(path: string, init?: {
         method?: string;
@@ -374,6 +375,31 @@ declare class ObservabilityResource {
     delete(id: string): Promise<{
         data: {
             success: boolean;
+        };
+    }>;
+}
+declare class RoutingResource {
+    private readonly client;
+    constructor(client: Nexus);
+    preview(body: {
+        model: string;
+        messages?: Array<{
+            role: string;
+            content: string;
+        }>;
+        provider?: Record<string, unknown>;
+    }): Promise<{
+        data: {
+            requested: string;
+            mode: string;
+            hops: Array<{
+                model: string;
+                adapter: string;
+                wired: boolean;
+                zdr: boolean;
+            }>;
+            note: string;
+            guest?: boolean;
         };
     }>;
 }

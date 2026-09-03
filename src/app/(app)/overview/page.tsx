@@ -8,6 +8,7 @@ import { wiredProviders } from "@/lib/providers/registry";
 import { Button } from "@/components/ui/button";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Sparkline } from "@/components/charts/sparkline";
+import { RateLimitsCard } from "@/components/dashboard/rate-limits-card";
 
 function relativeTime(d: Date, nowMs: number) {
   const sec = Math.max(1, Math.floor((nowMs - d.getTime()) / 1000));
@@ -198,6 +199,29 @@ export default async function OverviewPage() {
               ))}
             </div>
           )}
+        </section>
+      </div>
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <RateLimitsCard />
+        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Atajos</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/analytics">Analytics</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/activity">Activity</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/settings/notifications">Notifications</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/enterprise">Enterprise</Link>
+            </Button>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-zinc-600">
+            60 rpm por cuenta · free models con RPD según saldo. Keys tienen límite de gasto aparte.
+          </p>
         </section>
       </div>
     </div>

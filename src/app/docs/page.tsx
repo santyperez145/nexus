@@ -108,6 +108,21 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
     "messages": [{"role":"user","content":"Qué pasó hoy en AI?"}]
   }'`}
         </pre>
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Completions (legacy)</h2>
+        <p className="mb-3 text-sm text-zinc-600">
+          Envelope OpenAI clásico con <code className="text-zinc-800">prompt</code>. Preferí chat
+          completions; este endpoint queda para SDKs viejos.
+        </p>
+        <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+{`curl $NEXUS_URL/api/v1/completions \\
+  -H "Authorization: Bearer $NEXUS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "nexus/auto",
+    "prompt": "Decí hola en una línea",
+    "max_tokens": 64
+  }'`}
+        </pre>
         <h2 className="mb-3 text-lg font-medium text-zinc-900">Atribución</h2>
         <p className="mb-6 text-sm text-zinc-600">
           Mandá <code className="text-zinc-800">HTTP-Referer</code> (origen de tu app) y{" "}

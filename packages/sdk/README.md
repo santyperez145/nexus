@@ -79,10 +79,9 @@ await nexus.chat.completions.create({
 | `nexus.workspaces.*` | `/workspaces` |
 | `nexus.organization.*` | `/organization` |
 | `nexus.observability.*` | `/observability` |
+| `nexus.routing.preview` | `POST /routing/preview` |
 
 > El nombre npm público `nexus-sdk` puede estar ocupado por un paquete ajeno. En este monorepo usá
 > `"nexus-sdk": "file:packages/sdk"`. En prod, preferí un scope propio (`@tu-org/nexus`).
 
 `NEXUS_MODEL_IDS` es el union de slugs del catálogo (autocompletado). Routers: `nexus/auto`, `nexus/free`. Variantes: `:fast`, `:cheap`, `:quality`, `:online`.
-
-Route preview (sin SDK tipado aún): `POST /routing/preview` con el mismo Bearer.
