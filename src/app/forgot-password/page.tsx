@@ -38,20 +38,18 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell
-      title="Recuperar password"
-      subtitle="Te mandamos un enlace si el email está registrado."
+      title="Recuperar contraseña"
+      subtitle="Te enviamos un enlace si el correo está registrado."
     >
       {done ? (
         <p className="text-sm text-zinc-600">
-          Si existe una cuenta con ese email, revisá tu bandeja (y spam). En local sin{" "}
-          <code className="text-zinc-800">RESEND_API_KEY</code> el enlace queda en los logs del
-          servidor.
+          Si existe una cuenta con ese correo, revisá tu bandeja y la carpeta de spam.
         </p>
       ) : (
         <form onSubmit={onSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="email" className="text-zinc-700">
-              Email
+              Correo electrónico
             </Label>
             <Input
               id="email"

@@ -26,6 +26,8 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [terms, setTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [busy, setBusy] = useState(false);
   const strength = useMemo(() => passwordStrength(password), [password]);
   const strengthLabel = ["", "Débil", "Ok", "Buena", "Fuerte"][strength] ?? "";
 
@@ -36,17 +38,51 @@ export default function RegisterPage() {
       setError("Aceptá los Términos y la Política de privacidad para continuar.");
       return;
     }
-    const { error: err } = await authClient.signUp.email({ name, email, password });
-    if (err) {
-      setError(err.message ?? "No se pudo crear la cuenta");
-      return;
+    setBusy(true);
+    try {
+      const { data, error: err } = await authClient.signUp.email({
+        name,
+        email,
+        password,
+        callbackURL: "/welcome",
+      });
+      if (err) {
+        setError(
+          err.status === 429
+            ? "Demasiados intentos. Esperá unos segundos y volvé a probar."
+            : err.message ?? "No se pudo crear la cuenta",
+        );
+        return;
+      }
+      if (data?.token) {
+        router.push("/welcome");
+        router.refresh();
+        return;
+      }
+      setVerificationPending(true);
+    } catch {
+      setError("No pudimos conectar. Revisá tu conexión y volvé a probar.");
+    } finally {
+      setBusy(false);
     }
-    router.push("/welcome");
-    router.refresh();
   }
 
   return (
     <AuthShell title="Crear cuenta" subtitle="Empezá a explorar y usar modelos desde un solo lugar.">
+      {verificationPending ? (
+        <div className="grid gap-4" role="status">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+            <p className="font-medium">Revisá tu correo</p>
+            <p className="mt-1 text-emerald-800">
+              Si la dirección puede registrarse, vas a recibir un enlace para confirmar la cuenta.
+              También revisá la carpeta de spam.
+            </p>
+          </div>
+          <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Link href="/login">Ir a ingresar</Link>
+          </Button>
+        </div>
+      ) : (
       <form onSubmit={onSubmit} className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="name" className="text-zinc-700">
@@ -87,12 +123,13 @@ export default function RegisterPage() {
             name="password"
             type="password"
             autoComplete="new-password"
-            minLength={8}
+            minLength={12}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             className="border-zinc-300 bg-white text-zinc-900"
           />
+          <p className="text-[11px] text-zinc-500">Usá al menos 12 caracteres.</p>
           {password ? (
             <div className="space-y-1">
               <div className="flex gap-1">
@@ -136,10 +173,15 @@ export default function RegisterPage() {
           </span>
         </label>
         {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
-        <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
-          Crear cuenta
+        <Button
+          type="submit"
+          disabled={busy}
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          {busy ? "Creando…" : "Crear cuenta"}
         </Button>
       </form>
+      )}
       <p className="mt-4 text-sm text-zinc-500">
         ¿Ya tenés cuenta?{" "}
         <Link href="/login" className="text-violet-700 hover:underline">

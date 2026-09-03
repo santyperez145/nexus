@@ -28,6 +28,7 @@ npm run dev
 | `STRIPE_AUTOMATIC_TAX_ENABLED=true` | Opt-in después de configurar Tax Settings y registros fiscales en el entorno activo |
 | `CREDENTIALS_SECRET` | Cifrado BYOK (obligatorio en prod) |
 | `BETTER_AUTH_SECRET` | Secreto de sesión de al menos 32 caracteres (obligatorio en prod) |
+| `RESEND_API_KEY` + `EMAIL_FROM` | Verificación y recuperación de cuenta; remitente verificado, obligatorios en prod |
 | `ADMIN_EMAILS` | Allowlist, separada por comas, para tareas globales de conexiones/catálogo |
 | `DATABASE_URL` | Postgres/Neon pooled (obligatorio en prod; local: PGlite) |
 | `DATABASE_URL_UNPOOLED` | Conexión directa para `npm run db:migrate` |
@@ -82,6 +83,10 @@ const res = await nexus.chat.send({
 ```
 
 También sirve el SDK de OpenAI con `baseURL: .../api/v1`.
+
+Las cuentas nuevas verifican su correo antes de crear una sesión en producción; el restablecimiento
+de contraseña revoca sesiones anteriores. Los intentos de acceso, registro y recuperación usan el
+mismo Redis distribuido y fail-closed que el gateway.
 
 Las API keys pueden limitarse a `inference`, `management:read` y `management:write`. Los presupuestos,
 límites por key, créditos y membresías de workspace se validan en el servidor; no dependen del cliente.

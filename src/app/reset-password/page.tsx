@@ -44,7 +44,7 @@ function ResetForm() {
   }
 
   return (
-    <AuthShell title="Nueva password" subtitle="Elegí una contraseña de al menos 8 caracteres.">
+    <AuthShell title="Nueva contraseña" subtitle="Elegí una contraseña de al menos 12 caracteres.">
       {!token ? (
         <p className="text-sm text-red-600">
           Token inválido o ausente.{" "}
@@ -57,14 +57,14 @@ function ResetForm() {
         <form onSubmit={onSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="password" className="text-zinc-700">
-              Nueva password
+              Nueva contraseña
             </Label>
             <Input
               id="password"
               name="password"
               type="password"
               autoComplete="new-password"
-              minLength={8}
+              minLength={12}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <AuthShell title="Nueva password">
+        <AuthShell title="Nueva contraseña">
           <p className="text-sm text-zinc-500">Cargando…</p>
         </AuthShell>
       }

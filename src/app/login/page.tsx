@@ -14,17 +14,31 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const { error: err } = await authClient.signIn.email({ email, password });
-    if (err) {
-      setError(err.message ?? "No se pudo entrar");
-      return;
+    setBusy(true);
+    try {
+      const { error: err } = await authClient.signIn.email({ email, password });
+      if (err) {
+        setError(
+          err.status === 403
+            ? "Confirmá tu correo antes de ingresar. Te enviamos un nuevo enlace."
+            : err.status === 429
+              ? "Demasiados intentos. Esperá unos segundos y volvé a probar."
+              : "El correo o la contraseña no son correctos.",
+        );
+        return;
+      }
+      router.push("/overview");
+      router.refresh();
+    } catch {
+      setError("No pudimos conectar. Revisá tu conexión y volvé a probar.");
+    } finally {
+      setBusy(false);
     }
-    router.push("/overview");
-    router.refresh();
   }
 
   return (
@@ -67,8 +81,12 @@ export default function LoginPage() {
           />
         </div>
         {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
-        <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
-          Ingresar
+        <Button
+          type="submit"
+          disabled={busy}
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          {busy ? "Ingresando…" : "Ingresar"}
         </Button>
       </form>
       <p className="mt-4 text-sm text-zinc-500">

@@ -7,10 +7,14 @@ export type MailMessage = {
   html?: string;
 };
 
-/** Resend HTTP o log en consola si no hay key (dev). */
+/** Resend HTTP o log en consola únicamente fuera de producción. */
 export async function sendMail(msg: MailMessage): Promise<{ ok: boolean; mode: "resend" | "log" }> {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? `${APP_NAME} <onboarding@resend.dev>`;
+  const key = process.env.RESEND_API_KEY?.trim();
+  const configuredFrom = process.env.EMAIL_FROM?.trim();
+  if (process.env.NODE_ENV === "production" && (!key || !configuredFrom)) {
+    throw new Error("Production email requires RESEND_API_KEY and a verified EMAIL_FROM sender");
+  }
+  const from = configuredFrom ?? `${APP_NAME} <onboarding@resend.dev>`;
   if (!key) {
     console.info(`[nexus-mail] to=${msg.to} subject=${msg.subject}\n${msg.text}`);
     return { ok: true, mode: "log" };
@@ -51,6 +55,23 @@ export async function sendPasswordResetEmail(opts: { email: string; name: string
   return sendMail({
     to: opts.email,
     subject: `Restablecer contraseña · ${APP_NAME}`,
+    text,
+  });
+}
+
+export async function sendEmailVerification(opts: { email: string; name: string; url: string }) {
+  const text = [
+    `Hola ${opts.name || "ahí"},`,
+    "",
+    `Confirmá tu correo para activar tu cuenta de ${APP_NAME}:`,
+    opts.url,
+    "",
+    "El enlace vence en 1 hora. Si no creaste esta cuenta, ignorá este mensaje.",
+    APP_URL,
+  ].join("\n");
+  return sendMail({
+    to: opts.email,
+    subject: `Confirmá tu correo · ${APP_NAME}`,
     text,
   });
 }
