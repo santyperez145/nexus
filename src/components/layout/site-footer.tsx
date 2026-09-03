@@ -4,34 +4,34 @@ import { NexusWordmark } from "@/components/brand/nexus-logo";
 
 const COLS = [
   {
-    title: "Product",
+    title: "Producto",
     links: [
       ["/chat", "Chat"],
-      ["/models", "Models"],
-      ["/rankings", "Rankings"],
-      ["/compare", "Compare"],
+      ["/models", "Modelos"],
+      ["/rankings", "Ranking"],
+      ["/compare", "Comparar"],
       ["/arena", "Arena"],
       ["/apps", "Apps"],
-      ["/providers", "Providers"],
-      ["/credits", "Pricing"],
-      ["/enterprise", "Enterprise"],
+      ["/providers", "Proveedores"],
+      ["/credits", "Precios"],
+      ["/enterprise", "Equipos"],
     ],
   },
   {
-    title: "Company",
+    title: "Compañía",
     links: [
       ["/blog", "Blog"],
-      ["/privacy", "Privacy"],
-      ["/terms", "Terms"],
-      ["/status", "Status"],
+      ["/privacy", "Privacidad"],
+      ["/terms", "Términos"],
+      ["/status", "Estado"],
     ],
   },
   {
-    title: "Developer",
+    title: "Desarrolladores",
     links: [
-      ["/docs", "Documentation"],
-      ["/docs", "API Reference"],
-      ["/status", "Status"],
+      ["/docs", "Documentación"],
+      ["/docs", "Referencia de API"],
+      ["/status", "Estado"],
     ],
   },
 ] as const;
@@ -46,7 +46,7 @@ export function SiteFooter({ tone = "light" }: { tone?: "dark" | "light" }) {
             <NexusWordmark tone={light ? "light" : "dark"} />
           </div>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-zinc-500">
-            Una API para cada modelo. Routing, fallbacks, créditos por token y BYOK.
+            Todos tus modelos de IA en un solo lugar, con costos claros y control compartido.
           </p>
         </div>
         {COLS.map((col) => (

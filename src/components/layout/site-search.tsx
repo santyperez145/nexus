@@ -48,7 +48,7 @@ export function SiteSearch({ models }: { models: Row[] }) {
         }}
         className="flex h-9 w-full items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 text-left text-sm text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-white"
       >
-        <span className="flex-1 truncate">Search models…</span>
+        <span className="flex-1 truncate">Buscar modelos…</span>
         <kbd className="hidden rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 sm:inline">
           ⌘K
         </kbd>
@@ -88,7 +88,7 @@ export function SiteSearch({ models }: { models: Row[] }) {
                 className="w-full px-3 py-2 text-left text-xs text-violet-700 hover:bg-zinc-50"
                 onClick={() => go(q ? `/models?q=${encodeURIComponent(q)}` : "/models")}
               >
-                Browse all models →
+                Ver todos los modelos →
               </button>
             </li>
           </ul>

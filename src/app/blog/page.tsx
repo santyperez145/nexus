@@ -15,7 +15,7 @@ export default function BlogIndexPage() {
         />
         <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
           <MarketingPageHeader title="Blog">
-            Changelog y notas de producto. Sin anuncios de tracción inventada.
+            Novedades de producto, guías y decisiones detrás de Nexus.
           </MarketingPageHeader>
           <Link
             href="/rss.xml"
@@ -30,7 +30,7 @@ export default function BlogIndexPage() {
             href={`/blog/${featured.slug}`}
             className="mb-6 block rounded-2xl border border-zinc-200 bg-white px-5 py-6 transition-colors hover:border-zinc-300"
           >
-            <div className="text-[11px] uppercase tracking-[0.1em] text-violet-700">Featured</div>
+            <div className="text-[11px] uppercase tracking-[0.1em] text-violet-700">Destacado</div>
             <div className="mt-2 text-2xl font-semibold text-zinc-900 md:text-3xl">
               {featured.title}
             </div>

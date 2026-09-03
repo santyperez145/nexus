@@ -32,15 +32,15 @@ export async function SiteHeader({ tone = "light" }: { tone?: "dark" | "light" }
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
           {session ? (
             <Button asChild size="sm">
-              <Link href="/overview">Dashboard</Link>
+              <Link href="/overview">Panel</Link>
             </Button>
           ) : (
             <>
               <Button asChild variant="ghost" size="sm" className={light ? "text-zinc-700" : undefined}>
-                <Link href="/login">Sign in</Link>
+                <Link href="/login">Ingresar</Link>
               </Button>
               <Button asChild size="sm">
-                <Link href="/register">Get API Key</Link>
+                <Link href="/register">Crear cuenta</Link>
               </Button>
             </>
           )}

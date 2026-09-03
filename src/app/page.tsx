@@ -26,20 +26,20 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-4xl px-4 pb-16 pt-20 text-center md:pt-28">
         <h1 className="text-4xl font-semibold tracking-tight text-zinc-950 md:text-6xl md:leading-[1.08]">
-          The unified interface for every model
+          Todos los modelos de IA en un solo lugar
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-base text-zinc-500 md:text-lg">
-          Precios transparentes, ZDR fail-closed y planes Pro/Team. Una API OpenAI-compatible con
-          BYOK y routing propio.
+          Compará, probá y usá los mejores modelos con precios transparentes, privacidad configurable
+          y continuidad automática entre proveedores.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button asChild size="lg" className="h-10 rounded-full px-5">
             <Link href={session ? "/overview" : "/register"}>
-              {session ? "Open dashboard" : "Get API Key"}
+              {session ? "Abrir panel" : "Crear cuenta"}
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="h-10 rounded-full px-5">
-            <Link href="/models">Discover Models</Link>
+            <Link href="/models">Explorar modelos</Link>
           </Button>
         </div>
       </section>
@@ -47,10 +47,10 @@ export default async function HomePage() {
       <section className="border-y border-zinc-100">
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-6 px-4 py-10 sm:grid-cols-4">
           {[
-            { n: `${models.length}+`, l: "Models" },
-            { n: `${labs}+`, l: "Providers" },
-            { n: "0%", l: "Inference markup" },
-            { n: `${fee}%`, l: "Credit load fee" },
+            { n: `${models.length}+`, l: "Modelos" },
+            { n: `${labs}+`, l: "Proveedores" },
+            { n: "0%", l: "Recargo por uso" },
+            { n: `${fee}%`, l: "Comisión al cargar" },
           ].map((s) => (
             <div key={s.l} className="text-center">
               <div className="text-2xl font-semibold tabular-nums text-zinc-950 md:text-3xl">{s.n}</div>
@@ -65,27 +65,27 @@ export default async function HomePage() {
           {[
             {
               href: "/models",
-              t: "Text, images, video, audio",
-              d: "Generate anything through a single interface. Browse the curated catalog.",
-              cta: "Browse all",
+              t: "Texto, imágenes, video y audio",
+              d: "Creá cualquier experiencia desde una sola interfaz y un catálogo seleccionado.",
+              cta: "Ver catálogo",
             },
             {
               href: "/docs/provider-routing",
-              t: "Higher availability",
-              d: "Un slug, varios labs. Si un host cae, el gateway prueba el siguiente.",
-              cta: "Learn more",
+              t: "Mayor disponibilidad",
+              d: "Si un proveedor falla, Nexus puede continuar con otra opción compatible.",
+              cta: "Conocer más",
             },
             {
               href: "/credits",
-              t: "Price and performance",
-              d: `Lista del laboratorio. Fee ${fee}% solo al cargar créditos. 0% markup en inferencia.`,
-              cta: "Learn more",
+              t: "Precio y rendimiento",
+              d: `Sin recargo por uso. La comisión de ${fee}% aparece únicamente al cargar saldo.`,
+              cta: "Ver precios",
             },
             {
               href: "/docs",
-              t: "Custom data policies",
-              d: "ZDR fail-closed, allow/block de labs y logging opt-in por cuenta.",
-              cta: "View docs",
+              t: "Privacidad a tu medida",
+              d: "Elegí proveedores sin retención, restringí modelos y decidí qué actividad guardar.",
+              cta: "Ver privacidad",
             },
           ].map((card) => (
             <Link
@@ -104,13 +104,13 @@ export default async function HomePage() {
       <section className="border-y border-zinc-100 bg-zinc-50/50">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">Higher availability</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">Siempre la mejor ruta disponible</h2>
             <p className="mt-3 text-sm leading-relaxed text-zinc-500">
-              Reliable models via distributed routing. Fall back to other providers when one goes
-              down.
+              Ejecutá un mismo modelo en distintos proveedores y mantené tu producto funcionando
+              cuando una opción no responde.
             </p>
             <Link href="/providers" className="mt-4 inline-block text-sm text-violet-700 hover:underline">
-              Learn more →
+              Ver proveedores →
             </Link>
           </div>
           <RoutingViz className="w-full max-w-lg" wired={wiredIds} />
@@ -120,13 +120,13 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-16">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">Featured models</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">Modelos destacados</h2>
             <p className="mt-1 text-sm text-zinc-500">
-              {models.length} models on {labs} providers. Sin volumen inventado.
+              {models.length} modelos disponibles en {labs} proveedores compatibles.
             </p>
           </div>
           <Link href="/models" className="text-sm text-violet-700 hover:underline">
-            View all
+            Ver todos
           </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -136,12 +136,12 @@ export default async function HomePage() {
               href={`/models/${m.id}`}
               className="rounded-2xl border border-zinc-200 bg-white p-5 transition-colors hover:border-zinc-300"
             >
-              <div className="text-[11px] uppercase tracking-wide text-zinc-400">by {m.author}</div>
+              <div className="text-[11px] uppercase tracking-wide text-zinc-400">por {m.author}</div>
               <div className="mt-1 text-lg font-semibold text-zinc-950">{m.name}</div>
               <p className="mt-2 line-clamp-2 text-sm text-zinc-500">{m.description}</p>
               <div className="mt-4 font-mono text-xs text-zinc-500">
                 {m.free
-                  ? "Free"
+                  ? "Gratis"
                   : `${formatUsd(usdPerMillion(m.pricing.prompt), 2)} / ${formatUsd(usdPerMillion(m.pricing.completion), 2)} · 1M`}
               </div>
             </Link>
@@ -153,16 +153,16 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-3">
           {[
             {
-              t: "Signup",
-              d: "Create an account to get started. You can set up an org for your team later.",
+              t: "Creá tu cuenta",
+              d: "Empezá en minutos y sumá a tu equipo cuando lo necesites.",
             },
             {
-              t: "Buy credits",
-              d: "Credits can be used with any model or provider. Fee only on load, not per token.",
+              t: "Cargá saldo",
+              d: "Usalo con cualquier modelo. La comisión se cobra al cargar, no por token.",
             },
             {
-              t: "Get your API key",
-              d: "Create an API key and start making requests. Fully OpenAI compatible.",
+              t: "Conectá tu producto",
+              d: "Creá una clave y empezá a usar Nexus con herramientas compatibles con OpenAI.",
             },
           ].map((step) => (
             <div key={step.t}>

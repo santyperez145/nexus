@@ -29,10 +29,10 @@ export function RoutingViz({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
-      aria-label="Un modelo, varios laboratorios con fallback"
+      aria-label="Un modelo conectado con varios proveedores compatibles"
     >
       <text x="48" y="36" fill="#71717a" fontSize="12" fontFamily="ui-monospace, monospace">
-        slug
+        modelo
       </text>
       <rect x="32" y="48" width="168" height="44" rx="4" stroke="#d4d4d8" fill="#fff" />
       <text x="48" y="76" fill="#18181b" fontSize="13" fontFamily="ui-monospace, monospace">
@@ -73,8 +73,8 @@ export function RoutingViz({
       ))}
       <text x="32" y="260" fill="#a1a1aa" fontSize="12">
         {anyLive
-          ? `${live.size} lab(s) cableados en esta instancia · fallback al siguiente.`
-          : "Sin providers cableados no se ejecuta inferencia. Agregá una key de plataforma o BYOK."}
+          ? `${live.size} proveedores disponibles · continuidad automática activada.`
+          : "Ejemplo: Nexus cambia a otra opción compatible si la principal no responde."}
       </text>
     </svg>
   );

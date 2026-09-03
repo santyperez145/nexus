@@ -4,12 +4,12 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/models", label: "Models" },
+  { href: "/models", label: "Modelos" },
   { href: "/chat", label: "Chat" },
-  { href: "/rankings", label: "Rankings" },
+  { href: "/rankings", label: "Ranking" },
   { href: "/apps", label: "Apps" },
-  { href: "/enterprise", label: "Enterprise" },
-  { href: "/docs", label: "Docs" },
+  { href: "/enterprise", label: "Equipos" },
+  { href: "/docs", label: "Documentación" },
 ];
 
 export function SiteHeaderNav({ light }: { light: boolean }) {
