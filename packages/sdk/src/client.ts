@@ -190,8 +190,32 @@ class GenerationsResource {
   get(id: string) {
     return this.client.request<{ data: unknown }>("/generation", { query: { id } });
   }
-  list(limit = 50) {
-    return this.client.request<{ data: unknown[] }>("/generations", { query: { limit } });
+  list(
+    query: {
+      limit?: number;
+      model?: string;
+      provider?: string;
+      byok?: "0" | "1";
+      errors?: "0" | "1";
+      days?: number;
+      api_key?: string;
+      workspace?: string;
+      app?: string;
+    } = {},
+  ) {
+    return this.client.request<{ data: unknown[] }>("/generations", {
+      query: {
+        limit: query.limit ?? 50,
+        ...(query.model ? { model: query.model } : {}),
+        ...(query.provider ? { provider: query.provider } : {}),
+        ...(query.byok ? { byok: query.byok } : {}),
+        ...(query.errors ? { errors: query.errors } : {}),
+        ...(query.days ? { days: query.days } : {}),
+        ...(query.api_key ? { api_key: query.api_key } : {}),
+        ...(query.workspace ? { workspace: query.workspace } : {}),
+        ...(query.app ? { app: query.app } : {}),
+      },
+    });
   }
 }
 

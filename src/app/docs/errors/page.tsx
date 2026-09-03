@@ -46,6 +46,19 @@ export default function ErrorsDocsPage() {
           SDK: <code className="text-zinc-700">NexusError</code> con{" "}
           <code className="text-zinc-700">status</code> y <code className="text-zinc-700">code</code>.
         </p>
+        <pre className="mt-6 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+{`try {
+  await nexus.chat.send({ model: "nexus/auto", messages: […] });
+} catch (e) {
+  if (e instanceof NexusError) {
+    console.error(e.status, e.code, e.message); // 402 insufficient_credits…
+  }
+}`}
+        </pre>
+        <p className="mt-4 text-sm text-zinc-500">
+          Activity filtra <code className="text-zinc-700">errors=1</code>. Guardrails → 403{" "}
+          <code className="text-zinc-700">guardrail_blocked</code>.
+        </p>
       </div>
     </MarketingShell>
   );

@@ -20,11 +20,17 @@ function usdPerMillion(perToken: number) {
   return perToken * 1_000_000;
 }
 
-function costForTokens(promptPerM: number, completionPerM: number, tokens: number, free: boolean) {
+function costForTokens(
+  promptPerM: number,
+  completionPerM: number,
+  tokens: number,
+  free: boolean,
+  promptShare = 0.5,
+) {
   if (free) return 0;
-  // 50/50 prompt·completion — estimado honesto para comparar
-  const half = tokens / 2;
-  return (half / 1_000_000) * promptPerM + (half / 1_000_000) * completionPerM;
+  const promptN = tokens * promptShare;
+  const completionN = tokens * (1 - promptShare);
+  return (promptN / 1_000_000) * promptPerM + (completionN / 1_000_000) * completionPerM;
 }
 
 export function CompareClient({
@@ -41,6 +47,7 @@ export function CompareClient({
   const [b, setB] = useState(initialB ?? models[1]?.id ?? models[0]?.id ?? "nexus/auto");
   const [qa, setQa] = useState("");
   const [qb, setQb] = useState("");
+  const [promptShare, setPromptShare] = useState(0.5);
   const left = useMemo(() => models.find((m) => m.id === a) ?? models[0], [a, models]);
   const right = useMemo(() => models.find((m) => m.id === b) ?? models[1] ?? models[0], [b, models]);
 
@@ -215,11 +222,27 @@ export function CompareClient({
 
       <section className="mt-8">
         <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
-          Costo estimado (50/50 prompt·completion)
+          Costo estimado
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Calculadora de lista — no incluye fee de carga de créditos (0% markup en tokens).
+          Split prompt/completion ajustable. Lista — 0% markup en tokens.
         </p>
+        <label className="mt-3 flex max-w-md flex-wrap items-center gap-3 text-sm text-zinc-600">
+          Prompt share
+          <input
+            type="range"
+            min={10}
+            max={90}
+            step={5}
+            value={Math.round(promptShare * 100)}
+            onChange={(e) => setPromptShare(Number(e.target.value) / 100)}
+            className="flex-1"
+            aria-label="Prompt share percent"
+          />
+          <span className="w-24 font-mono text-xs">
+            {Math.round(promptShare * 100)}% / {Math.round((1 - promptShare) * 100)}%
+          </span>
+        </label>
         <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <div className="grid grid-cols-[6rem_1fr_1fr] gap-2 border-b border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-zinc-500">
             <span>Tokens</span>
@@ -227,8 +250,8 @@ export function CompareClient({
             <span>B</span>
           </div>
           {volumes.map((n, i) => {
-            const ca = costForTokens(leftPrompt, leftComp, n, left.free);
-            const cb = costForTokens(rightPrompt, rightComp, n, right.free);
+            const ca = costForTokens(leftPrompt, leftComp, n, left.free, promptShare);
+            const cb = costForTokens(rightPrompt, rightComp, n, right.free, promptShare);
             const win = ca === cb ? null : ca < cb ? "a" : "b";
             return (
               <div

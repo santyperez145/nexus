@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { Button } from "@/components/ui/button";
+import { CostEstimator } from "@/components/models/cost-estimator";
 import { allModels, findModel, usdPerMillion } from "@/lib/catalog";
 import { formatUsd } from "@/lib/money";
 import { wiredProviders } from "@/lib/providers/registry";
@@ -120,6 +121,14 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
             </dd>
           </div>
         </dl>
+
+        <div className="mt-8">
+          <CostEstimator
+            promptPerM={usdPerMillion(model.pricing.prompt)}
+            completionPerM={usdPerMillion(model.pricing.completion)}
+            free={model.free}
+          />
+        </div>
 
         <h2 className="mt-10 font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
           Endpoints

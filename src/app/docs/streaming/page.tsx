@@ -29,6 +29,19 @@ export default function StreamingDocsPage() {
     "messages": [{"role":"user","content":"contá hasta 5"}]
   }'`}
         </pre>
+        <pre className="mb-6 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+{`import { Nexus } from "nexus-sdk";
+const nexus = new Nexus({ apiKey: process.env.NEXUS_API_KEY });
+
+const stream = await nexus.chat.send({
+  model: "nexus/auto",
+  stream: true,
+  messages: [{ role: "user", content: "contá hasta 5" }],
+});
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices?.[0]?.delta?.content ?? "");
+}`}
+        </pre>
         <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-600">
           <li>
             Chunks <code className="text-zinc-800">data: {"{…}"}</code> y cierre{" "}
@@ -39,7 +52,18 @@ export default function StreamingDocsPage() {
             trae <code className="text-zinc-800">usage.cost</code>.
           </li>
           <li>
-            SDK: <code className="text-zinc-800">nexus.chat.stream(…)</code> itera deltas tipados.
+            SDK: <code className="text-zinc-800">nexus.chat.send({"{ stream: true }"})</code>{" "}
+            devuelve un async iterable de deltas (no existe{" "}
+            <code className="text-zinc-800">chat.stream</code>).
+          </li>
+          <li>
+            Envelopes: <code className="text-zinc-800">/messages</code> y{" "}
+            <code className="text-zinc-800">/responses</code> también aceptan{" "}
+            <code className="text-zinc-800">stream: true</code> — ver{" "}
+            <Link href="/docs/envelopes" className="text-amber-700 hover:underline">
+              Envelopes
+            </Link>
+            .
           </li>
         </ul>
       </div>

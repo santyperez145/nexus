@@ -34,12 +34,29 @@ export default function LimitsDocsPage() {
             Guardrails: techo de costo por request + allow/block de slugs antes del lab.
           </li>
         </ul>
-        <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+        <pre className="mb-6 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`# Rate limits de la sesión (cookie o bearer)
 curl $NEXUS_URL/api/internal/rate-limits \\
   -H "Cookie: …"
 # o vía dashboard Overview → card Rate limits`}
         </pre>
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white text-sm">
+          {[
+            ["RPM cuenta", "Ventana rodante 60s (Redis o memoria)"],
+            ["RPD :free", `${FREE_MODEL_RPD_NO_CREDITS} / ${FREE_MODEL_RPD_WITH_CREDITS} según saldo`],
+            ["Key limit", "USD spend o requests; include_byok_in_limit opcional"],
+            ["Workspace", "Budget interval day|month; corta con 402"],
+            ["Files", "8 MB · extract PDF/text · image/* → vision parts"],
+          ].map(([k, v], i) => (
+            <div
+              key={k}
+              className={`grid gap-1 px-4 py-3 sm:grid-cols-[10rem_1fr] ${i ? "border-t border-zinc-100" : ""}`}
+            >
+              <span className="font-medium text-zinc-800">{k}</span>
+              <span className="text-zinc-600">{v}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </MarketingShell>
   );

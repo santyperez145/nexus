@@ -21,7 +21,13 @@ type Row = {
   error: string | null;
   finish_reason?: string | null;
   origin?: string | null;
+  api_key_id?: string | null;
+  workspace_id?: string | null;
+  app_referer?: string | null;
 };
+
+type KeyRow = { id: string; name?: string; prefix?: string };
+type WsRow = { id: string; name: string; slug: string };
 
 function shortId(id: string) {
   if (id.length <= 14) return id;
@@ -52,6 +58,12 @@ export default function ActivityPage() {
   const [errors, setErrors] = useState(false);
   const [days, setDays] = useState<"0" | "7" | "30">("0");
   const [limit, setLimit] = useState(50);
+  const [apiKey, setApiKey] = useState("");
+  const [workspace, setWorkspace] = useState("");
+  const [app, setApp] = useState("");
+
+  const [keys] = useRemoteData<KeyRow[]>("/api/v1/keys");
+  const [workspaces] = useRemoteData<WsRow[]>("/api/v1/workspaces");
 
   const qs = useMemo(() => {
     const p = new URLSearchParams({ limit: String(limit) });
@@ -60,13 +72,24 @@ export default function ActivityPage() {
     if (byok !== "all") p.set("byok", byok);
     if (errors) p.set("errors", "1");
     if (days !== "0") p.set("days", days);
+    if (apiKey) p.set("api_key", apiKey);
+    if (workspace) p.set("workspace", workspace);
+    if (app.trim()) p.set("app", app.trim());
     return p.toString();
-  }, [model, provider, byok, errors, days, limit]);
+  }, [model, provider, byok, errors, days, limit, apiKey, workspace, app]);
 
   const [rows] = useRemoteData<Row[]>(`/api/v1/generations?${qs}`);
   const list = rows ?? [];
   const tokens = list.reduce((s, r) => s + r.tokens_prompt + r.tokens_completion, 0);
   const cost = list.reduce((s, r) => s + r.total_cost, 0);
+  const errN = list.filter((r) => r.error).length;
+  const avgMs =
+    list.filter((r) => r.generation_time != null).length > 0
+      ? Math.round(
+          list.reduce((s, r) => s + (r.generation_time ?? 0), 0) /
+            list.filter((r) => r.generation_time != null).length,
+        )
+      : null;
 
   return (
     <div>
@@ -89,6 +112,8 @@ export default function ActivityPage() {
                   "latency_ms",
                   "finish_reason",
                   "origin",
+                  "api_key_id",
+                  "workspace_id",
                   "created_at",
                   "is_byok",
                   "error",
@@ -104,6 +129,8 @@ export default function ActivityPage() {
                     r.generation_time ?? "",
                     r.finish_reason ?? "",
                     JSON.stringify(r.origin ?? ""),
+                    r.api_key_id ?? "",
+                    r.workspace_id ?? "",
                     new Date(r.created_at * 1000).toISOString(),
                     r.is_byok ? "1" : "0",
                     JSON.stringify(r.error ?? ""),
@@ -146,11 +173,29 @@ export default function ActivityPage() {
           </div>
         }
       >
-        {list.length} requests · {tokens.toLocaleString()} tokens · {formatUsd(cost)}
-        {rows == null ? " · cargando…" : ""}
+        Ledger de generaciones — filtros por key, workspace y app (como OpenRouter Activity).
       </AppPageHeader>
 
-      <div className="mb-4 grid gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3 md:grid-cols-[1fr_1fr_auto_auto_auto]">
+      <div className="mb-4 grid gap-3 sm:grid-cols-4">
+        {[
+          { k: "Requests", v: String(list.length) },
+          { k: "Tokens", v: tokens.toLocaleString() },
+          { k: "Costo", v: formatUsd(cost) },
+          { k: "Avg ms", v: avgMs != null ? String(avgMs) : "—" },
+        ].map((s) => (
+          <div key={s.k} className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+            <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">{s.k}</div>
+            <div className="mt-1 font-mono text-sm text-amber-200/90">{s.v}</div>
+          </div>
+        ))}
+      </div>
+      {errN > 0 ? (
+        <p className="mb-3 text-xs text-rose-300/90">
+          {errN} error{errN === 1 ? "" : "es"} en esta vista filtrada.
+        </p>
+      ) : null}
+
+      <div className="mb-4 grid gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3 md:grid-cols-3 lg:grid-cols-4">
         <Input
           value={model}
           onChange={(e) => setModel(e.target.value)}
@@ -163,6 +208,38 @@ export default function ActivityPage() {
           placeholder="Provider…"
           className="h-9"
         />
+        <Input
+          value={app}
+          onChange={(e) => setApp(e.target.value)}
+          placeholder="App / referer…"
+          className="h-9"
+        />
+        <select
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-300"
+          aria-label="API key"
+        >
+          <option value="">Key: todas</option>
+          {(keys ?? []).map((k) => (
+            <option key={k.id} value={k.id}>
+              {k.name || k.prefix || k.id}
+            </option>
+          ))}
+        </select>
+        <select
+          value={workspace}
+          onChange={(e) => setWorkspace(e.target.value)}
+          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-300"
+          aria-label="Workspace"
+        >
+          <option value="">Workspace: todos</option>
+          {(workspaces ?? []).map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.name}
+            </option>
+          ))}
+        </select>
         <select
           value={byok}
           onChange={(e) => setByok(e.target.value as typeof byok)}
@@ -191,7 +268,7 @@ export default function ActivityPage() {
 
       <div className="overflow-hidden rounded-2xl border border-white/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] text-left text-sm">
+          <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 text-[11px] uppercase tracking-[0.08em] text-zinc-500 backdrop-blur">
               <tr>
                 <th className="px-3 py-2.5 font-medium">Cuando</th>
@@ -201,6 +278,7 @@ export default function ActivityPage() {
                 <th className="px-3 py-2.5 font-medium">Provider</th>
                 <th className="px-3 py-2.5 font-medium">Finish</th>
                 <th className="px-3 py-2.5 font-medium">App</th>
+                <th className="px-3 py-2.5 font-medium">Key</th>
                 <th className="px-3 py-2.5 font-medium text-right">Prompt</th>
                 <th className="px-3 py-2.5 font-medium text-right">Out</th>
                 <th className="px-3 py-2.5 font-medium text-right">Costo</th>
@@ -210,7 +288,7 @@ export default function ActivityPage() {
             <tbody>
               {rows != null && list.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-12 text-center text-zinc-500" colSpan={11}>
+                  <td className="px-4 py-12 text-center text-zinc-500" colSpan={12}>
                     Sin generaciones.{" "}
                     <Link href="/chat" className="text-amber-400 hover:underline">
                       Abrí el chat
@@ -247,7 +325,7 @@ export default function ActivityPage() {
                         {shortId(r.id)}
                       </Link>
                     </td>
-                    <td className="max-w-[200px] truncate px-3 py-2.5 font-mono text-[13px]">
+                    <td className="max-w-[180px] truncate px-3 py-2.5 font-mono text-[13px]">
                       <Link
                         href={`/models/${r.model}`}
                         className="text-amber-300/80 hover:underline"
@@ -260,8 +338,11 @@ export default function ActivityPage() {
                     <td className="px-3 py-2.5 font-mono text-[11px] text-zinc-500">
                       {r.finish_reason ?? "—"}
                     </td>
-                    <td className="max-w-[120px] truncate px-3 py-2.5 text-xs text-zinc-500" title={r.origin ?? ""}>
+                    <td className="max-w-[100px] truncate px-3 py-2.5 text-xs text-zinc-500" title={r.origin ?? ""}>
                       {r.origin ?? "—"}
+                    </td>
+                    <td className="max-w-[88px] truncate px-3 py-2.5 font-mono text-[10px] text-zinc-600" title={r.api_key_id ?? ""}>
+                      {r.api_key_id ? shortId(r.api_key_id) : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-zinc-400">
                       {r.tokens_prompt.toLocaleString()}

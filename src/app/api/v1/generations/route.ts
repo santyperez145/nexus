@@ -13,6 +13,9 @@ export async function GET(req: Request) {
     const byok = url.searchParams.get("byok");
     const errors = url.searchParams.get("errors");
     const days = Number(url.searchParams.get("days") ?? 0) || 0;
+    const apiKey = url.searchParams.get("api_key")?.trim() || url.searchParams.get("key")?.trim();
+    const workspace = url.searchParams.get("workspace")?.trim();
+    const app = url.searchParams.get("app")?.trim();
 
     const filters = [eq(schema.generations.userId, auth.userId)];
     if (model) filters.push(like(schema.generations.routedModel, `%${model}%`));
@@ -22,6 +25,13 @@ export async function GET(req: Request) {
     if (errors === "1") filters.push(sql`${schema.generations.error} is not null`);
     if (days > 0) {
       filters.push(gte(schema.generations.createdAt, new Date(Date.now() - days * 86400000)));
+    }
+    if (apiKey) filters.push(eq(schema.generations.apiKeyId, apiKey));
+    if (workspace) filters.push(eq(schema.generations.workspaceId, workspace));
+    if (app) {
+      filters.push(
+        sql`(coalesce(${schema.generations.appTitle}, '') ilike ${`%${app}%`} or coalesce(${schema.generations.appReferer}, '') ilike ${`%${app}%`})`,
+      );
     }
 
     const rows = await db
@@ -45,6 +55,9 @@ export async function GET(req: Request) {
         finish_reason: row.finishReason,
         created_at: Math.floor(new Date(row.createdAt).getTime() / 1000),
         origin: row.appTitle,
+        app_referer: row.appReferer,
+        api_key_id: row.apiKeyId,
+        workspace_id: row.workspaceId,
         is_byok: row.isByok,
         error: row.error,
       })),
