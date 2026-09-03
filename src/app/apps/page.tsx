@@ -5,13 +5,12 @@ import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { RECIPES } from "@/lib/apps/recipes";
 import { db, ensureDb, schema } from "@/lib/db";
 import { formatUsd, microsToUsd } from "@/lib/money";
-import { wiredProviders } from "@/lib/providers/registry";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppsPage() {
   await ensureDb();
-  const wired = wiredProviders().length;
+  const publicRecipes = RECIPES.filter((recipe) => recipe.slug !== "guest-playground");
   const rows = await db
     .select({
       title: schema.generations.appTitle,
@@ -45,18 +44,16 @@ export default async function AppsPage() {
           aria-hidden
           className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
-        <MarketingPageHeader title="Apps">
-          Recipes curados + ranking real por{" "}
-          <code className="text-zinc-700">HTTP-Referer</code> /{" "}
-          <code className="text-zinc-700">X-Title</code>. Sin directorio inventado — solo lo que
-          pegó a esta instancia.
+        <MarketingPageHeader title="Apps y plantillas">
+          Empezá con experiencias listas para adaptar: asistentes, automatizaciones, búsqueda y
+          generación multimedia sobre un único catálogo de modelos.
         </MarketingPageHeader>
 
         <div className="mb-10 grid gap-3 sm:grid-cols-3">
           {[
-            { k: "Recipes", v: String(RECIPES.length) },
-            { k: "Apps atribuidas", v: String(apps.length) },
-            { k: "Req atribuidos", v: totalReq.toLocaleString() },
+            { k: "Plantillas listas", v: String(publicRecipes.length) },
+            { k: "Apps publicadas", v: String(apps.length) },
+            { k: "Ejecuciones", v: totalReq.toLocaleString() },
           ].map((s) => (
             <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
@@ -67,60 +64,44 @@ export default async function AppsPage() {
           ))}
         </div>
 
-        <p className="mb-8 text-sm text-zinc-500">
-          Gateway mode: {wired ? `${wired} labs live` : "unconfigured"}. La demo local puede probar recipes
-          vía{" "}
-          <Link href="/chat" className="text-violet-700 hover:underline">
-            /chat
-          </Link>{" "}
-          sin key solo fuera de producción.
-        </p>
-
         <section className="mb-12">
-          <h2 className="mb-4 text-lg font-semibold text-zinc-900">
-            Recipes
-          </h2>
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-zinc-950">Explorá por caso de uso</h2>
+              <p className="mt-1 text-sm text-zinc-500">Abrí una plantilla, elegí un modelo y probala en Chat.</p>
+            </div>
+            <Link href="/chat" className="text-sm font-medium text-violet-700 hover:text-violet-800">Abrir Chat →</Link>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {RECIPES.map((r) => (
+            {publicRecipes.map((r) => (
               <Link
                 key={r.slug}
                 href={`/apps/${r.slug}`}
-                className="group rounded-xl border border-zinc-200 bg-white px-4 py-4 transition-colors hover:border-zinc-300"
+                className="group rounded-2xl border border-zinc-200 bg-white px-5 py-5 transition-all hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-[0_12px_35px_rgba(24,24,27,0.06)]"
               >
                 <div className="font-semibold text-zinc-900 group-hover:text-zinc-950">
                   {r.title}
                 </div>
                 <p className="mt-1 text-sm text-zinc-500">{r.blurb}</p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {r.tags.map((t) => (
-                    <span
-                      key={t}
-                      className="rounded border border-zinc-100 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500"
-                    >
-                      {t}
-                    </span>
-                  ))}
+                <div className="mt-5 flex items-center justify-between text-xs">
+                  <span className="rounded-full bg-violet-50 px-2 py-1 font-medium text-violet-700">Lista para adaptar</span>
+                  <span className="font-medium text-violet-700 transition-transform group-hover:translate-x-0.5">Ver plantilla →</span>
                 </div>
-                <div className="mt-3 font-mono text-[11px] text-zinc-400">{r.model}</div>
               </Link>
             ))}
           </div>
         </section>
 
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-zinc-900">
-            Live attribution
-          </h2>
+          <h2 className="mb-1 text-xl font-semibold text-zinc-950">Apps de la comunidad</h2>
+          <p className="mb-5 text-sm text-zinc-500">Productos que identifican públicamente su uso de Nexus.</p>
           {!apps.length ? (
             <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-4 py-12 text-center text-sm text-zinc-500">
-              Todavía no hay atribución. Desde el SDK o curl mandá headers y van a aparecer acá.
-              <pre className="mx-auto mt-4 max-w-md overflow-x-auto rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-left font-mono text-[11px] text-zinc-600">
-{`-H "HTTP-Referer: https://tu-app.example"
--H "X-Title: Mi App"`}
-              </pre>
+              <div className="mx-auto max-w-sm text-base font-medium text-zinc-800">Próximamente, productos creados con Nexus.</div>
+              <p className="mx-auto mt-2 max-w-md">Cuando una app pública se identifique, aparecerá acá con métricas agregadas y verificables.</p>
               <div className="mt-4">
                 <Link href="/docs" className="text-violet-700 hover:underline">
-                  Docs →
+                  Cómo publicar tu app →
                 </Link>
               </div>
             </div>

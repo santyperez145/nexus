@@ -12,8 +12,8 @@ export type Recipe = {
 export const RECIPES: Recipe[] = [
   {
     slug: "auto-router",
-    title: "Auto-router con fallbacks",
-    blurb: "Dejá que nexus/auto elija host; ordená por latency y permití fallbacks.",
+    title: "Enrutamiento automático",
+    blurb: "Nexus elige la mejor opción disponible y cambia de proveedor si hace falta.",
     tags: ["routing", "latency"],
     model: "nexus/auto",
     curl: `curl $NEXUS_URL/api/v1/chat/completions \\
@@ -36,8 +36,8 @@ const r = await nexus.chat.send({
   },
   {
     slug: "zdr-only",
-    title: "ZDR-only completion",
-    blurb: "Hard-filter a endpoints de retención cero (data_collection deny).",
+    title: "Privacidad reforzada",
+    blurb: "Procesá contenido únicamente con opciones que declaran no retener tus datos.",
     tags: ["privacy", "zdr"],
     model: "nexus/auto",
     curl: `curl $NEXUS_URL/api/v1/chat/completions \\
@@ -56,8 +56,8 @@ const r = await nexus.chat.send({
   },
   {
     slug: "json-schema",
-    title: "Salida JSON estructurada",
-    blurb: "response_format json_object para agentes y pipelines.",
+    title: "Datos estructurados",
+    blurb: "Obtené respuestas consistentes y listas para automatizaciones o agentes.",
     tags: ["json", "agents"],
     model: "openai/gpt-5-mini",
     curl: `curl $NEXUS_URL/api/v1/chat/completions \\
@@ -82,8 +82,8 @@ const r = await nexus.chat.send({
   },
   {
     slug: "online-search",
-    title: "Web search (:online)",
-    blurb: "Variante :online + plugin web para grounding fresco.",
+    title: "Información actualizada",
+    blurb: "Combiná modelos con búsqueda web para responder con información reciente.",
     tags: ["online", "tools"],
     model: "nexus/auto:online",
     curl: `curl $NEXUS_URL/api/v1/chat/completions \\
@@ -102,8 +102,8 @@ const r = await nexus.chat.send({
   },
   {
     slug: "byok-budget",
-    title: "BYOK con techo de workspace",
-    blurb: "Tu key de lab + budget de workspace; Nexus cobra fee de carga, 0% markup en tokens.",
+    title: "Control de gasto del equipo",
+    blurb: "Usá tus cuentas de proveedores con un presupuesto compartido y límites claros.",
     tags: ["byok", "billing"],
     model: "anthropic/claude-sonnet-4",
     curl: `curl $NEXUS_URL/api/v1/chat/completions \\
@@ -123,8 +123,8 @@ const r = await nexus.chat.send({
   },
   {
     slug: "route-preview",
-    title: "Preview de hops sin gastar",
-    blurb: "Inspeccioná adapters cableados antes del completion; el preview público no gasta.",
+    title: "Vista previa de enrutamiento",
+    blurb: "Comprobá qué proveedores puede usar una solicitud antes de ejecutarla.",
     tags: ["routing", "debug"],
     model: "nexus/auto",
     curl: `curl $NEXUS_URL/api/v1/routing/preview \\
@@ -142,8 +142,8 @@ const r = await nexus.chat.send({
   },
   {
     slug: "anthropic-messages",
-    title: "Envelope Anthropic Messages",
-    blurb: "POST /messages — misma inferencia, reshape Anthropic.",
+    title: "Compatible con Anthropic",
+    blurb: "Migrá aplicaciones basadas en Messages sin rediseñar toda la integración.",
     tags: ["envelope", "anthropic"],
     model: "anthropic/claude-sonnet-4",
     curl: `curl $NEXUS_URL/api/v1/messages \\
@@ -162,8 +162,8 @@ const r = await nexus.chat.send({
   },
   {
     slug: "openai-responses",
-    title: "Envelope OpenAI Responses",
-    blurb: "POST /responses con input string o array.",
+    title: "Compatible con OpenAI Responses",
+    blurb: "Usá el formato Responses con el catálogo y las políticas de Nexus.",
     tags: ["envelope", "openai"],
     model: "openai/gpt-4o-mini",
     curl: `curl $NEXUS_URL/api/v1/responses \\
@@ -183,7 +183,7 @@ const r = await nexus.chat.send({
   {
     slug: "media-image",
     title: "Generación de imagen",
-    blurb: "POST /images/generations — upstream real con OPENAI key o BYOK.",
+    blurb: "Creá imágenes desde texto con modelos visuales disponibles en el catálogo.",
     tags: ["media", "image"],
     model: "openai/gpt-image-1",
     curl: `curl $NEXUS_URL/api/v1/images/generations \\
@@ -203,7 +203,7 @@ const r = await nexus.chat.send({
   {
     slug: "vision-image-url",
     title: "Visión multimodal",
-    blurb: "messages[].content[] con text + image_url (data: o https).",
+    blurb: "Analizá imágenes, documentos y texto dentro de una misma conversación.",
     tags: ["vision", "multimodal"],
     model: "openai/gpt-4o",
     curl: `curl $NEXUS_URL/api/v1/chat/completions \\
