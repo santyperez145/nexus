@@ -2,24 +2,22 @@ import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { hasProviderKey } from "@/lib/gateway/providers";
 import { resolveByokKey } from "@/lib/gateway/byok";
 import { resolveRoute } from "@/lib/gateway/router";
+import { hasAuthCredentials } from "@/lib/gateway/request-credentials";
 import type { ChatRequest } from "@/lib/gateway/types";
 
 /** Preview de routing: qué labs se intentarían y si hay key. Público con prefs default. */
 export async function POST(req: Request) {
   try {
-    let auth;
-    try {
-      auth = await authenticateRequest(req);
-    } catch {
-      auth = {
-        userId: "guest",
-        isManagement: false,
-        creditMicros: 0,
-        zdr: false,
-        allowTraining: true,
-        logPrompts: false,
-      };
-    }
+    const auth = hasAuthCredentials(req)
+      ? await authenticateRequest(req)
+      : {
+          userId: "guest",
+          isManagement: false,
+          creditMicros: 0,
+          zdr: false,
+          allowTraining: true,
+          logPrompts: false,
+        };
     const body = (await req.json()) as ChatRequest;
     const plan = resolveRoute(body, auth);
     const adapters = new Set<string>();

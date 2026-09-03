@@ -38,42 +38,31 @@ export async function POST() {
     .where(and(eq(schema.workspaces.userId, userId), eq(schema.workspaces.isDefault, true)))
     .limit(1);
 
-  // Marca la vieja como usada antes de borrar para ganar races de doble POST
-  const [fresh] = await db
-    .select({ id: schema.apiKeys.id, lastUsedAt: schema.apiKeys.lastUsedAt })
-    .from(schema.apiKeys)
-    .where(and(eq(schema.apiKeys.id, unused.id), isNull(schema.apiKeys.lastUsedAt)))
-    .limit(1);
-  if (!fresh) {
-    return Response.json(
-      { error: "La key de bienvenida ya fue revelada. Usá Rotar si necesitás otra." },
-      { status: 409 },
-    );
-  }
-  await db
+  // UPDATE ... RETURNING es el lock lógico: en una carrera solo un request reclama la key.
+  const [claimed] = await db
     .update(schema.apiKeys)
     .set({ lastUsedAt: new Date(), disabled: true })
-    .where(and(eq(schema.apiKeys.id, unused.id), isNull(schema.apiKeys.lastUsedAt)));
-
-  const [still] = await db
-    .select({ id: schema.apiKeys.id, disabled: schema.apiKeys.disabled })
-    .from(schema.apiKeys)
-    .where(eq(schema.apiKeys.id, unused.id))
-    .limit(1);
-  if (!still?.disabled) {
+    .where(
+      and(
+        eq(schema.apiKeys.id, unused.id),
+        isNull(schema.apiKeys.lastUsedAt),
+        eq(schema.apiKeys.disabled, false),
+      ),
+    )
+    .returning();
+  if (!claimed) {
     return Response.json(
       { error: "La key de bienvenida ya fue revelada. Usá Rotar si necesitás otra." },
       { status: 409 },
     );
   }
-
-  await db.delete(schema.apiKeys).where(eq(schema.apiKeys.id, unused.id));
 
   const issued = await issueApiKey({
     userId,
     name: "Default",
     workspaceId: unused.workspaceId ?? ws?.id ?? null,
   });
+  await db.delete(schema.apiKeys).where(eq(schema.apiKeys.id, unused.id));
 
   return Response.json({
     data: {
