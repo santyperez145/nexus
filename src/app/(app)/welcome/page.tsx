@@ -26,6 +26,7 @@ export default function WelcomePage() {
   const [curl, setCurl] = useState<string | null>(null);
   const [ping, setPing] = useState<string | null>(null);
   const [pingOk, setPingOk] = useState(false);
+  const [pingGen, setPingGen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -94,7 +95,11 @@ export default function WelcomePage() {
         return;
       }
       setPingOk(true);
-      setPing(`OK · ${json.model} · ${json.provider ?? "?"} · gen ${json.id ?? ""}`.trim());
+      const gen = json.id ? String(json.id) : "";
+      setPing(
+        `OK · ${json.model} · ${json.provider ?? "?"}${gen ? ` · gen ${gen}` : ""}`.trim(),
+      );
+      if (gen) setPingGen(gen);
     } finally {
       setBusy(false);
     }
@@ -183,6 +188,39 @@ export default function WelcomePage() {
           </Button>
         </div>
         {ping ? <p className="font-mono text-xs text-zinc-400">{ping}</p> : null}
+        {pingGen ? (
+          <p className="mt-2 text-xs text-zinc-500">
+            <Link href={`/activity/${pingGen}`} className="text-amber-400 hover:underline">
+              Ver generation →
+            </Link>
+          </p>
+        ) : null}
+      </section>
+
+      <section className="mb-8 rounded-2xl border border-white/10 p-4">
+        <div className="font-medium text-zinc-200">Recipes & SDK</div>
+        <p className="mt-1 text-sm text-zinc-500">
+          Starters curados (routing, ZDR, JSON) sin inventar marketplace.
+        </p>
+        <pre className="mt-3 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-[11px] text-zinc-400">
+{`import { Nexus } from "nexus-sdk";
+const nexus = new Nexus({ apiKey: process.env.NEXUS_API_KEY });
+await nexus.chat.send({
+  model: "nexus/auto",
+  messages: [{ role: "user", content: "hola" }],
+});`}
+        </pre>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/apps/auto-router">Recipe auto-router</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/apps">Apps</Link>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <Link href="/docs">Docs</Link>
+          </Button>
+        </div>
       </section>
 
       <section className="mb-8 rounded-2xl border border-white/10 p-4">

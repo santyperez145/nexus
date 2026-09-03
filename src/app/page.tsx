@@ -11,6 +11,7 @@ import { CREDIT_PURCHASE_FEE } from "@/lib/config";
 import { NEXUS_PROVIDERS } from "@/lib/providers/registry";
 import { getSession } from "@/lib/auth";
 import { formatUsd } from "@/lib/money";
+import { connectionStatus } from "@/lib/connections";
 
 export default async function HomePage() {
   const session = await getSession();
@@ -18,6 +19,9 @@ export default async function HomePage() {
   const featured = featuredModels(5);
   const labs = NEXUS_PROVIDERS.length;
   const fee = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
+  const wiredIds = connectionStatus()
+    .providers.filter((p) => p.wired)
+    .map((p) => p.id);
 
   return (
     <div className="min-h-screen bg-[#fafaf9] text-zinc-900">
@@ -116,7 +120,10 @@ export default async function HomePage() {
               </Link>
             </p>
           </div>
-          <RoutingViz className="w-full max-w-lg justify-self-center md:justify-self-end" />
+          <RoutingViz
+            className="w-full max-w-lg justify-self-center md:justify-self-end"
+            wired={wiredIds}
+          />
         </div>
       </section>
 

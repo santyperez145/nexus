@@ -1,6 +1,9 @@
 /**
  * Tip-to-tip smoke: eco local siempre; hop live solo si hay keys de lab.
- * Usage: NEXUS_URL=… NEXUS_API_KEY=… npm run tip-to-tip
+ * Usage:
+ *   npm run tip-to-tip
+ *   NEXUS_URL=https://… npm run tip-to-tip          # public smoke (status+preview)
+ *   NEXUS_URL=… NEXUS_API_KEY=… npm run tip-to-tip  # + completion
  */
 const base = (process.env.NEXUS_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const key = process.env.NEXUS_API_KEY;
@@ -13,6 +16,7 @@ type Summary = {
   completionStatus: number | null;
   provider: string | null;
   generationId: string | null;
+  publicOnly: boolean;
   ok: boolean;
 };
 
@@ -25,13 +29,14 @@ async function main() {
     completionStatus: null,
     provider: null,
     generationId: null,
+    publicOnly: !key,
     ok: false,
   };
 
   const statusRes = await fetch(`${base}/api/v1/status`);
   summary.status = statusRes.status;
   const status = await statusRes.json();
-  console.log("status", statusRes.status, JSON.stringify(status.data ?? status).slice(0, 200));
+  console.log("status", statusRes.status, JSON.stringify(status).slice(0, 240));
 
   const previewRes = await fetch(`${base}/api/v1/routing/preview`, {
     method: "POST",
@@ -49,8 +54,8 @@ async function main() {
   console.log("preview", summary.previewMode, "hops", summary.hops, "wired", summary.wiredHops);
 
   if (!key) {
-    console.log("skip completion: set NEXUS_API_KEY for authenticated tip-to-tip");
     summary.ok = statusRes.ok && previewRes.ok;
+    console.log("public smoke only (set NEXUS_API_KEY for completion)");
     console.log("SUMMARY", JSON.stringify(summary));
     process.exit(summary.ok ? 0 : 1);
   }

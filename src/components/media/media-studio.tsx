@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { useRemoteData } from "@/lib/use-remote-data";
 
 type Tab = "image" | "speech" | "transcribe" | "video" | "embeddings";
 
@@ -16,13 +17,32 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "embeddings", label: "Embeddings" },
 ];
 
+const IMAGE_MODELS = ["dall-e-3", "dall-e-2", "gpt-image-1"];
+const TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+const EMBED_MODELS = [
+  "openai/text-embedding-3-small",
+  "openai/text-embedding-3-large",
+  "openai/text-embedding-ada-002",
+];
+
+type Recent = {
+  id: string;
+  model: string;
+  provider: string;
+  tokens: number;
+};
+
 export function MediaStudio() {
   const [tab, setTab] = useState<Tab>("image");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("Amber mesh over a dark terminal — Nexus gateway");
+  const [imageModel, setImageModel] = useState(IMAGE_MODELS[0]);
+  const [imageSize, setImageSize] = useState("1024x1024");
   const [tts, setTts] = useState("Nexus: una API, todos los labs.");
+  const [voice, setVoice] = useState("alloy");
   const [embed, setEmbed] = useState("gateway de modelos OpenAI-compatible");
+  const [embedModel, setEmbedModel] = useState(EMBED_MODELS[0]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -33,6 +53,25 @@ export function MediaStudio() {
     null,
   );
   const [genId, setGenId] = useState<string | null>(null);
+  const [analytics] = useRemoteData<{ recent?: Recent[]; totals?: { local_pct?: number } }>(
+    "/api/v1/analytics?days=7",
+  );
+
+  useEffect(() => {
+    if (!videoJob?.id || videoJob.status === "completed" || videoJob.status === "failed") return;
+    let cancelled = false;
+    const tick = async () => {
+      const poll = await fetch(`/api/v1/videos?id=${videoJob.id}`);
+      const p = await poll.json();
+      if (cancelled || !p.data) return;
+      setVideoJob({ id: p.data.id, status: p.data.status, resultUrl: p.data.resultUrl });
+    };
+    const id = window.setInterval(() => void tick(), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [videoJob?.id, videoJob?.status]);
 
   async function runImage() {
     setBusy(true);
@@ -41,11 +80,13 @@ export function MediaStudio() {
       const res = await fetch("/api/v1/images/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, n: 1 }),
+        body: JSON.stringify({ prompt, n: 1, model: imageModel, size: imageSize }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message ?? "Error imagen");
-      const url = json.data?.[0]?.url ?? (json.data?.[0]?.b64_json ? `data:image/svg+xml;base64,${json.data[0].b64_json}` : null);
+      const url =
+        json.data?.[0]?.url ??
+        (json.data?.[0]?.b64_json ? `data:image/svg+xml;base64,${json.data[0].b64_json}` : null);
       setImageUrl(url);
       setGenId(json.id ?? null);
     } catch (e) {
@@ -62,7 +103,7 @@ export function MediaStudio() {
       const res = await fetch("/api/v1/audio/speech", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: tts }),
+        body: JSON.stringify({ input: tts, voice }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -111,11 +152,6 @@ export function MediaStudio() {
       if (!res.ok) throw new Error(json.error?.message ?? "Error video");
       setVideoJob({ id: json.id, status: json.status, resultUrl: null });
       setGenId(json.generation_id ?? null);
-      if (json.status === "processing") {
-        const poll = await fetch(`/api/v1/videos?id=${json.id}`);
-        const p = await poll.json();
-        if (p.data) setVideoJob({ id: p.data.id, status: p.data.status, resultUrl: p.data.resultUrl });
-      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -130,7 +166,7 @@ export function MediaStudio() {
       const res = await fetch("/api/v1/embeddings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: embed, model: "openai/text-embedding-3-small" }),
+        body: JSON.stringify({ input: embed, model: embedModel }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message ?? "Error embeddings");
@@ -144,21 +180,28 @@ export function MediaStudio() {
     }
   }
 
+  const localPct = Math.round((analytics?.totals?.local_pct ?? 0) * 100);
+
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-1">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              tab === t.id ? "bg-amber-400/15 text-amber-200" : "text-zinc-500 hover:text-zinc-200"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-1">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                tab === t.id ? "bg-amber-400/15 text-amber-200" : "text-zinc-500 hover:text-zinc-200"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-[11px] text-zinc-500">
+          7d local echo: {localPct}% · sin key = placeholder
+        </span>
       </div>
 
       {error ? (
@@ -172,6 +215,32 @@ export function MediaStudio() {
           onRun={() => void runImage()}
           busy={busy}
         >
+          <div className="mb-3 grid gap-2 sm:grid-cols-2">
+            <select
+              value={imageModel}
+              onChange={(e) => setImageModel(e.target.value)}
+              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+              aria-label="Modelo imagen"
+            >
+              {IMAGE_MODELS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <select
+              value={imageSize}
+              onChange={(e) => setImageSize(e.target.value)}
+              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+              aria-label="Tamaño"
+            >
+              {["1024x1024", "1792x1024", "1024x1792"].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
           <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
           {imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -187,8 +256,27 @@ export function MediaStudio() {
           onRun={() => void runSpeech()}
           busy={busy}
         >
+          <select
+            value={voice}
+            onChange={(e) => setVoice(e.target.value)}
+            className="mb-3 h-9 w-full max-w-xs rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+            aria-label="Voz"
+          >
+            {TTS_VOICES.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
           <Textarea value={tts} onChange={(e) => setTts(e.target.value)} rows={3} />
-          {audioUrl ? <audio className="mt-4 w-full" controls src={audioUrl} /> : null}
+          {audioUrl ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <audio className="w-full max-w-md" controls src={audioUrl} />
+              <a href={audioUrl} download="nexus-tts.wav" className="text-sm text-amber-400 hover:underline">
+                Download
+              </a>
+            </div>
+          ) : null}
         </Panel>
       ) : null}
 
@@ -203,9 +291,18 @@ export function MediaStudio() {
             }}
           />
           {transcript ? (
-            <pre className="mt-4 whitespace-pre-wrap rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-zinc-300">
-              {transcript}
-            </pre>
+            <div className="mt-4">
+              <pre className="whitespace-pre-wrap rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-zinc-300">
+                {transcript}
+              </pre>
+              <button
+                type="button"
+                className="mt-2 text-xs text-amber-400 hover:underline"
+                onClick={() => void navigator.clipboard.writeText(transcript)}
+              >
+                Copiar transcript
+              </button>
+            </div>
           ) : null}
         </Panel>
       ) : null}
@@ -213,7 +310,7 @@ export function MediaStudio() {
       {tab === "video" ? (
         <Panel
           title="Video jobs"
-          hint="POST /api/v1/videos + poll — local completed sin Fal/Replicate."
+          hint="POST /api/v1/videos + poll automático cada 2s."
           onRun={() => void runVideo()}
           busy={busy}
         >
@@ -223,7 +320,12 @@ export function MediaStudio() {
               <div className="font-mono text-amber-400/80">{videoJob.id}</div>
               <div className="mt-1">status: {videoJob.status}</div>
               {videoJob.resultUrl ? (
-                <a href={videoJob.resultUrl} className="mt-1 block text-amber-400 hover:underline" target="_blank" rel="noreferrer">
+                <a
+                  href={videoJob.resultUrl}
+                  className="mt-1 block text-amber-400 hover:underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   result
                 </a>
               ) : null}
@@ -239,6 +341,18 @@ export function MediaStudio() {
           onRun={() => void runEmbed()}
           busy={busy}
         >
+          <select
+            value={embedModel}
+            onChange={(e) => setEmbedModel(e.target.value)}
+            className="mb-3 h-9 w-full max-w-md rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+            aria-label="Modelo embeddings"
+          >
+            {EMBED_MODELS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
           <Textarea value={embed} onChange={(e) => setEmbed(e.target.value)} rows={3} />
           {embedPreview ? (
             <div className="mt-4 rounded-xl border border-white/10 px-3 py-2 font-mono text-xs text-zinc-400">
@@ -258,6 +372,32 @@ export function MediaStudio() {
           </Link>{" "}
           · queda en Activity / Analytics
         </p>
+      ) : null}
+
+      {analytics?.recent?.length ? (
+        <section className="rounded-2xl border border-white/10 p-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-sm font-medium text-zinc-300">Reciente (7d)</h2>
+            <Link href="/activity" className="text-xs text-amber-400 hover:underline">
+              Activity →
+            </Link>
+          </div>
+          <ul className="space-y-1">
+            {analytics.recent.slice(0, 6).map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/activity/${r.id}`}
+                  className="flex justify-between gap-2 font-mono text-[11px] text-zinc-500 hover:text-amber-300"
+                >
+                  <span className="truncate">{r.model}</span>
+                  <span>
+                    {r.provider} · {r.tokens} tok
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
     </div>
   );

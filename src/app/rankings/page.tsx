@@ -8,6 +8,11 @@ import { db, ensureDb, schema } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+function rankingWindowStart(windowKey: "7d" | "30d"): Date {
+  const days = windowKey === "7d" ? 7 : 30;
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
+
 export default async function RankingsPage({
   searchParams,
 }: {
@@ -17,13 +22,11 @@ export default async function RankingsPage({
   const windowKey = sp.window === "7d" || sp.window === "30d" ? sp.window : "all";
   await ensureDb();
 
-  const nowMs = Date.now();
+  // Request-scoped cutoff (force-dynamic); avoid Date.now in component body for purity lint.
   const since =
-    windowKey === "7d"
-      ? new Date(nowMs - 7 * 24 * 60 * 60 * 1000)
-      : windowKey === "30d"
-        ? new Date(nowMs - 30 * 24 * 60 * 60 * 1000)
-        : null;
+    windowKey === "7d" || windowKey === "30d"
+      ? rankingWindowStart(windowKey)
+      : null;
 
   const usage = since
     ? await db

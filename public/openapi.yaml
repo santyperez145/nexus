@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.9.0
+  version: 0.10.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference.
 servers:
   - url: /api/v1
@@ -245,13 +245,33 @@ paths:
       responses:
         "200": { description: Keys (usage/limit in USD) }
     post:
-      summary: Create API key
+      summary: Create API key (or rotate via rotate_id)
       security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                limit: { type: number, description: USD spend limit }
+                rotate_id: { type: string }
+                include_byok_in_limit: { type: boolean }
       responses:
         "200": { description: Includes plaintext key once }
     patch:
       summary: Update API key (name, disabled, limit)
       security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                name: { type: string }
+                disabled: { type: boolean }
+                limit: { type: number }
       responses:
         "200": { description: Updated key }
     delete:
@@ -270,7 +290,33 @@ paths:
       summary: BYOK credentials
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Credentials }
+        "200": { description: Credentials (no plaintext keys) }
+    post:
+      summary: Store encrypted BYOK key
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, key]
+              properties:
+                provider: { type: string }
+                key: { type: string }
+                label: { type: string }
+      responses:
+        "200": { description: Credential id }
+    delete:
+      summary: Soft-delete BYOK credential
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: success }
   /workspaces:
     get:
       summary: Workspaces and budgets
@@ -298,6 +344,16 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Preset }
+    delete:
+      summary: Delete preset
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: success }
   /embeddings:
     post:
       summary: Embeddings (billed + generation ledger)
@@ -333,7 +389,7 @@ paths:
       responses:
         "200": { description: File metadata }
     post:
-      summary: Upload a file (multipart, max 4MB)
+      summary: Upload a file (multipart, max 8MB)
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: File id }
@@ -376,10 +432,20 @@ paths:
       responses:
         "200": { description: Destinations }
     post:
-      summary: Add webhook
+      summary: Add webhook or ping existing (action=ping)
       security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+                name: { type: string }
+                action: { type: string, enum: [ping] }
+                id: { type: string, description: Destination id when action=ping }
       responses:
-        "200": { description: Destination }
+        "200": { description: Destination or ping result }
     delete:
       summary: Soft-delete webhook
       security: [{ bearerAuth: [] }]
@@ -390,11 +456,6 @@ paths:
       summary: Issue PKCE code or exchange for an API key
       responses:
         "200": { description: code or key }
-  /status:
-    get:
-      summary: Wiring status (no secrets)
-      responses:
-        "200": { description: Status }
   /completions:
     post:
       summary: Completions legacy (OpenAI)

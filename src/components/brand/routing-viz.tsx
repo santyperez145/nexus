@@ -1,5 +1,27 @@
-/** Diagrama de routing: un slug → varios labs. Sin métricas inventadas. */
-export function RoutingViz({ className }: { className?: string }) {
+/** Diagrama de routing: un slug → varios labs. Wired = keys reales de esta instancia. */
+export function RoutingViz({
+  className,
+  wired = [],
+}: {
+  className?: string;
+  /** Adapter ids cableados ahora (sin inventar uptime). */
+  wired?: string[];
+}) {
+  const live = new Set(wired);
+  const rows = [
+    { y: 40, label: "groq" },
+    { y: 70, label: "openai" },
+    { y: 130, label: "together" },
+    { y: 210, label: "fireworks" },
+    { y: 170, label: "anthropic" },
+  ].map((r) => ({ ...r, on: live.has(r.label) }));
+
+  // Si no hay wired, iluminá openai como ejemplo de path (no “live”).
+  const anyLive = rows.some((r) => r.on);
+  const display = anyLive
+    ? rows
+    : rows.map((r) => ({ ...r, on: r.label === "openai" }));
+
   return (
     <svg
       className={className}
@@ -25,12 +47,8 @@ export function RoutingViz({ className }: { className?: string }) {
       <path d="M318 70H500" stroke="#d97706" strokeWidth="1.5" />
       <path d="M318 82C380 110 420 120 500 130" stroke="#a1a1aa" strokeWidth="1.2" />
       <path d="M318 94C360 160 400 200 500 210" stroke="#a1a1aa" strokeWidth="1.2" />
-      {[
-        { y: 40, label: "groq", on: false },
-        { y: 70, label: "openai", on: true },
-        { y: 130, label: "together", on: false },
-        { y: 210, label: "fireworks", on: false },
-      ].map((row) => (
+      <path d="M318 88C360 140 420 165 500 170" stroke="#a1a1aa" strokeWidth="1.2" />
+      {display.map((row) => (
         <g key={row.label}>
           <rect
             x="500"
@@ -49,11 +67,14 @@ export function RoutingViz({ className }: { className?: string }) {
             fontFamily="ui-monospace, monospace"
           >
             {row.label}
+            {anyLive && row.on ? " ●" : ""}
           </text>
         </g>
       ))}
       <text x="32" y="260" fill="#a1a1aa" fontSize="12">
-        Si un lab cae, el gateway prueba el siguiente.
+        {anyLive
+          ? `${live.size} lab(s) cableados en esta instancia · fallback al siguiente.`
+          : "Sin keys de lab: el hop puede ser eco local. Si un lab cae, el gateway prueba el siguiente."}
       </text>
     </svg>
   );
