@@ -30,8 +30,18 @@ const CAPS = [
   },
   {
     t: "Orgs + invites",
-    d: "Invitá por email. Pendientes visibles hasta aceptar.",
+    d: "Invitá por email (7d). Accept por link o token. Roles owner/member/admin.",
     href: "/settings/organizations",
+  },
+  {
+    t: "OAuth PKCE",
+    d: "Connect-app: challenge → code → sk-nx- de un solo uso. CLIs y partners.",
+    href: "/settings/oauth",
+  },
+  {
+    t: "BYOK",
+    d: "Keys de lab cifradas. Fee 5% lista; 0% markup en tokens de plataforma.",
+    href: "/settings/byok",
   },
   {
     t: "Route Trace",
@@ -42,10 +52,8 @@ const CAPS = [
 
 export default function EnterprisePage() {
   const wired = wiredProviders();
-  const zdrEndpoints = allModels().reduce(
-    (n, m) => n + m.endpoints.filter((e) => e.zdr).length,
-    0,
-  );
+  const models = allModels();
+  const zdrEndpoints = models.reduce((n, m) => n + m.endpoints.filter((e) => e.zdr).length, 0);
   const stripe = Boolean(process.env.STRIPE_SECRET_KEY?.trim());
   const redis = Boolean(process.env.UPSTASH_REDIS_REST_URL?.trim() || process.env.REDIS_URL?.trim());
   const postgres = Boolean(process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim());
@@ -72,7 +80,8 @@ export default function EnterprisePage() {
               { k: "ZDR endpoints", v: String(zdrEndpoints) },
               {
                 k: "Infra",
-                v: [postgres && "pg", stripe && "stripe", redis && "redis"].filter(Boolean).join(" · ") ||
+                v:
+                  [postgres && "pg", stripe && "stripe", redis && "redis"].filter(Boolean).join(" · ") ||
                   "mínimo",
               },
               { k: "Mode", v: wired.length ? "live hops" : "local echo" },
@@ -88,6 +97,23 @@ export default function EnterprisePage() {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mb-10 grid gap-3 sm:grid-cols-3">
+          {[
+            { k: "Modelos", v: String(models.length), href: "/models" },
+            { k: "Envelopes", v: "chat · msg · resp", href: "/docs/envelopes" },
+            { k: "Media", v: "img · tts · video", href: "/docs/media" },
+          ].map((row) => (
+            <Link
+              key={row.k}
+              href={row.href}
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
+            >
+              <div className="text-[10px] uppercase tracking-wide text-zinc-500">{row.k}</div>
+              <div className="mt-1 font-mono text-sm text-zinc-900">{row.v}</div>
+            </Link>
+          ))}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -119,6 +145,9 @@ export default function EnterprisePage() {
         <div className="mt-8 flex flex-wrap gap-2">
           <Button asChild className="bg-amber-600 text-white hover:bg-amber-700">
             <Link href="/docs/provider-routing">Docs ZDR / routing</Link>
+          </Button>
+          <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
+            <Link href="/chat">Probar envelopes en Chat</Link>
           </Button>
           <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
             <Link href="/register">Empezar</Link>

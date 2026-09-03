@@ -27,6 +27,7 @@ type PresetRow = { id: string; slug: string };
 type Lane = { model: string; query: string; messages: Msg[]; stats: Stats | null };
 type RouteHop = { model: string; adapter: string; wired: boolean; zdr: boolean };
 type RoutePreview = { requested: string; mode: string; hops: RouteHop[]; note: string };
+type ApiEnvelope = "chat" | "messages" | "responses";
 
 const STARTERS = [
   "Compará 9.9 y 9.11: cuál es más grande y por qué un modelo se confunde.",
@@ -66,6 +67,7 @@ export function Playground({
   const [temperature, setTemperature] = useState(0.7);
   const [online, setOnline] = useState(false);
   const [jsonMode, setJsonMode] = useState(false);
+  const [envelope, setEnvelope] = useState<ApiEnvelope>("chat");
   const [sort, setSort] = useState<"default" | "price" | "throughput" | "latency">("default");
   const [allowFallbacks, setAllowFallbacks] = useState(true);
   const [zdrOnly, setZdrOnly] = useState(false);
@@ -156,13 +158,81 @@ export function Playground({
   }
 
   async function streamOne(laneIndex: number, model: string, thread: Msg[], signal: AbortSignal) {
+    const visible = thread.filter((m) => m.role !== "system");
+    const headers = {
+      "Content-Type": "application/json",
+      "HTTP-Referer": origin,
+      "X-Title": "Nexus Playground",
+    };
+
+    if (envelope !== "chat") {
+      const path = envelope === "messages" ? "/api/v1/messages" : "/api/v1/responses";
+      const body =
+        envelope === "messages"
+          ? {
+              model: applyOnline(model, online),
+              max_tokens: 1024,
+              temperature,
+              messages: thread,
+              provider: providerPrefs(),
+              ...(fileIds.length ? { file_ids: fileIds } : {}),
+            }
+          : {
+              model: applyOnline(model, online),
+              input: thread,
+              max_output_tokens: 1024,
+              temperature,
+              provider: providerPrefs(),
+              ...(fileIds.length ? { file_ids: fileIds } : {}),
+            };
+      const res = await fetch(path, { method: "POST", headers, signal, body: JSON.stringify(body) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message =
+          res.status === 401
+            ? guest
+              ? "Necesitás sesión o una API key. Creá cuenta (incluye $1) o Entrá para chatear."
+              : "Sesión expirada — volvé a entrar."
+            : (json.error?.message ?? "Error de gateway");
+        const messages = [...visible, { role: "assistant" as const, content: message }];
+        setLanes((prev) =>
+          prev.map((lane, i) => (i === laneIndex ? { ...lane, messages, stats: null } : lane)),
+        );
+        return { messages, stats: null as Stats | null };
+      }
+      let assistant = "";
+      const meta: Stats = {
+        id: json.nexus?.chat_id ?? json.metadata?.nexus_chat_id ?? json.id ?? "",
+        provider: json.nexus?.provider ?? json.metadata?.provider ?? "",
+        model: json.model ?? model,
+        promptTokens: json.usage?.input_tokens ?? json.usage?.prompt_tokens,
+        completionTokens: json.usage?.output_tokens ?? json.usage?.completion_tokens,
+        cost: json.nexus?.cost ?? json.metadata?.cost,
+      };
+      if (envelope === "messages") {
+        const blocks = Array.isArray(json.content) ? json.content : [];
+        assistant = blocks
+          .map((b: { text?: string }) => (typeof b?.text === "string" ? b.text : ""))
+          .join("");
+      } else {
+        const out = Array.isArray(json.output) ? json.output : [];
+        for (const item of out) {
+          const parts = Array.isArray(item?.content) ? item.content : [];
+          for (const p of parts) {
+            if (typeof p?.text === "string") assistant += p.text;
+          }
+        }
+      }
+      const messages = [...visible, { role: "assistant" as const, content: assistant || "(vacío)" }];
+      setLanes((prev) =>
+        prev.map((lane, i) => (i === laneIndex ? { ...lane, messages, stats: meta } : lane)),
+      );
+      return { messages, stats: meta };
+    }
+
     const res = await fetch("/api/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "HTTP-Referer": origin,
-        "X-Title": "Nexus Playground",
-      },
+      headers,
       signal,
       body: JSON.stringify({
         model: applyOnline(model, online),
@@ -176,7 +246,6 @@ export function Playground({
         ...(fileIds.length ? { file_ids: fileIds } : {}),
       }),
     });
-    const visible = thread.filter((m) => m.role !== "system");
     if (!res.ok || !res.body) {
       const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
       const message =
@@ -457,11 +526,29 @@ export function Playground({
       ) : null}
       <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
         <label className="flex items-center gap-2">
+          API
+          <select
+            value={envelope}
+            onChange={(e) => setEnvelope(e.target.value as ApiEnvelope)}
+            className="h-8 rounded-md border border-white/10 bg-zinc-950 px-2 font-mono text-xs text-zinc-200"
+            aria-label="API envelope"
+          >
+            <option value="chat">/chat/completions</option>
+            <option value="messages">/messages</option>
+            <option value="responses">/responses</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
           <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />
           :online
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={jsonMode} onChange={(e) => setJsonMode(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={jsonMode}
+            onChange={(e) => setJsonMode(e.target.checked)}
+            disabled={envelope !== "chat"}
+          />
           JSON
         </label>
         <label className="flex items-center gap-2">
