@@ -15,6 +15,7 @@ export declare class Nexus {
     readonly responses: ResponsesResource;
     readonly messages: MessagesResource;
     readonly videos: VideosResource;
+    readonly completions: CompletionsResource;
     readonly keys: KeysResource;
     readonly providers: ProvidersResource;
     readonly files: FilesResource;
@@ -170,6 +171,14 @@ declare class VideosResource {
     get(id: string): Promise<{
         data: unknown;
     }>;
+}
+declare class CompletionsResource {
+    private readonly client;
+    constructor(client: Nexus);
+    create(body: Record<string, unknown> & {
+        prompt?: string;
+        model?: string;
+    }): Promise<ChatCompletion>;
 }
 declare class KeysResource {
     private readonly client;

@@ -21,6 +21,7 @@ export class Nexus {
     responses;
     messages;
     videos;
+    completions;
     keys;
     providers;
     files;
@@ -44,6 +45,7 @@ export class Nexus {
         this.responses = new ResponsesResource(this);
         this.messages = new MessagesResource(this);
         this.videos = new VideosResource(this);
+        this.completions = new CompletionsResource(this);
         this.keys = new KeysResource(this);
         this.providers = new ProvidersResource(this);
         this.files = new FilesResource(this);
@@ -233,6 +235,15 @@ class VideosResource {
     }
     get(id) {
         return this.client.request("/videos", { query: { id } });
+    }
+}
+class CompletionsResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    create(body) {
+        return this.client.request("/completions", { method: "POST", body });
     }
 }
 class KeysResource {

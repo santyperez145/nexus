@@ -29,6 +29,7 @@ export class Nexus {
   readonly responses: ResponsesResource;
   readonly messages: MessagesResource;
   readonly videos: VideosResource;
+  readonly completions: CompletionsResource;
   readonly keys: KeysResource;
   readonly providers: ProvidersResource;
   readonly files: FilesResource;
@@ -53,6 +54,7 @@ export class Nexus {
     this.responses = new ResponsesResource(this);
     this.messages = new MessagesResource(this);
     this.videos = new VideosResource(this);
+    this.completions = new CompletionsResource(this);
     this.keys = new KeysResource(this);
     this.providers = new ProvidersResource(this);
     this.files = new FilesResource(this);
@@ -258,6 +260,13 @@ class VideosResource {
   }
   get(id: string) {
     return this.client.request<{ data: unknown }>("/videos", { query: { id } });
+  }
+}
+
+class CompletionsResource {
+  constructor(private readonly client: Nexus) {}
+  create(body: Record<string, unknown> & { prompt?: string; model?: string }) {
+    return this.client.request<ChatCompletion>("/completions", { method: "POST", body });
   }
 }
 
