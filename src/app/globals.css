@@ -166,3 +166,18 @@
   transform-origin: 32px 32px;
   animation: nexus-hub 3.4s ease-in-out infinite;
 }
+
+.nexus-mesh-line {
+  stroke-dasharray: 8 12;
+  animation: nexus-mesh 18s linear infinite;
+}
+
+.nexus-mesh-node {
+  animation: nexus-hub 3.8s ease-in-out infinite;
+}
+
+@keyframes nexus-mesh {
+  to {
+    stroke-dashoffset: -240;
+  }
+}

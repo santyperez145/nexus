@@ -2,51 +2,63 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { NexusWordmark } from "@/components/brand/nexus-logo";
+import { cn } from "@/lib/utils";
 
-export async function SiteHeader() {
+export async function SiteHeader({ tone = "dark" }: { tone?: "dark" | "light" }) {
   const session = await getSession();
+  const light = tone === "light";
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-black/70 backdrop-blur-xl">
+    <header
+      className={cn(
+        "sticky top-0 z-40 border-b backdrop-blur-xl",
+        light ? "border-zinc-200/80 bg-white/80" : "border-white/10 bg-black/70",
+      )}
+    >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="text-[15px]">
+        <Link href="/" className={cn("text-[15px]", light ? "text-zinc-900" : "text-zinc-100")}>
           <NexusWordmark />
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-zinc-400 md:flex">
-          <Link href="/models" className="hover:text-white">
+        <nav
+          className={cn(
+            "hidden items-center gap-6 text-sm md:flex",
+            light ? "text-zinc-500" : "text-zinc-400",
+          )}
+        >
+          <Link href="/models" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
             Modelos
           </Link>
-          <Link href="/chat" className="hover:text-white">
+          <Link href="/chat" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
             Chat
           </Link>
-          <Link href="/providers" className="hover:text-white">
+          <Link href="/providers" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
             Providers
           </Link>
-          <Link href="/rankings" className="hover:text-white">
+          <Link href="/rankings" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
             Rankings
           </Link>
-          <Link href="/docs" className="hover:text-white">
+          <Link href="/docs" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
             Docs
           </Link>
-          <Link href="/privacy" className="hover:text-white">
-            Privacidad
-          </Link>
-          {session ? (
-            <Link href="/overview" className="hover:text-white">
-              App
-            </Link>
-          ) : null}
         </nav>
         <div className="flex items-center gap-2">
           {session ? (
-            <Button asChild size="sm">
+            <Button
+              asChild
+              size="sm"
+              className={light ? "bg-zinc-900 text-white hover:bg-zinc-800" : undefined}
+            >
               <Link href="/overview">Dashboard</Link>
             </Button>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="ghost" size="sm" className={light ? "text-zinc-700 hover:bg-zinc-100" : undefined}>
                 <Link href="/login">Entrar</Link>
               </Button>
-              <Button asChild size="sm">
+              <Button
+                asChild
+                size="sm"
+                className={light ? "bg-amber-600 text-white hover:bg-amber-700" : undefined}
+              >
                 <Link href="/register">Crear cuenta</Link>
               </Button>
             </>
