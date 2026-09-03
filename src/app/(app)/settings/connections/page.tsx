@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -34,12 +35,42 @@ export default function ConnectionsPage() {
   if (!status) return <p className="text-sm text-zinc-500">Cargando conexiones…</p>;
 
   const blocks = [status.database, status.auth, status.stripe, status.redis];
+  const wiredLabs = status.providers.filter((p) => p.wired).length;
+  const mode = wiredLabs > 0 ? "live hops" : "local echo";
 
   return (
     <div>
       <AppPageHeader title="Conexiones">
-        Cableá cada integración en <code>.env.local</code>. Nada se inventa: si está verde, el env existe. Los secretos no se muestran.
+        Cableá cada integración en <code>.env.local</code>. Nada se inventa: si está verde, el env
+        existe. Los secretos no se muestran.
       </AppPageHeader>
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Mode</div>
+          <div className="mt-1 font-mono text-sm text-amber-200">{mode}</div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Labs wired</div>
+          <div className="mt-1 font-mono text-sm text-zinc-200">
+            {wiredLabs}/{status.providers.length}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3">
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Atajos</div>
+          <div className="mt-1 flex flex-wrap gap-2 text-xs">
+            <Link href="/settings/byok" className="text-amber-400 hover:underline">
+              BYOK
+            </Link>
+            <Link href="/status" className="text-amber-400 hover:underline">
+              Status
+            </Link>
+            <Link href="/api/v1/status" className="text-amber-400 hover:underline">
+              JSON
+            </Link>
+          </div>
+        </div>
+      </div>
 
       <div className="mb-8 grid gap-3">
         {blocks.map((b) => (
@@ -56,11 +87,21 @@ export default function ConnectionsPage() {
       </div>
 
       <h2 className="mb-3 text-lg font-medium">Laboratorios</h2>
+      <p className="mb-3 text-xs text-zinc-500">
+        Sin key de plataforma: usá{" "}
+        <Link href="/settings/byok" className="text-amber-400 hover:underline">
+          BYOK
+        </Link>{" "}
+        o esperá eco local honesto.
+      </p>
       <div className="mb-8 grid gap-2 md:grid-cols-2">
         {status.providers.map((p) => (
           <div key={p.id} className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
             <span className="flex items-center gap-2">
-              <Dot on={p.wired} /> {p.label}
+              <Dot on={p.wired} />{" "}
+              <Link href={`/providers/${p.id}`} className="hover:text-amber-300">
+                {p.label}
+              </Link>
             </span>
             <span className="text-right">
               <span className="font-mono text-xs text-zinc-500">{p.env}</span>
