@@ -288,6 +288,23 @@ export const SCHEMA_SQL = [
     deleted boolean NOT NULL DEFAULT false,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS "webhook_delivery" (
+    id text PRIMARY KEY,
+    destination_id text NOT NULL REFERENCES "observability_destination"(id) ON DELETE CASCADE,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    event text NOT NULL,
+    payload jsonb NOT NULL,
+    status text NOT NULL DEFAULT 'pending',
+    attempts integer NOT NULL DEFAULT 0,
+    next_attempt_at timestamp NOT NULL DEFAULT now(),
+    last_attempt_at timestamp,
+    response_status integer,
+    last_error text,
+    delivered_at timestamp,
+    created_at timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS webhook_delivery_due_idx ON "webhook_delivery"(status, next_attempt_at)`,
+  `CREATE INDEX IF NOT EXISTS webhook_delivery_user_idx ON "webhook_delivery"(user_id, created_at)`,
   `CREATE TABLE IF NOT EXISTS "chat_share" (
     id text PRIMARY KEY,
     user_id text REFERENCES "user"(id) ON DELETE SET NULL,

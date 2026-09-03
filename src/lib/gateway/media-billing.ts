@@ -130,8 +130,18 @@ export async function chargeAndRecordMedia(opts: {
       provider: opts.provider,
       cost_micros: costMicros,
       latency_ms: opts.latencyMs ?? 0,
-    }).catch(() => undefined);
-    await maybeAutoTopup(opts.auth.userId).catch(() => undefined);
+    }, opts.auth.workspaceId).catch((error) => {
+      console.error("Failed to enqueue media observability delivery", {
+        generationId: genId,
+        message: error instanceof Error ? error.message : "unknown",
+      });
+    });
+    await maybeAutoTopup(opts.auth.userId).catch((error) => {
+      console.error("Media auto top-up failed", {
+        generationId: genId,
+        message: error instanceof Error ? error.message : "unknown",
+      });
+    });
   }
 
   return { id: genId, costMicros };

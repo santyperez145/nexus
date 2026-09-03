@@ -453,10 +453,15 @@ paths:
         "200": { description: success }
   /observability:
     get:
-      summary: List generation webhooks
+      summary: List generation webhooks or recent delivery metadata
+      parameters:
+        - in: query
+          name: deliveries
+          schema: { type: string, enum: ["1"] }
+          description: Set to 1 to return the latest 50 tenant-scoped delivery attempts. Payloads are never returned.
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Destinations }
+        "200": { description: Destinations or redacted delivery metadata }
     post:
       summary: Add webhook or ping existing (action=ping)
       security: [{ bearerAuth: [] }]

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { assertWorkspaceManager, canAccess, resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
 import { db, schema } from "@/lib/db";
@@ -9,6 +9,33 @@ import { newWebhookSecret, pingWebhookDestination } from "@/lib/observability/di
 export async function GET(req: Request) {
   try {
     const auth = await authenticateRequest(req);
+    const url = new URL(req.url);
+    if (url.searchParams.get("deliveries") === "1") {
+      const destinations = await db
+        .select({ id: schema.observabilityDestinations.id })
+        .from(schema.observabilityDestinations)
+        .where(userScope(auth, schema.observabilityDestinations.userId, schema.observabilityDestinations.workspaceId));
+      const destinationIds = destinations.map((row) => row.id);
+      if (!destinationIds.length) return Response.json({ data: [] });
+      const deliveries = await db
+        .select({
+          id: schema.webhookDeliveries.id,
+          destinationId: schema.webhookDeliveries.destinationId,
+          event: schema.webhookDeliveries.event,
+          status: schema.webhookDeliveries.status,
+          attempts: schema.webhookDeliveries.attempts,
+          responseStatus: schema.webhookDeliveries.responseStatus,
+          lastError: schema.webhookDeliveries.lastError,
+          nextAttemptAt: schema.webhookDeliveries.nextAttemptAt,
+          deliveredAt: schema.webhookDeliveries.deliveredAt,
+          createdAt: schema.webhookDeliveries.createdAt,
+        })
+        .from(schema.webhookDeliveries)
+        .where(inArray(schema.webhookDeliveries.destinationId, destinationIds))
+        .orderBy(desc(schema.webhookDeliveries.createdAt))
+        .limit(50);
+      return Response.json({ data: deliveries });
+    }
     const rows = await db
       .select()
       .from(schema.observabilityDestinations)

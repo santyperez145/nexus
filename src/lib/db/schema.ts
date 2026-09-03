@@ -401,6 +401,33 @@ export const observabilityDestinations = pgTable("observability_destination", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const webhookDeliveries = pgTable(
+  "webhook_delivery",
+  {
+    id: text("id").primaryKey(),
+    destinationId: text("destination_id")
+      .notNull()
+      .references(() => observabilityDestinations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    event: text("event").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at").notNull().defaultNow(),
+    lastAttemptAt: timestamp("last_attempt_at"),
+    responseStatus: integer("response_status"),
+    lastError: text("last_error"),
+    deliveredAt: timestamp("delivered_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("webhook_delivery_due_idx").on(t.status, t.nextAttemptAt),
+    index("webhook_delivery_user_idx").on(t.userId, t.createdAt),
+  ],
+);
+
 export const chatShares = pgTable("chat_share", {
   id: text("id").primaryKey(),
   userId: text("user_id").references(() => users.id, { onDelete: "set null" }),

@@ -43,6 +43,12 @@ producción.
 Cuando `GATEWAY_URL` está configurado, Chat Completions, Completions, Embeddings, Responses y
 Anthropic Messages se enrutan al data plane independiente. Ambos mounts (`/api/v1` y `/v1`) comparten
 la misma ACL, scopes, rate limiting y ledger; no existe una ruta rápida que evite el control plane.
+Los webhooks de observabilidad se persisten antes del primer intento, incluyen `x-nexus-delivery` y
+se reintentan desde el worker o `GET /api/internal/cron/webhooks` con backoff progresivo (máximo 6 intentos); el Delivery log permite
+auditar respuestas, próximos intentos y dead letters sin exponer el payload.
+Los crons fallan cerrados si `CRON_SECRET` no está configurado. Vercel ejecuta el retry cada cinco
+minutos; en Railway se debe programar el mismo endpoint con `Authorization: Bearer $CRON_SECRET`,
+además del intento inmediato que realiza el gateway.
 
 Antes del primer despliegue sobre una base nueva, ejecutá `npm run db:migrate` usando la URL directa.
 En producción `DATABASE_URL_UNPOOLED` es obligatoria y el migrador rechaza endpoints Neon `-pooler`.

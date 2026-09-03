@@ -13,8 +13,22 @@ type Dest = {
   config: { url?: string; has_secret?: boolean; secret?: string };
 };
 
+type Delivery = {
+  id: string;
+  destinationId: string;
+  event: string;
+  status: "pending" | "processing" | "failed" | "delivered" | "dead";
+  attempts: number;
+  responseStatus?: number | null;
+  lastError?: string | null;
+  nextAttemptAt: string;
+  deliveredAt?: string | null;
+  createdAt: string;
+};
+
 export default function ObservabilityPage() {
   const [rows, reload] = useRemoteData<Dest[]>("/api/v1/observability");
+  const [deliveries, reloadDeliveries] = useRemoteData<Delivery[]>("/api/v1/observability?deliveries=1");
   const [url, setUrl] = useState("");
   const [name, setName] = useState("Webhook");
   const [msg, setMsg] = useState<string | null>(null);
@@ -44,6 +58,7 @@ export default function ObservabilityPage() {
             setMsg(json.data ? "Webhook creado" : json.error?.message ?? "error");
             setUrl("");
             reload();
+            reloadDeliveries();
           }}
         >
           Agregar
@@ -105,6 +120,7 @@ export default function ObservabilityPage() {
                 onClick={async () => {
                   await fetch(`/api/v1/observability?id=${d.id}`, { method: "DELETE" });
                   reload();
+                  reloadDeliveries();
                 }}
               >
                 Quitar
@@ -118,6 +134,31 @@ export default function ObservabilityPage() {
           </p>
         ) : null}
       </div>
+      <section className="mt-8">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">Delivery log</h2>
+            <p className="text-xs text-zinc-500">Últimos 50 intentos persistidos · backoff hasta 24 h · 6 intentos.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={reloadDeliveries}>Actualizar</Button>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-zinc-200">
+          {(deliveries ?? []).map((delivery) => (
+            <div key={delivery.id} className="grid gap-2 border-b border-zinc-100 px-3 py-2 text-xs last:border-b-0 md:grid-cols-[1fr_7rem_5rem_8rem] md:items-center">
+              <div className="min-w-0">
+                <div className="truncate font-mono text-zinc-700">{delivery.id}</div>
+                <div className="truncate text-zinc-400">{delivery.lastError ?? delivery.event}</div>
+              </div>
+              <span className={delivery.status === "delivered" ? "text-emerald-700" : delivery.status === "dead" ? "text-red-700" : "text-amber-700"}>
+                {delivery.status}
+              </span>
+              <span className="text-zinc-500">{delivery.attempts}/6</span>
+              <span className="text-zinc-500">{delivery.responseStatus ? `HTTP ${delivery.responseStatus}` : "sin respuesta"}</span>
+            </div>
+          ))}
+          {!deliveries?.length ? <p className="px-4 py-6 text-center text-xs text-zinc-500">Todavía no hay deliveries.</p> : null}
+        </div>
+      </section>
       <pre className="mt-8 overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-500">
 {`{
   "event": "generation.completed",

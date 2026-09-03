@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/internal/cron/webhooks",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/internal/cron/catalog",
       "schedule": "0 4 * * *"
     }

@@ -607,6 +607,16 @@ async function persistGeneration(opts: {
     provider: opts.provider,
     cost_micros: opts.costMicros,
     latency_ms: opts.latencyMs,
-  }).catch(() => undefined);
-  await maybeAutoTopup(opts.auth.userId).catch(() => undefined);
+  }, opts.auth.workspaceId).catch((error) => {
+    console.error("Failed to enqueue chat observability delivery", {
+      generationId: opts.genId,
+      message: error instanceof Error ? error.message : "unknown",
+    });
+  });
+  await maybeAutoTopup(opts.auth.userId).catch((error) => {
+    console.error("Chat auto top-up failed", {
+      generationId: opts.genId,
+      message: error instanceof Error ? error.message : "unknown",
+    });
+  });
 }

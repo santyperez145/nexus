@@ -5,6 +5,7 @@ import { syncCatalog } from "../src/lib/catalog/sync";
 import { db, ensureDb, schema } from "../src/lib/db";
 import { id } from "../src/lib/ids";
 import { eq } from "drizzle-orm";
+import { retryWebhookDeliveries } from "../src/lib/observability/dispatch";
 import {
   NEXUS_PROVIDERS,
   authHeaders,
@@ -14,6 +15,7 @@ import {
 } from "../src/lib/providers/registry";
 
 const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
+const WEBHOOK_RETRY_INTERVAL_MS = Number(process.env.WEBHOOK_RETRY_INTERVAL_MS ?? 60 * 1000);
 const once = process.argv.includes("--once");
 
 async function probeProviders() {
@@ -64,7 +66,7 @@ async function probeProviders() {
   }
 }
 
-async function tick() {
+async function tickCatalog() {
   const catalog = await syncCatalog();
   await ensureDb();
   await db.insert(schema.catalogSnapshots).values({
@@ -76,14 +78,23 @@ async function tick() {
   console.log(`[worker] catalog=${catalog.count} at ${catalog.fetchedAt}`);
 }
 
+async function tickWebhooks() {
+  await ensureDb();
+  const retried = await retryWebhookDeliveries();
+  if (retried) console.log(`[worker] webhook_retries=${retried}`);
+}
+
 async function main() {
-  await tick();
+  await Promise.all([tickCatalog(), tickWebhooks()]);
   if (once) {
     process.exit(0);
   }
   setInterval(() => {
-    void tick().catch((err) => console.error("[worker]", err));
+    void tickCatalog().catch((err) => console.error("[worker:catalog]", err));
   }, INTERVAL_MS);
+  setInterval(() => {
+    void tickWebhooks().catch((err) => console.error("[worker:webhooks]", err));
+  }, WEBHOOK_RETRY_INTERVAL_MS);
 }
 
 main().catch((err) => {
