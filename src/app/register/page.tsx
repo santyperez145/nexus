@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NexusWordmark } from "@/components/brand/nexus-logo";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,8 +30,8 @@ export default function RegisterPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <Link href="/" className="mb-8 text-lg font-semibold">
-        Nexus
+      <Link href="/" className="mb-8 text-[15px]">
+        <NexusWordmark />
       </Link>
       <h1 className="mb-2 text-2xl font-semibold">Crear cuenta</h1>
       <p className="mb-6 text-sm text-zinc-500">Incluye $1 de crédito de bienvenida.</p>

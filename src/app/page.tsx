@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
+import { NexusMark } from "@/components/brand/nexus-logo";
 import { allModels } from "@/lib/catalog";
 import { CREDIT_PURCHASE_FEE } from "@/lib/config";
 import { NEXUS_PROVIDERS } from "@/lib/providers/registry";
@@ -12,17 +13,20 @@ export default function HomePage() {
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.14),_transparent_42%),linear-gradient(180deg,#09090b,#0c0a09)]">
       <SiteHeader />
       <section className="mx-auto flex min-h-[78vh] max-w-6xl flex-col justify-center px-4 py-20">
-        <p className="font-[family-name:var(--font-geist-sans)] text-6xl font-semibold tracking-tight text-white md:text-8xl">
-          Nexus
-        </p>
-        <h1 className="mt-6 max-w-2xl text-2xl font-medium text-zinc-200 md:text-3xl">
+        <div className="nexus-hero-brand flex items-center gap-4 md:gap-6">
+          <NexusMark className="size-14 shrink-0 text-amber-400 md:size-[4.5rem]" />
+          <p className="font-[family-name:var(--font-geist-sans)] text-6xl font-semibold tracking-tight text-white md:text-8xl">
+            Nexus
+          </p>
+        </div>
+        <h1 className="nexus-hero-copy mt-6 max-w-2xl text-2xl font-medium text-zinc-200 md:text-3xl">
           Una API. Todos los modelos. Vos controlás los tokens.
         </h1>
-        <p className="mt-4 max-w-xl text-zinc-400">
+        <p className="nexus-hero-copy mt-4 max-w-xl text-zinc-400">
           Gateway OpenAI-compatible: routing, fallbacks, créditos, BYOK y búsqueda web. El lab es
           un detalle de infraestructura.
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
+        <div className="nexus-hero-cta mt-8 flex flex-wrap gap-3">
           <Button asChild size="lg">
             <Link href="/register">Empezar con $1</Link>
           </Button>

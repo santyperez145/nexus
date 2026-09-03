@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" fill="none">
+  <path d="M13 10v44" stroke="#F59E0B" stroke-width="8" stroke-linecap="square"/>
+  <path d="M51 10v44" stroke="#F59E0B" stroke-width="8" stroke-linecap="square"/>
+  <path d="M13 10l13.2 15.3" stroke="#F59E0B" stroke-width="8" stroke-linecap="butt"/>
+  <path d="M37.8 38.7L51 54" stroke="#F59E0B" stroke-width="8" stroke-linecap="butt"/>
+  <circle cx="32" cy="32" r="7.1" stroke="#F59E0B" stroke-width="3.4"/>
+  <text x="78" y="44" fill="#FAFAFA" font-family="ui-sans-serif, system-ui, sans-serif" font-size="36" font-weight="600" letter-spacing="-0.04em">Nexus</text>
+</svg>

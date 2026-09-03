@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { NexusWordmark } from "@/components/brand/nexus-logo";
 
 export async function SiteHeader() {
   const session = await getSession();
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/70 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="font-semibold tracking-tight">
-          Nexus
+        <Link href="/" className="text-[15px]">
+          <NexusWordmark />
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-zinc-400 md:flex">
           <Link href="/models" className="hover:text-white">

@@ -128,3 +128,41 @@
     @apply font-sans;
   }
 }
+
+@keyframes nexus-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes nexus-hub {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.nexus-hero-brand {
+  animation: nexus-in 0.8s ease-out both;
+}
+
+.nexus-hero-copy {
+  animation: nexus-in 0.75s ease-out 0.12s both;
+}
+
+.nexus-hero-cta {
+  animation: nexus-in 0.75s ease-out 0.22s both;
+}
+
+.nexus-hero-brand .nexus-hub {
+  transform-origin: 32px 32px;
+  animation: nexus-hub 3.4s ease-in-out infinite;
+}

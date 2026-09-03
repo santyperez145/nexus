@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   title: "Nexus — Independent AI model gateway",
   description:
     "Una API para cientos de modelos. Routing, fallbacks, créditos por token, BYOK y analytics.",
+  applicationName: "Nexus",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NexusWordmark } from "@/components/brand/nexus-logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -28,8 +29,8 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <Link href="/" className="mb-8 text-lg font-semibold">
-        Nexus
+      <Link href="/" className="mb-8 text-[15px]">
+        <NexusWordmark />
       </Link>
       <h1 className="mb-6 text-2xl font-semibold">Entrar</h1>
       <form onSubmit={onSubmit} className="grid gap-4">

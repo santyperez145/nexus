@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { db, ensureDb, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { formatUsd, microsToUsd } from "@/lib/money";
+import { NexusWordmark } from "@/components/brand/nexus-logo";
 
 const NAV = [
   { href: "/chat", label: "Chat" },
@@ -30,8 +31,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <aside className="fixed inset-y-0 left-0 hidden w-60 border-r border-white/10 bg-zinc-950/90 p-4 md:block">
-        <Link href="/" className="mb-8 block text-lg font-semibold">
-          Nexus
+        <Link href="/" className="mb-8 block text-[15px]">
+          <NexusWordmark />
         </Link>
         <p className="mb-6 text-xs text-amber-400/90">
           Saldo {formatUsd(microsToUsd(user?.creditMicros ?? 0), 2)}
@@ -49,8 +50,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
       </aside>
       <div className="md:pl-60">
-        <div className="border-b border-white/10 px-4 py-3 text-sm text-zinc-400 md:hidden">
-          Nexus · {session.user.email}
+        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3 text-sm text-zinc-400 md:hidden">
+          <NexusWordmark markClassName="size-5" />
+          <span className="truncate">· {session.user.email}</span>
         </div>
         <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
       </div>
