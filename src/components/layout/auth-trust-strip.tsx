@@ -6,8 +6,11 @@ import Link from "next/link";
 type Status = {
   models?: number;
   wired_labs?: number;
+  configured_labs?: number;
+  verified_labs?: number;
   mode?: string;
   ok?: boolean;
+  commerce_ok?: boolean;
 };
 
 /** Live trust strip for auth screens — no invented uptime. */
@@ -27,16 +30,18 @@ export function AuthTrustStrip() {
   const mode =
     status?.mode === "live"
       ? "Disponible"
+      : status?.mode === "degraded"
+        ? "En revisión"
       : status?.mode === "unconfigured"
         ? "Pendiente"
         : "…";
-  const labs = status?.wired_labs ?? "…";
+  const labs = status?.verified_labs ?? status?.wired_labs ?? "…";
 
   return (
     <div className="mt-8 grid grid-cols-3 gap-2">
       {[
         { k: "Modelos", v: String(models), href: "/models" },
-        { k: "Proveedores", v: String(labs), href: "/providers" },
+        { k: "Proveedores verificados", v: String(labs), href: "/providers" },
         { k: "Servicio", v: mode, href: "/status" },
       ].map((s) => (
         <Link

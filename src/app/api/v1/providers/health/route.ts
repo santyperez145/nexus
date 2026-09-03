@@ -1,9 +1,18 @@
-import { db, ensureDb, schema } from "@/lib/db";
 import { providerSnapshot } from "@/lib/gateway/health";
+import { readProviderHealthRows } from "@/lib/providers/health-store";
 
 export async function GET() {
-  await ensureDb();
   const live = await providerSnapshot();
-  const persisted = await db.select().from(schema.providerHealth);
-  return Response.json({ data: { circuits: live, probes: persisted } });
+  const persisted = await readProviderHealthRows();
+  return Response.json({
+    data: {
+      circuits: live,
+      probes: persisted.map((row) => ({
+        provider: row.provider,
+        status: row.status,
+        latency_ms: row.latencyMs,
+        last_check: row.lastCheck,
+      })),
+    },
+  });
 }

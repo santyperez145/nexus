@@ -4,67 +4,13 @@
 import { syncCatalog } from "../src/lib/catalog/sync";
 import { db, ensureDb, schema } from "../src/lib/db";
 import { id } from "../src/lib/ids";
-import { eq } from "drizzle-orm";
 import { retryWebhookDeliveries } from "../src/lib/observability/dispatch";
-import {
-  NEXUS_PROVIDERS,
-  authHeaders,
-  envFor,
-  isWired,
-  modelsUrl,
-} from "../src/lib/providers/registry";
+import { probeAndPersistPlatformHealth } from "../src/lib/providers/health-store";
 
 const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const WEBHOOK_RETRY_INTERVAL_MS = Number(process.env.WEBHOOK_RETRY_INTERVAL_MS ?? 60 * 1000);
+const HEALTH_PROBE_INTERVAL_MS = Number(process.env.HEALTH_PROBE_INTERVAL_MS ?? 15 * 60 * 1000);
 const once = process.argv.includes("--once");
-
-async function probeProviders() {
-  await ensureDb();
-  for (const p of NEXUS_PROVIDERS) {
-    if (!isWired(p)) continue;
-    const key = envFor(p);
-    if (!key) continue;
-    const started = Date.now();
-    let status = "up";
-    let detail = "ok";
-    try {
-      const res = await fetch(modelsUrl(p, key), {
-        method: "GET",
-        headers: authHeaders(p, key),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (res.status >= 500) {
-        status = "down";
-        detail = `HTTP ${res.status}`;
-      } else {
-        detail = `HTTP ${res.status}`;
-      }
-    } catch (error) {
-      status = "down";
-      detail = error instanceof Error ? error.message : "error";
-    }
-    const latencyMs = Date.now() - started;
-    const existing = await db
-      .select()
-      .from(schema.providerHealth)
-      .where(eq(schema.providerHealth.provider, p.id))
-      .limit(1);
-    if (existing[0]) {
-      await db
-        .update(schema.providerHealth)
-        .set({ status, latencyMs, lastCheck: new Date(), detail })
-        .where(eq(schema.providerHealth.provider, p.id));
-    } else {
-      await db.insert(schema.providerHealth).values({
-        id: id("ph"),
-        provider: p.id,
-        status,
-        latencyMs,
-        detail,
-      });
-    }
-  }
-}
 
 async function tickCatalog() {
   const catalog = await syncCatalog();
@@ -74,8 +20,13 @@ async function tickCatalog() {
     source: catalog.source,
     modelCount: catalog.count,
   });
-  await probeProviders();
   console.log(`[worker] catalog=${catalog.count} at ${catalog.fetchedAt}`);
+}
+
+async function tickHealth() {
+  const result = await probeAndPersistPlatformHealth();
+  const verified = Object.values(result.providers).filter((probe) => probe.ok).length;
+  console.log(`[worker] providers=${verified} stripe=${result.stripe.ok ? "up" : "down"}`);
 }
 
 async function tickWebhooks() {
@@ -85,7 +36,7 @@ async function tickWebhooks() {
 }
 
 async function main() {
-  await Promise.all([tickCatalog(), tickWebhooks()]);
+  await Promise.all([tickCatalog(), tickHealth(), tickWebhooks()]);
   if (once) {
     process.exit(0);
   }
@@ -95,6 +46,9 @@ async function main() {
   setInterval(() => {
     void tickWebhooks().catch((err) => console.error("[worker:webhooks]", err));
   }, WEBHOOK_RETRY_INTERVAL_MS);
+  setInterval(() => {
+    void tickHealth().catch((err) => console.error("[worker:health]", err));
+  }, HEALTH_PROBE_INTERVAL_MS);
 }
 
 main().catch((err) => {

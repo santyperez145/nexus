@@ -5,12 +5,19 @@ import { allModels } from "@/lib/catalog";
 import { providerSnapshot } from "@/lib/gateway/health";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
 import { isProviderZdrConfirmed } from "@/lib/providers/privacy";
+import { recentOperationalProviderIds } from "@/lib/providers/health-store";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProvidersPage() {
   const live = new Set(wiredProviders().map((p) => p.id));
   const wired = live.size;
+  let operational = new Set<string>();
+  try {
+    operational = await recentOperationalProviderIds();
+  } catch {
+    operational = new Set();
+  }
   const counts = new Map<string, number>();
   for (const m of allModels()) {
     for (const e of m.endpoints) {
@@ -38,11 +45,12 @@ export default async function ProvidersPage() {
           una sola cuenta.
         </MarketingPageHeader>
 
-        <div className="mb-10 grid gap-3 sm:grid-cols-3">
+        <div className="mb-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { k: "Proveedores compatibles", v: String(NEXUS_PROVIDERS.length) },
             { k: "Modelos en catálogo", v: modelCount.toLocaleString() },
-            { k: "Disponibles ahora", v: String(wired) },
+            { k: "Configurados", v: String(wired) },
+            { k: "Verificados ahora", v: String(operational.size) },
           ].map((s) => (
             <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
@@ -60,6 +68,7 @@ export default async function ProvidersPage() {
             const cb = circuitBy.get(p.id);
             const circuit = cb?.circuit ?? "closed";
             const zdr = isProviderZdrConfirmed(p.id);
+            const verified = operational.has(p.id);
             return (
               <Link
                 key={p.id}
@@ -74,12 +83,14 @@ export default async function ProvidersPage() {
                   </div>
                   <span
                     className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
-                      on
+                      verified
                         ? "border-emerald-600/30 bg-emerald-50 text-emerald-800"
-                        : "border-violet-200 bg-violet-50 text-violet-700"
+                        : on
+                          ? "border-amber-300 bg-amber-50 text-amber-800"
+                          : "border-violet-200 bg-violet-50 text-violet-700"
                     }`}
                   >
-                    {on ? "Disponible" : "Cuenta propia"}
+                    {verified ? "Operativo" : on ? "Sin prueba reciente" : "Cuenta propia"}
                   </span>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2 text-[11px]">

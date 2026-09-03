@@ -50,8 +50,11 @@ Los webhooks de observabilidad se persisten antes del primer intento, incluyen `
 se reintentan desde el worker o `GET /api/internal/cron/webhooks` con backoff progresivo (máximo 6 intentos); el Delivery log permite
 auditar respuestas, próximos intentos y dead letters sin exponer el payload.
 Los crons fallan cerrados si `CRON_SECRET` no está configurado. Vercel ejecuta el retry cada cinco
-minutos; en Railway se debe programar el mismo endpoint con `Authorization: Bearer $CRON_SECRET`,
-además del intento inmediato que realiza el gateway.
+minutos y verifica proveedores/Stripe cada quince; en Railway se deben programar los endpoints
+`/api/internal/cron/webhooks` y `/api/internal/cron/health` con
+`Authorization: Bearer $CRON_SECRET`, además del intento inmediato que realiza el gateway.
+Un proveedor sólo figura operativo tras responder 2xx durante los últimos 30 minutos; 401/403,
+timeouts y pruebas vencidas mantienen `/status` en atención.
 
 Antes del primer despliegue sobre una base nueva, ejecutá `npm run db:migrate` usando la URL directa.
 En producción `DATABASE_URL_UNPOOLED` es obligatoria y el migrador rechaza endpoints Neon `-pooler`.

@@ -9,6 +9,7 @@ import { generations } from "@/lib/db/schema";
 import { providerSnapshot } from "@/lib/gateway/health";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
 import { isProviderZdrConfirmed } from "@/lib/providers/privacy";
+import { recentOperationalProviderIds } from "@/lib/providers/health-store";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function ProviderDetailPage({
   const live = new Set(wiredProviders().map((p) => p.id));
   const wired = live.has(provider.id);
   const zdrConfirmed = isProviderZdrConfirmed(provider.id);
+  let verified = false;
   const models = allModels()
     .filter((m) => m.endpoints.some((e) => e.adapter === provider.id))
     .sort((a, b) => a.id.localeCompare(b.id));
@@ -31,6 +33,7 @@ export default async function ProviderDetailPage({
   let circuit = "closed";
   let failures = 0;
   try {
+    verified = (await recentOperationalProviderIds()).has(provider.id);
     const snap = await providerSnapshot();
     const row = snap.find((c) => c.name === provider.id);
     if (row) {
@@ -97,8 +100,8 @@ export default async function ProviderDetailPage({
         <div className="mb-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Stat
             label="Estado"
-            value={wired ? "cableado" : "sin key"}
-            tone={wired ? "ok" : "muted"}
+            value={verified ? "operativo" : wired ? "sin prueba reciente" : "sin configurar"}
+            tone={verified ? "ok" : wired ? "warn" : "muted"}
           />
           <Stat label="Models en catálogo" value={String(models.length)} />
           <Stat

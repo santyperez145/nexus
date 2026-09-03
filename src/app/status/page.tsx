@@ -3,19 +3,55 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { allModels } from "@/lib/catalog";
 import { wiredProviders } from "@/lib/providers/registry";
+import {
+  isStripeOperational,
+  recentOperationalProviderIds,
+} from "@/lib/providers/health-store";
+import { connectionStatus } from "@/lib/connections";
 
 export const dynamic = "force-dynamic";
 
 export default async function StatusPage() {
   const wired = wiredProviders();
+  let verified = 0;
+  let stripeVerified = false;
+  try {
+    const [providerIds, stripeHealth] = await Promise.all([
+      recentOperationalProviderIds(),
+      isStripeOperational(),
+    ]);
+    verified = providerIds.size;
+    stripeVerified = stripeHealth;
+  } catch {
+    verified = 0;
+    stripeVerified = false;
+  }
   const models = allModels().filter((m) => !m.id.startsWith("nexus/")).length;
-  const stripe = Boolean(process.env.STRIPE_SECRET_KEY?.trim());
-  const redis = Boolean(process.env.UPSTASH_REDIS_REST_URL?.trim() || process.env.REDIS_URL?.trim());
-  const postgres = Boolean(process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim());
+  const connections = connectionStatus();
+  const stripeConfigured =
+    connections.stripe.wired && connections.stripe.webhook && connections.stripe.plans;
+  const redis = connections.redis.wired;
+  const postgres = connections.database.wired;
   const services = [
     { name: "API y cuentas", description: "Acceso, configuración y datos de tu cuenta", ok: postgres && redis },
-    { name: "Modelos de IA", description: `${wired.length} proveedores disponibles para inferencia`, ok: wired.length > 0 },
-    { name: "Pagos y suscripciones", description: "Compras de saldo y administración de planes", ok: stripe },
+    {
+      name: "Modelos de IA",
+      description: verified
+        ? `${verified} proveedores verificados durante los últimos 30 minutos`
+        : wired.length
+          ? `${wired.length} configurados, sin una prueba válida reciente`
+          : "Sin proveedores de plataforma configurados",
+      ok: verified > 0,
+    },
+    {
+      name: "Configuración de cobros",
+      description: stripeVerified
+        ? "Credencial de cobros verificada durante los últimos 30 minutos"
+        : stripeConfigured
+          ? "Configurada, sin una prueba válida reciente"
+          : "Faltan credencial, webhook o planes",
+      ok: stripeConfigured && stripeVerified,
+    },
     { name: "Catálogo de modelos", description: `${models.toLocaleString()} modelos publicados`, ok: models > 0 },
   ];
   const operational = services.every((service) => service.ok);
@@ -57,7 +93,7 @@ export default async function StatusPage() {
                     : "border-amber-300 bg-amber-50 text-amber-800"
                 }`}
               >
-                {service.ok ? "Disponible" : "No disponible"}
+                {service.ok ? "Listo" : "Requiere atención"}
               </span>
             </div>
           ))}
