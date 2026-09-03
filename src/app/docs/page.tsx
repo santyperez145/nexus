@@ -55,6 +55,24 @@ export default function DocsPage() {
           <code className="text-zinc-800">:online</code>. Routers{" "}
           <code className="text-zinc-800">nexus/auto</code> / <code className="text-zinc-800">nexus/free</code>.
         </MarketingPageHeader>
+
+        <div className="mb-8 overflow-hidden rounded-xl border border-amber-200/80 bg-amber-50/50 px-4 py-4">
+          <div className="font-[family-name:var(--font-syne)] font-semibold text-amber-950">
+            Guest playground
+          </div>
+          <p className="mt-1 text-sm text-amber-900/80">
+            Sin API key: header <code className="text-amber-950">X-Nexus-Guest: 1</code> → eco local
+            rate-limited (8 rpm/IP). Nunca quema keys de lab. Chat y Arena lo mandan solos; en SDK:{" "}
+            <code className="text-amber-950">new Nexus({"{ guest: true }"})</code>.
+          </p>
+          <pre className="mt-3 overflow-x-auto rounded-lg border border-amber-200/60 bg-white/80 p-3 text-xs text-zinc-800">
+{`curl $NEXUS_URL/api/v1/chat/completions \\
+  -H "X-Nexus-Guest: 1" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"nexus/auto","messages":[{"role":"user","content":"ping"}]}'`}
+          </pre>
+        </div>
+
         <div className="mb-8 grid gap-2 sm:grid-cols-3">
           {SURFACES.map(([label, href, note]) => (
             <a

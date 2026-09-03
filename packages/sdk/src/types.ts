@@ -102,6 +102,8 @@ export type NexusClientOptions = {
   baseURL?: string;
   httpReferer?: string;
   title?: string;
+  /** Public playground: send X-Nexus-Guest (local echo). Skip bearer if no apiKey. */
+  guest?: boolean;
   fetch?: typeof fetch;
   defaultHeaders?: Record<string, string>;
 };

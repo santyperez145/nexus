@@ -110,7 +110,11 @@ export function ArenaClient({
   async function runLane(model: string, setOut: (t: string) => void, signal: AbortSignal) {
     const res = await fetch("/api/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Title": "Nexus Arena" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Title": "Nexus Arena",
+        "X-Nexus-Guest": "1",
+      },
       signal,
       body: JSON.stringify({
         model,
@@ -123,7 +127,7 @@ export function ArenaClient({
       const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
       setOut(
         res.status === 401
-          ? "Necesitás sesión. Creá cuenta o Entrá para correr Arena."
+          ? "Auth requerida. Si ves esto en prod viejo, esperá el deploy — guest eco ya está en main."
           : (err.error?.message ?? `HTTP ${res.status}`),
       );
       return;

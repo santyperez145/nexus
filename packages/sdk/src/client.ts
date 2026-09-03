@@ -19,6 +19,7 @@ export class Nexus {
   readonly baseURL: string;
   readonly httpReferer?: string;
   readonly title?: string;
+  readonly guest: boolean;
   readonly chat: ChatResource;
   readonly models: ModelsResource;
   readonly credits: CreditsResource;
@@ -54,6 +55,7 @@ export class Nexus {
     this.baseURL = (opts.baseURL ?? readEnv("NEXUS_BASE_URL") ?? DEFAULT_BASE).replace(/\/$/, "");
     this.httpReferer = opts.httpReferer;
     this.title = opts.title;
+    this.guest = Boolean(opts.guest);
     this.#fetch = opts.fetch ?? fetch;
     this.#defaultHeaders = opts.defaultHeaders ?? {};
     this.chat = new ChatResource(this);
@@ -101,10 +103,12 @@ export class Nexus {
       if (v != null && v !== "") url.searchParams.set(k, String(v));
     }
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.apiKey}`,
       ...this.#defaultHeaders,
       ...init.headers,
     };
+    if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`;
+    else if (this.guest) headers["X-Nexus-Guest"] = "1";
+    if (this.guest && !headers["X-Nexus-Guest"]) headers["X-Nexus-Guest"] = "1";
     if (this.httpReferer) headers["HTTP-Referer"] = this.httpReferer;
     if (this.title) headers["X-Title"] = this.title;
     let body: BodyInit | undefined;

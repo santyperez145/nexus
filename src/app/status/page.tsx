@@ -154,6 +154,23 @@ export default async function StatusPage() {
           → <code className="text-zinc-700">mode: live|echo</code>,{" "}
           <code className="text-zinc-700">ok</code> requiere Postgres cableado.
         </p>
+
+        <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-4">
+          <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">
+            Probar sin key
+          </div>
+          <p className="mt-1 text-sm text-zinc-600">
+            Guest eco vía <code className="text-zinc-800">X-Nexus-Guest: 1</code> — mismo path que{" "}
+            <Link href="/chat" className="text-amber-700 hover:underline">
+              /chat
+            </Link>{" "}
+            y{" "}
+            <Link href="/arena" className="text-amber-700 hover:underline">
+              /arena
+            </Link>
+            .
+          </p>
+        </div>
       </div>
     </MarketingShell>
   );

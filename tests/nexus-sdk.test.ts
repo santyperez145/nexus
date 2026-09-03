@@ -204,4 +204,32 @@ describe("nexus-sdk", () => {
     assert.ok(calls[0].includes("window=7d"));
     assert.ok(calls[1].endsWith("/auth/key"));
   });
+
+  it("sends X-Nexus-Guest without bearer when guest:true", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      guest: true,
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return Response.json({
+          id: "gen-guest",
+          object: "chat.completion",
+          created: 1,
+          model: "nexus/auto",
+          provider: "local",
+          choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: "eco" } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, cost: 0 },
+        });
+      },
+    });
+    const res = await nexus.chat.send({
+      model: "nexus/auto",
+      messages: [{ role: "user", content: "ping" }],
+    });
+    assert.equal(res.choices[0]?.message.content, "eco");
+    const headers = new Headers(calls[0].init.headers);
+    assert.equal(headers.get("x-nexus-guest"), "1");
+    assert.equal(headers.get("authorization"), null);
+  });
 });

@@ -20,10 +20,14 @@ export default async function ArenaPage({
 
   return (
     <MarketingShell>
-      <div className="mx-auto max-w-5xl px-4 py-12 md:py-16">
+      <div className="relative mx-auto max-w-5xl px-4 py-12 md:py-16">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+        />
         <MarketingPageHeader title="Arena">
-          Un prompt, dos modelos, un voto. Los resultados viven en tu browser — sin ranking global
-          inventado ni tracción fake.
+          Un prompt, dos modelos, un voto. Guest = eco local; sesión = hops live/BYOK. Los votos viven
+          en tu browser — sin leaderboard inventado.
         </MarketingPageHeader>
         <ArenaClient defaultA={defaultA} defaultB={defaultB} models={models.slice(0, 200)} />
       </div>
