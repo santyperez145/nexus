@@ -3,9 +3,11 @@ import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
+import { APP_URL } from "@/lib/config";
 import { formatUsd, microsToUsd } from "@/lib/money";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 
 export default async function GenerationPage({
   params,
@@ -22,10 +24,26 @@ export default async function GenerationPage({
   const cached = Number(meta.cached_tokens ?? 0);
   const modality = typeof meta.modality === "string" ? meta.modality : null;
   const local = Boolean(meta.local);
+  const hops = Array.isArray(meta.route_hops)
+    ? (meta.route_hops as Array<{ model?: string; adapter?: string; zdr?: boolean }>)
+    : [];
   const when = new Intl.DateTimeFormat("es-AR", {
     dateStyle: "medium",
     timeStyle: "medium",
   }).format(new Date(row.createdAt));
+
+  const totalTok = Math.max(1, row.promptTokens + row.completionTokens + row.reasoningTokens + cached);
+  const tokenParts = [
+    { label: "prompt", n: row.promptTokens, color: "bg-amber-400/70" },
+    { label: "completion", n: row.completionTokens, color: "bg-emerald-400/60" },
+    { label: "reasoning", n: row.reasoningTokens, color: "bg-sky-400/50" },
+    { label: "cached", n: cached, color: "bg-zinc-400/40" },
+  ].filter((p) => p.n > 0);
+
+  const curl = `curl ${APP_URL}/api/v1/chat/completions \\
+  -H "Authorization: Bearer $NEXUS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"${row.routedModel}","messages":[{"role":"user","content":"replay"}]}'`;
 
   const payload = {
     id: row.id,
@@ -46,6 +64,8 @@ export default async function GenerationPage({
     created_at: Math.floor(new Date(row.createdAt).getTime() / 1000),
     metadata: meta,
     error: row.error,
+    prompt: row.prompt ?? undefined,
+    completion: row.completion ?? undefined,
   };
 
   return (
@@ -57,6 +77,8 @@ export default async function GenerationPage({
         title={row.id}
         actions={
           <>
+            <CopyButton value={row.id} label="Copiar id" />
+            <CopyButton value={curl} label="Copiar curl" />
             <Button asChild size="sm" variant="outline">
               <Link href={`/chat?model=${encodeURIComponent(row.routedModel)}`}>Abrir en chat</Link>
             </Button>
@@ -70,7 +92,25 @@ export default async function GenerationPage({
         {modality ? ` · ${modality}` : ""}
         {local ? " · local" : ""}
         {row.streamed ? " · streamed" : ""}
+        {row.isByok ? " · BYOK" : ""}
+        {row.error ? " · error" : ""}
       </AppPageHeader>
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {[
+          row.streamed ? "streamed" : "sync",
+          row.isByok ? "byok" : "pool",
+          local ? "local echo" : "lab",
+          row.error ? "failed" : "ok",
+        ].map((b) => (
+          <span
+            key={b}
+            className="rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-zinc-400"
+          >
+            {b}
+          </span>
+        ))}
+      </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-4">
         {[
@@ -87,6 +127,49 @@ export default async function GenerationPage({
           </div>
         ))}
       </div>
+
+      <section className="mb-8 rounded-2xl border border-white/10 px-4 py-4">
+        <div className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Token split</div>
+        <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-white/5">
+          {tokenParts.map((p) => (
+            <div
+              key={p.label}
+              className={p.color}
+              style={{ width: `${Math.max(2, (p.n / totalTok) * 100)}%` }}
+              title={`${p.label}: ${p.n}`}
+            />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-3 text-xs text-zinc-500">
+          {tokenParts.map((p) => (
+            <span key={p.label}>
+              {p.label} <span className="tabular-nums text-zinc-300">{p.n.toLocaleString()}</span>
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {hops.length ? (
+        <section className="mb-8">
+          <h2 className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Route hops</h2>
+          <ol className="flex flex-wrap gap-1.5">
+            {hops.map((h, i) => (
+              <li
+                key={`${h.adapter}-${h.model}-${i}`}
+                className={`rounded border px-1.5 py-0.5 font-mono text-[11px] ${
+                  h.adapter === row.provider
+                    ? "border-amber-400/40 text-amber-200"
+                    : "border-white/10 text-zinc-500"
+                }`}
+                title={h.zdr ? "ZDR" : "standard"}
+              >
+                {h.adapter}
+                {h.zdr ? " ·zdr" : ""}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
 
       <dl className="mb-8 grid gap-0 overflow-hidden rounded-2xl border border-white/10 text-sm md:grid-cols-2">
         {[
@@ -118,7 +201,10 @@ export default async function GenerationPage({
 
       {row.prompt ? (
         <section className="mb-4">
-          <h2 className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Prompt</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">Prompt</h2>
+            <CopyButton value={row.prompt} />
+          </div>
           <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-xs text-zinc-300">
             {row.prompt}
           </pre>
@@ -126,7 +212,10 @@ export default async function GenerationPage({
       ) : null}
       {row.completion ? (
         <section className="mb-4">
-          <h2 className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Completion</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">Completion</h2>
+            <CopyButton value={row.completion} />
+          </div>
           <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-xs text-zinc-200">
             {row.completion}
           </pre>
@@ -138,7 +227,10 @@ export default async function GenerationPage({
       )}
 
       <section>
-        <h2 className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">JSON (API shape)</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">JSON (API shape)</h2>
+          <CopyButton value={JSON.stringify(payload, null, 2)} />
+        </div>
         <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-[11px] text-zinc-400">
           {JSON.stringify(payload, null, 2)}
         </pre>

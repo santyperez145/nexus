@@ -9,6 +9,7 @@ import { useRemoteData } from "@/lib/use-remote-data";
 
 type Credits = { remaining: number };
 type KeyRow = { id: string; prefix: string };
+type Status = { ok?: boolean; providers?: Record<string, boolean> };
 
 const STEPS = [
   { id: 1, title: "Crédito", body: "Tu wallet nace con $1 de bienvenida." },
@@ -20,19 +21,41 @@ const STEPS = [
 export default function WelcomePage() {
   const [credits] = useRemoteData<Credits>("/api/v1/credits");
   const [keys, reloadKeys] = useRemoteData<KeyRow[]>("/api/v1/keys");
+  const [wiredLabs, setWiredLabs] = useState(0);
   const [plain, setPlain] = useState<string | null>(null);
   const [curl, setCurl] = useState<string | null>(null);
   const [ping, setPing] = useState<string | null>(null);
+  const [pingOk, setPingOk] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    // mark seen
     try {
       localStorage.setItem("nexus_welcome_seen", "1");
     } catch {
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetch("/api/v1/status", { signal: ac.signal })
+      .then((r) => r.json())
+      .then((json: Status) => {
+        if (ac.signal.aborted) return;
+        setWiredLabs(Object.values(json.providers ?? {}).filter(Boolean).length);
+      })
+      .catch(() => undefined);
+    return () => ac.abort();
+  }, []);
+
+  const done = {
+    1: Boolean(credits && credits.remaining > 0),
+    2: Boolean(plain || (keys && keys.length > 0)),
+    3: pingOk,
+    4: wiredLabs > 0,
+  };
+  const active = !done[1] ? 1 : !done[2] ? 2 : !done[3] ? 3 : 4;
+  const completedCount = Object.values(done).filter(Boolean).length;
 
   async function reveal() {
     setBusy(true);
@@ -67,11 +90,11 @@ export default function WelcomePage() {
       const json = await res.json();
       if (!res.ok) {
         setPing(json.error?.message ?? "Error");
+        setPingOk(false);
         return;
       }
-      setPing(
-        `OK · ${json.model} · ${json.provider ?? "?"} · gen ${json.id ?? ""}`.trim(),
-      );
+      setPingOk(true);
+      setPing(`OK · ${json.model} · ${json.provider ?? "?"} · gen ${json.id ?? ""}`.trim());
     } finally {
       setBusy(false);
     }
@@ -80,19 +103,46 @@ export default function WelcomePage() {
   return (
     <div className="max-w-3xl">
       <AppPageHeader title="Bienvenido a Nexus">
-        Setup en 4 pasos. Sin inventar tracción: saldo real, key real, request real.
+        Setup en 4 pasos · {completedCount}/4 listos. Saldo real, key real, request real.
       </AppPageHeader>
 
+      <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-white/5">
+        <div
+          className="h-full rounded-full bg-amber-400/70 transition-[width]"
+          style={{ width: `${(completedCount / 4) * 100}%` }}
+        />
+      </div>
+
       <ol className="mb-8 grid gap-3 sm:grid-cols-2">
-        {STEPS.map((s) => (
-          <li key={s.id} className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
-            <div className="text-[10px] uppercase tracking-[0.12em] text-amber-500/80">Paso {s.id}</div>
-            <div className="mt-1 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
-              {s.title}
-            </div>
-            <p className="mt-1 text-sm text-zinc-500">{s.body}</p>
-          </li>
-        ))}
+        {STEPS.map((s) => {
+          const isDone = done[s.id as 1 | 2 | 3 | 4];
+          const isActive = active === s.id;
+          return (
+            <li
+              key={s.id}
+              className={`rounded-xl border px-4 py-3 ${
+                isActive
+                  ? "border-amber-400/40 bg-amber-400/[0.06]"
+                  : isDone
+                    ? "border-emerald-500/25 bg-emerald-500/[0.04]"
+                    : "border-white/10 bg-white/[0.02]"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[10px] uppercase tracking-[0.12em] text-amber-500/80">
+                  Paso {s.id}
+                </div>
+                <span className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  {isDone ? "listo" : isActive ? "ahora" : "luego"}
+                </span>
+              </div>
+              <div className="mt-1 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100">
+                {s.title}
+              </div>
+              <p className="mt-1 text-sm text-zinc-500">{s.body}</p>
+            </li>
+          );
+        })}
       </ol>
 
       <section className="mb-6 rounded-2xl border border-white/10 p-4">
@@ -135,15 +185,32 @@ export default function WelcomePage() {
         {ping ? <p className="font-mono text-xs text-zinc-400">{ping}</p> : null}
       </section>
 
+      <section className="mb-8 rounded-2xl border border-white/10 p-4">
+        <div className="font-medium text-zinc-200">Cables</div>
+        <p className="mt-1 text-sm text-zinc-500">
+          {wiredLabs > 0
+            ? `${wiredLabs} lab(s) cableados en esta instancia.`
+            : "Sin labs de plataforma — el ping usa eco local hasta BYOK o Conexiones."}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/settings/connections">Conexiones</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/settings/byok">BYOK</Link>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <Link href="/status">Status</Link>
+          </Button>
+        </div>
+      </section>
+
       <div className="flex flex-wrap gap-2">
         <Button asChild>
           <Link href="/chat">Abrir Chat</Link>
         </Button>
         <Button asChild variant="outline">
           <Link href="/studio">Studio</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/settings/connections">Conexiones</Link>
         </Button>
         <Button asChild variant="ghost">
           <Link href="/overview">Overview</Link>

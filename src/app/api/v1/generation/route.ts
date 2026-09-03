@@ -38,6 +38,8 @@ export async function GET(req: Request) {
         error: row.error,
         metadata: row.metadata,
         requested_model: row.requestedModel,
+        prompt: row.prompt ?? undefined,
+        completion: row.completion ?? undefined,
       },
     });
   } catch (error) {

@@ -70,8 +70,19 @@ await nexus.chat.completions.create({
 | `nexus.audio.speech` / `.transcriptions` | `/audio/*` |
 | `nexus.videos.create` / `.get` | `/videos` |
 | `nexus.keys.list` / `.create` / `.rotate` / `.update` / `.delete` | `/keys` |
-| `nexus.providers.list` | `/providers` |
+| `nexus.providers.list` / `.health` | `/providers` |
 | `nexus.files.list` / `.upload` / `.delete` | `/files` |
-| `nexus.analytics.get` | `/analytics` |
+| `nexus.analytics.get(days?)` | `/analytics` |
+| `nexus.presets.*` | `/presets` |
+| `nexus.guardrails.*` | `/guardrails` |
+| `nexus.byok.*` | `/byok` |
+| `nexus.workspaces.*` | `/workspaces` |
+| `nexus.organization.*` | `/organization` |
+| `nexus.observability.*` | `/observability` |
+
+> El nombre npm público `nexus-sdk` puede estar ocupado por un paquete ajeno. En este monorepo usá
+> `"nexus-sdk": "file:packages/sdk"`. En prod, preferí un scope propio (`@tu-org/nexus`).
 
 `NEXUS_MODEL_IDS` es el union de slugs del catálogo (autocompletado). Routers: `nexus/auto`, `nexus/free`. Variantes: `:fast`, `:cheap`, `:quality`, `:online`.
+
+Route preview (sin SDK tipado aún): `POST /routing/preview` con el mismo Bearer.

@@ -17,6 +17,21 @@ import { applyPreset } from "./presets";
 import { chatChunkPayload, chatCompletionPayload, usagePayload } from "./openai-compat";
 import { dispatchGenerationWebhook } from "@/lib/observability/dispatch";
 
+function summarizeRouteHops(plan: ReturnType<typeof resolveRoute>) {
+  const hops: Array<{ model: string; adapter: string; zdr: boolean }> = [];
+  for (const candidate of plan.models) {
+    for (const endpoint of candidate.endpoints) {
+      hops.push({
+        model: candidate.model.id,
+        adapter: endpoint.adapter,
+        zdr: Boolean(endpoint.zdr),
+      });
+      if (hops.length >= 16) return hops;
+    }
+  }
+  return hops;
+}
+
 function normalizeMessages(req: ChatRequest): ChatMessage[] {
   if (req.messages?.length) return req.messages;
   if (req.prompt) return [{ role: "user", content: req.prompt }];
@@ -49,6 +64,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
       plan.models = loose.models;
     }
   }
+  const routeHops = summarizeRouteHops(plan);
   if (!plan.models.length) {
     throw Object.assign(new Error("No available providers match your routing and privacy settings"), {
       status: 404,
@@ -114,6 +130,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
             genId,
             started,
             tools,
+            routeHops,
           });
         }
         const result = await completeChat({
@@ -155,6 +172,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
           streamed: false,
           isByok: Boolean(byok) && !result.local,
           messages,
+          routeHops,
         });
         return jsonCompletion(
           chatCompletionPayload({
@@ -198,6 +216,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
         endpoint,
         genId,
         started,
+        routeHops,
       });
     }
     const result = await completeChat({
@@ -237,6 +256,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
       streamed: false,
       isByok: false,
       messages,
+      routeHops,
     });
     return jsonCompletion(
       chatCompletionPayload({
@@ -271,6 +291,7 @@ async function streamCompletion(opts: {
   genId: string;
   started: number;
   tools?: ReturnType<typeof buildServerTools>;
+  routeHops?: Array<{ model: string; adapter: string; zdr: boolean }>;
 }) {
   const streamed = await streamChat({
     endpoint: opts.endpoint,
@@ -353,6 +374,7 @@ async function streamCompletion(opts: {
             streamed: true,
             isByok: Boolean(opts.byok),
             messages: opts.messages,
+            routeHops: opts.routeHops,
           });
         } else if ("text" in streamed) {
           full = streamed.text;
@@ -405,6 +427,7 @@ async function streamCompletion(opts: {
             streamed: true,
             isByok: false,
             messages: opts.messages,
+            routeHops: opts.routeHops,
           });
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -450,6 +473,7 @@ async function persistGeneration(opts: {
   streamed: boolean;
   isByok: boolean;
   messages: ChatMessage[];
+  routeHops?: Array<{ model: string; adapter: string; zdr: boolean }>;
 }) {
   await db.insert(schema.generations).values({
     id: opts.genId,
@@ -471,7 +495,11 @@ async function persistGeneration(opts: {
     appTitle: opts.headers.get("x-nexus-title") ?? opts.headers.get("x-title"),
     prompt: opts.auth.logPrompts ? JSON.stringify(opts.messages) : null,
     completion: opts.auth.logPrompts ? opts.result.text : null,
-    metadata: { local: opts.result.local, cached_tokens: opts.result.cachedTokens ?? 0 },
+    metadata: {
+      local: opts.result.local,
+      cached_tokens: opts.result.cachedTokens ?? 0,
+      route_hops: opts.routeHops ?? [],
+    },
   });
   await dispatchGenerationWebhook(opts.auth.userId, {
     id: opts.genId,
