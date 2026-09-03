@@ -1,0 +1,31 @@
+import { count, desc, eq } from "drizzle-orm";
+import { OperationsActions } from "@/components/admin/operations-actions";
+import { AppPageHeader } from "@/components/layout/app-page-header";
+import { connectionStatus } from "@/lib/connections";
+import { db, ensureDb, schema } from "@/lib/db";
+import { readProviderHealthRows } from "@/lib/providers/health-store";
+import { isRecentHealthy } from "@/lib/providers/probe";
+
+export default async function AdminOperationsPage() {
+  await ensureDb();
+  const status = connectionStatus();
+  const [health, snapshots, pendingWebhooks, failedWebhooks] = await Promise.all([
+    readProviderHealthRows(),
+    db.select().from(schema.catalogSnapshots).orderBy(desc(schema.catalogSnapshots.fetchedAt)).limit(8),
+    db.select({ count: count() }).from(schema.webhookDeliveries).where(eq(schema.webhookDeliveries.status, "pending")),
+    db.select({ count: count() }).from(schema.webhookDeliveries).where(eq(schema.webhookDeliveries.status, "failed")),
+  ]);
+  const healthByProvider = new Map(health.map((row) => [row.provider, row]));
+  const infrastructure = [status.database, status.auth, status.stripe, status.redis];
+  return <div>
+    <AppPageHeader title="Operaciones" actions={<OperationsActions />}>Configuración, salud observada y tareas operatorias. “Configurado” sólo confirma el entorno; “operativo” exige una sonda reciente exitosa.</AppPageHeader>
+    <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{infrastructure.map((item)=><section key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-4"><div className="flex items-center justify-between gap-2"><div className="font-medium">{item.label}</div><span className={`size-2.5 rounded-full ${item.wired ? "bg-emerald-500" : "bg-zinc-300"}`} /></div><p className="mt-2 text-xs leading-5 text-zinc-500">{item.hint}</p></section>)}</div>
+    <div className="grid gap-6 xl:grid-cols-[1.4fr_.8fr]">
+      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white"><div className="border-b border-zinc-200 px-4 py-3"><h2 className="font-semibold">Proveedores</h2></div><div className="grid md:grid-cols-2">{status.providers.map((provider)=>{const row=healthByProvider.get(provider.id);const operational=Boolean(row&&isRecentHealthy(row));return <div key={provider.id} className="flex items-start justify-between gap-3 border-b border-zinc-100 px-4 py-3 md:odd:border-r"><div><div className="text-sm font-medium">{provider.label}</div><div className="mt-1 font-mono text-[10px] text-zinc-400">{provider.env}</div></div><div className="text-right text-xs"><div className={operational?"text-emerald-700":provider.wired?"text-amber-700":"text-zinc-400"}>{operational?"Operativo":provider.wired?"Sin salud reciente":"Sin configurar"}</div><div className="mt-1 text-[10px] text-zinc-400">{row ? `${row.latencyMs ?? "—"} ms · ${new Date(row.lastCheck).toLocaleString("es-AR")}` : "Nunca verificado"}</div></div></div>})}</div></section>
+      <div className="grid content-start gap-4">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4"><h2 className="font-semibold">Entregas de observabilidad</h2><div className="mt-4 grid grid-cols-2 gap-3"><div><div className="text-2xl font-semibold">{Number(pendingWebhooks[0]?.count ?? 0)}</div><div className="text-xs text-zinc-500">Pendientes/reintento</div></div><div><div className="text-2xl font-semibold">{Number(failedWebhooks[0]?.count ?? 0)}</div><div className="text-xs text-zinc-500">Terminales</div></div></div></section>
+        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white"><div className="border-b border-zinc-200 px-4 py-3"><h2 className="font-semibold">Snapshots de catálogo</h2></div><div className="divide-y divide-zinc-100">{snapshots.map((snapshot)=><div key={snapshot.id} className="flex justify-between gap-3 px-4 py-3 text-xs"><div><div className="font-medium">{snapshot.source}</div><div className="mt-1 text-zinc-500">{new Date(snapshot.fetchedAt).toLocaleString("es-AR")}</div></div><div>{snapshot.modelCount.toLocaleString()} modelos</div></div>)}{!snapshots.length?<p className="px-4 py-8 text-center text-sm text-zinc-500">Sin sincronizaciones persistidas.</p>:null}</div></section>
+      </div>
+    </div>
+  </div>;
+}

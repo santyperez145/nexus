@@ -73,9 +73,18 @@ function isActive(pathname: string, href: string) {
 const activeCls = "bg-zinc-100 text-zinc-950";
 const idleCls = "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950";
 
-export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile" }) {
+export function AppNav({
+  variant = "sidebar",
+  platformAdmin = false,
+}: {
+  variant?: "sidebar" | "mobile";
+  platformAdmin?: boolean;
+}) {
   const pathname = usePathname() || "/overview";
   const [open, setOpen] = useState(false);
+  const groups = platformAdmin
+    ? [...GROUPS, { title: "Plataforma", items: [{ href: "/admin", label: "Superadmin" }] }]
+    : GROUPS;
 
   if (variant === "mobile") {
     return (
@@ -104,7 +113,7 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
         </nav>
         {open ? (
           <div className="max-h-[60vh] space-y-4 overflow-y-auto border-t border-zinc-200 bg-white px-3 py-3 text-sm">
-            {GROUPS.map((group) => (
+            {groups.map((group) => (
               <div key={group.title}>
                 <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
                   {group.title}
@@ -142,7 +151,7 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <nav className="flex-1 space-y-5 overflow-y-auto pb-4 text-sm">
-        {GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.title}>
             <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
               {group.title}

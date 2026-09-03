@@ -7,6 +7,7 @@ import { formatUsd, microsToUsd } from "@/lib/money";
 import { NexusWordmark } from "@/components/brand/nexus-logo";
 import { AppNav } from "@/components/layout/app-nav";
 import { SignOutButton } from "@/components/layout/sign-out";
+import { isPlatformAdmin } from "@/lib/config";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -14,6 +15,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   await ensureDb();
   const [user] = await db.select().from(schema.users).where(eq(schema.users.id, session.user.id)).limit(1);
   const balance = formatUsd(microsToUsd(user?.creditMicros ?? 0), 2);
+  const platformAdmin = isPlatformAdmin(session.user.email);
 
   return (
     <div className="relative min-h-screen bg-zinc-50 text-zinc-900">
@@ -28,7 +30,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500">Saldo disponible</div>
           <div className="text-lg font-semibold tabular-nums text-zinc-950">{balance}</div>
         </Link>
-        <AppNav />
+        <AppNav platformAdmin={platformAdmin} />
       </aside>
       <div className="relative md:pl-[15.5rem]">
         <div className="flex items-center justify-between gap-2 border-b border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-500 md:hidden">
@@ -43,7 +45,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <SignOutButton compact />
           </div>
         </div>
-        <AppNav variant="mobile" />
+        <AppNav variant="mobile" platformAdmin={platformAdmin} />
         <main className="relative mx-auto max-w-6xl p-4 md:p-8">{children}</main>
       </div>
     </div>
