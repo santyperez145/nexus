@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { NexusWordmark } from "@/components/brand/nexus-logo";
 import { HeroMesh } from "@/components/brand/hero-mesh";
+import { AuthTrustStrip } from "@/components/layout/auth-trust-strip";
 import { SIGNUP_BONUS_MICROS } from "@/lib/config";
 import { formatUsd, microsToUsd } from "@/lib/money";
 
@@ -36,6 +37,7 @@ export function AuthShell({
             </p>
             <p className="mt-4 text-sm leading-relaxed text-zinc-600">
               Routing, fallbacks, BYOK y créditos con 0% markup en inferencia. Fee solo al cargar.
+              Guest playground con eco local sin signup.
             </p>
             <ul className="mt-8 space-y-2 text-sm text-zinc-600">
               <li className="flex gap-2">
@@ -49,6 +51,7 @@ export function AuthShell({
                 <span className="text-amber-700">→</span> Route trace antes de gastar
               </li>
             </ul>
+            <AuthTrustStrip />
           </div>
           <p className="text-xs text-zinc-400">
             <Link href="/status" className="hover:text-zinc-600">
@@ -61,6 +64,10 @@ export function AuthShell({
             {" · "}
             <Link href="/credits" className="hover:text-zinc-600">
               Credits
+            </Link>
+            {" · "}
+            <Link href="/chat" className="hover:text-zinc-600">
+              Chat guest
             </Link>
           </p>
         </aside>

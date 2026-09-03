@@ -18,8 +18,9 @@ type Row = {
   created: number;
   contextLength: number;
   output: string[];
+  input: string[];
   pricing: { prompt: number; completion: number };
-  endpoints: Array<{ adapter: string }>;
+  endpoints: Array<{ adapter: string; zdr?: boolean }>;
 };
 
 function matchesMod(m: Row, mod: string) {
@@ -62,19 +63,27 @@ export function ModelsExplorer({
   const [table, setTable] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [latencyByModel, setLatencyByModel] = useState<Map<string, number>>(new Map());
+  const [tokensByModel, setTokensByModel] = useState<Map<string, number>>(new Map());
   const router = useRouter();
 
   useEffect(() => {
     const ac = new AbortController();
     fetch("/api/v1/datasets/models?window=30d", { signal: ac.signal })
       .then((r) => r.json())
-      .then((json: { data?: Array<{ model: string; avg_latency_ms: number | null }> }) => {
-        const map = new Map<string, number>();
-        for (const row of json.data ?? []) {
-          if (row.avg_latency_ms != null) map.set(row.model, row.avg_latency_ms);
-        }
-        setLatencyByModel(map);
-      })
+      .then(
+        (json: {
+          data?: Array<{ model: string; avg_latency_ms: number | null; tokens?: number }>;
+        }) => {
+          const lat = new Map<string, number>();
+          const tok = new Map<string, number>();
+          for (const row of json.data ?? []) {
+            if (row.avg_latency_ms != null) lat.set(row.model, row.avg_latency_ms);
+            if (row.tokens != null && row.tokens > 0) tok.set(row.model, row.tokens);
+          }
+          setLatencyByModel(lat);
+          setTokensByModel(tok);
+        },
+      )
       .catch(() => undefined);
     return () => ac.abort();
   }, []);
@@ -158,8 +167,39 @@ export function ModelsExplorer({
       return b.created - a.created;
     });
 
+  const trending = useMemo(() => {
+    return [...tokensByModel.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([id, tokens]) => ({ id, tokens, row: models.find((m) => m.id === id) }))
+      .filter((t) => t.row);
+  }, [tokensByModel, models]);
+
   return (
     <div>
+      {trending.length ? (
+        <div className="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <div className="border-b border-zinc-100 bg-zinc-50/80 px-4 py-2 text-[11px] uppercase tracking-[0.06em] text-zinc-500">
+            Trending 30d · tokens reales de esta instancia
+          </div>
+          <div className="flex gap-2 overflow-x-auto px-3 py-3">
+            {trending.map((t, i) => (
+              <Link
+                key={t.id}
+                href={`/models/${t.id}`}
+                className="min-w-[10.5rem] shrink-0 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 transition-colors hover:border-amber-600/40"
+              >
+                <div className="font-mono text-[10px] text-zinc-400">#{i + 1}</div>
+                <div className="mt-0.5 truncate font-mono text-xs text-amber-700">{t.id}</div>
+                <div className="mt-1 tabular-nums text-[11px] text-zinc-500">
+                  {t.tokens.toLocaleString()} tok
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="sticky top-0 z-10 -mx-1 mb-5 space-y-3 border-b border-zinc-200 bg-[#fafaf9]/95 px-1 pb-4 pt-1 backdrop-blur">
         <div className="flex flex-wrap gap-1.5">
           {MODALITIES.map((item) => {
@@ -295,7 +335,7 @@ export function ModelsExplorer({
       {table ? (
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead className="border-b border-zinc-200 bg-zinc-50/80 text-[11px] uppercase tracking-[0.06em] text-zinc-500">
                 <tr>
                   <th className="w-8 px-2 py-2.5" />
@@ -303,14 +343,18 @@ export function ModelsExplorer({
                   <th className="px-3 py-2.5 font-medium">Mod</th>
                   <th className="px-3 py-2.5 font-medium">Contexto</th>
                   <th className="px-3 py-2.5 font-medium">Prompt / 1M</th>
+                  <th className="px-3 py-2.5 font-medium">Comp / 1M</th>
                   <th className="px-3 py-2.5 font-medium">Lat 30d</th>
                   <th className="px-3 py-2.5 font-medium">Labs</th>
+                  <th className="px-3 py-2.5 font-medium" />
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((m, i) => {
                   const on = selected.includes(m.id);
                   const lat = latencyByModel.get(m.id);
+                  const vision = m.input?.includes("image");
+                  const zdr = m.endpoints.some((e) => e.zdr);
                   return (
                     <tr
                       key={m.id}
@@ -328,7 +372,24 @@ export function ModelsExplorer({
                         <Link href={`/models/${m.id}`} className="font-mono text-[13px] text-amber-700 hover:underline">
                           {m.id}
                         </Link>
-                        <div className="mt-0.5 text-xs text-zinc-500">{m.name}</div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+                          <span>{m.name}</span>
+                          {vision ? (
+                            <span className="rounded border border-violet-200 bg-violet-50 px-1 text-[10px] text-violet-800">
+                              vision
+                            </span>
+                          ) : null}
+                          {zdr ? (
+                            <span className="rounded border border-sky-200 bg-sky-50 px-1 text-[10px] text-sky-800">
+                              zdr
+                            </span>
+                          ) : null}
+                          {m.free ? (
+                            <span className="rounded border border-emerald-200 bg-emerald-50 px-1 text-[10px] text-emerald-800">
+                              free
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex flex-wrap gap-1">
@@ -347,6 +408,9 @@ export function ModelsExplorer({
                       </td>
                       <td className="px-3 py-2.5 tabular-nums text-zinc-600">
                         {m.free ? "Gratis" : formatUsd(usdPerMillion(m.pricing.prompt), 2)}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-zinc-500">
+                        {m.free ? "—" : formatUsd(usdPerMillion(m.pricing.completion), 2)}
                       </td>
                       <td className="px-3 py-2.5 tabular-nums text-zinc-500">
                         {lat != null ? `${lat} ms` : "—"}
@@ -368,6 +432,14 @@ export function ModelsExplorer({
                             ))}
                         </div>
                       </td>
+                      <td className="px-3 py-2.5">
+                        <Link
+                          href={`/chat?model=${encodeURIComponent(m.id)}`}
+                          className="text-xs text-amber-700 hover:underline"
+                        >
+                          Try
+                        </Link>
+                      </td>
                     </tr>
                   );
                 })}
@@ -380,6 +452,8 @@ export function ModelsExplorer({
           {filtered.map((m) => {
             const lat = latencyByModel.get(m.id);
             const on = selected.includes(m.id);
+            const vision = m.input?.includes("image");
+            const zdr = m.endpoints.some((e) => e.zdr);
             return (
               <div
                 key={m.id}
@@ -387,7 +461,13 @@ export function ModelsExplorer({
                   on ? "border-amber-600/50 ring-1 ring-amber-600/20" : "border-zinc-200 hover:border-amber-600/40"
                 }`}
               >
-                <div className="absolute right-3 top-3">
+                <div className="absolute right-3 top-3 flex items-center gap-2">
+                  <Link
+                    href={`/chat?model=${encodeURIComponent(m.id)}`}
+                    className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-amber-800 opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    Try
+                  </Link>
                   <input
                     type="checkbox"
                     checked={on}
@@ -396,7 +476,7 @@ export function ModelsExplorer({
                     className="size-4"
                   />
                 </div>
-                <Link href={`/models/${m.id}`} className="block pr-8">
+                <Link href={`/models/${m.id}`} className="block pr-16">
                   <div className="font-[family-name:var(--font-syne)] text-lg font-semibold tracking-tight text-zinc-950">
                     {m.name}
                   </div>
@@ -418,6 +498,21 @@ export function ModelsExplorer({
                     ) : null}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1">
+                    {vision ? (
+                      <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-violet-800">
+                        vision
+                      </span>
+                    ) : null}
+                    {zdr ? (
+                      <span className="rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-sky-800">
+                        zdr
+                      </span>
+                    ) : null}
+                    {m.free ? (
+                      <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-800">
+                        free
+                      </span>
+                    ) : null}
                     {m.output.slice(0, 3).map((o) => (
                       <span
                         key={o}

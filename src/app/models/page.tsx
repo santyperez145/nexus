@@ -27,15 +27,20 @@ export default async function ModelsPage({
     created: m.created,
     contextLength: m.contextLength,
     output: m.architecture.outputModalities,
+    input: m.architecture.inputModalities,
     pricing: { prompt: m.pricing.prompt, completion: m.pricing.completion },
-    endpoints: m.endpoints.map((e) => ({ adapter: e.adapter })),
+    endpoints: m.endpoints.map((e) => ({ adapter: e.adapter, zdr: Boolean(e.zdr) })),
   }));
   return (
     <MarketingShell>
-      <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
+      <div className="relative mx-auto max-w-6xl px-4 py-12 md:py-16">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+        />
         <MarketingPageHeader title="Models">
-          Un slug, varios labs. Filtrá por modalidad, free, autor o host; ordená por precio, contexto o
-          latencia medida. Marcá 2 para Compare.
+          Un slug, varios labs. Trending 30d real · filtros por modalidad / free / autor / host ·
+          badges vision/ZDR · Try + Compare.
         </MarketingPageHeader>
         <ModelsExplorer
           models={models}

@@ -12,6 +12,8 @@ import {
   upsertChatSession,
   useChatSessions,
 } from "@/components/chat/chat-sessions";
+import { readRoutingPrefs } from "@/lib/routing-prefs";
+import { useRoutingPrefs } from "@/lib/use-routing-prefs";
 
 type Msg = { role: "user" | "assistant" | "system"; content: string; images?: string[] };
 type Stats = {
@@ -81,11 +83,18 @@ export function Playground({
   const [online, setOnline] = useState(false);
   const [jsonMode, setJsonMode] = useState(false);
   const [envelope, setEnvelope] = useState<ApiEnvelope>("chat");
-  const [sort, setSort] = useState<"default" | "price" | "throughput" | "latency">("default");
-  const [allowFallbacks, setAllowFallbacks] = useState(true);
-  const [zdrOnly, setZdrOnly] = useState(false);
-  const [onlyRaw, setOnlyRaw] = useState("");
-  const [ignoreRaw, setIgnoreRaw] = useState("");
+  const [routingPrefs, setRoutingPrefs] = useRoutingPrefs();
+  const sort = routingPrefs.sort;
+  const allowFallbacks = routingPrefs.allowFallbacks;
+  const zdrOnly = routingPrefs.zdrOnly;
+  const onlyRaw = routingPrefs.only;
+  const ignoreRaw = routingPrefs.ignore;
+  const setSort = (v: typeof sort) => setRoutingPrefs({ ...readRoutingPrefs(), sort: v });
+  const setAllowFallbacks = (v: boolean) =>
+    setRoutingPrefs({ ...readRoutingPrefs(), allowFallbacks: v });
+  const setZdrOnly = (v: boolean) => setRoutingPrefs({ ...readRoutingPrefs(), zdrOnly: v });
+  const setOnlyRaw = (v: string) => setRoutingPrefs({ ...readRoutingPrefs(), only: v });
+  const setIgnoreRaw = (v: string) => setRoutingPrefs({ ...readRoutingPrefs(), ignore: v });
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
