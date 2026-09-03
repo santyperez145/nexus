@@ -32,7 +32,7 @@ const ENDPOINTS = [
   ["GET/POST/DELETE", "/api/v1/observability", "Webhooks de generaciones"],
   ["GET", "/api/v1/providers/health", "Circuit breakers"],
   ["POST", "/api/v1/routing/preview", "Preview de hops de routing"],
-  ["GET/POST", "/api/v1/shares", "Chat shares públicos (read-only)"],
+  ["GET/POST/DELETE", "/api/v1/shares", "Chat shares públicos + revoke propios"],
   ["GET", "/api/v1/status", "Estado de cables"],
 ];
 
@@ -71,6 +71,8 @@ export default function DocsPage() {
             ["/docs/provider-routing", "Provider routing", "only · ignore · sort · ZDR"],
             ["/docs/parameters", "Parameters", "sampling · tools · JSON · transforms"],
             ["/docs/streaming", "Streaming", "SSE · usage · X-Request-Id"],
+            ["/docs/envelopes", "Envelopes", "Messages · Responses · completions"],
+            ["/docs/media", "Media", "imagen · TTS · STT · video · embed"],
             ["/docs/errors", "Errors", "códigos gateway tipados"],
             ["/docs/limits", "Limits", "RPD free · budgets · files"],
             ["/rss.xml", "RSS", "changelog feed"],

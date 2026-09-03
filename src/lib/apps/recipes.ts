@@ -140,6 +140,66 @@ const r = await nexus.chat.send({
   messages: [{ role: "user", content: "preview" }],
 });`,
   },
+  {
+    slug: "anthropic-messages",
+    title: "Envelope Anthropic Messages",
+    blurb: "POST /messages — misma inferencia, reshape Anthropic.",
+    tags: ["envelope", "anthropic"],
+    model: "anthropic/claude-sonnet-4",
+    curl: `curl $NEXUS_URL/api/v1/messages \\
+  -H "Authorization: Bearer $NEXUS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "anthropic/claude-sonnet-4",
+    "max_tokens": 128,
+    "messages": [{"role":"user","content":"hola"}]
+  }'`,
+    sdk: `const r = await nexus.messages.create({
+  model: "anthropic/claude-sonnet-4",
+  max_tokens: 128,
+  messages: [{ role: "user", content: "hola" }],
+});`,
+  },
+  {
+    slug: "openai-responses",
+    title: "Envelope OpenAI Responses",
+    blurb: "POST /responses con input string o array.",
+    tags: ["envelope", "openai"],
+    model: "openai/gpt-4o-mini",
+    curl: `curl $NEXUS_URL/api/v1/responses \\
+  -H "Authorization: Bearer $NEXUS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "openai/gpt-4o-mini",
+    "input": "Respondé solo: ok",
+    "max_output_tokens": 32
+  }'`,
+    sdk: `const r = await nexus.responses.create({
+  model: "openai/gpt-4o-mini",
+  input: "Respondé solo: ok",
+  max_output_tokens: 32,
+});`,
+  },
+  {
+    slug: "media-image",
+    title: "Generación de imagen",
+    blurb: "POST /images/generations — placeholder local sin OPENAI key.",
+    tags: ["media", "image"],
+    model: "openai/gpt-image-1",
+    curl: `curl $NEXUS_URL/api/v1/images/generations \\
+  -H "Authorization: Bearer $NEXUS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "openai/gpt-image-1",
+    "prompt": "amber mesh over dark terminal",
+    "n": 1
+  }'`,
+    sdk: `const img = await nexus.images.generate({
+  model: "openai/gpt-image-1",
+  prompt: "amber mesh over dark terminal",
+  n: 1,
+});`,
+  },
 ];
 
 export function findRecipe(slug: string) {

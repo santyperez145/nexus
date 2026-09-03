@@ -35,6 +35,22 @@ export default async function RecipePage({ params }: { params: Promise<{ slug: s
           >
             Probar en chat →
           </Link>
+          {recipe.tags.includes("media") || recipe.tags.includes("image") ? (
+            <Link
+              href="/studio"
+              className="rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-700 hover:underline"
+            >
+              Abrir Studio →
+            </Link>
+          ) : null}
+          {(recipe.tags.includes("envelope") || recipe.slug.includes("messages") || recipe.slug.includes("responses")) ? (
+            <Link
+              href="/docs/envelopes"
+              className="rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-700 hover:underline"
+            >
+              Docs envelopes →
+            </Link>
+          ) : null}
         </div>
         <h2 className="mb-2 text-sm font-medium text-zinc-900">curl</h2>
         <pre className="mb-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-800">

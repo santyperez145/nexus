@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,9 @@ export default function OauthPage() {
         <Button variant="outline" onClick={() => void exchange()} disabled={!verifier || !exchangeCode}>
           Canjear por key
         </Button>
+        <Button asChild size="sm" variant="ghost">
+          <Link href="/settings/keys">Ver keys →</Link>
+        </Button>
       </div>
 
       {code ? (
@@ -156,12 +160,29 @@ export default function OauthPage() {
 
       {msg ? <p className="mt-4 text-sm text-amber-300">{msg}</p> : null}
 
-      <p className="mt-8 text-xs leading-5 text-zinc-600">
-        API: <code className="text-zinc-400">POST /api/v1/oauth</code> con{" "}
-        <code className="text-zinc-400">code_challenge</code> o{" "}
-        <code className="text-zinc-400">code</code> + <code className="text-zinc-400">code_verifier</code>.
-        Paridad con el flujo “authorize → exchange” de OpenRouter Apps, sin inventar marketplace.
-      </p>
+      <section className="mt-8 rounded-2xl border border-white/10 p-4">
+        <div className="mb-2 text-sm font-medium text-zinc-200">curl (server-side app)</div>
+        <pre className="overflow-x-auto font-mono text-[11px] leading-relaxed text-zinc-500">
+{`# 1) challenge = sha256(verifier) hex
+curl $NEXUS_URL/api/v1/oauth \\
+  -H "Authorization: Bearer $SESSION_OR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"code_challenge":"<sha256hex>"}'
+
+# 2) exchange
+curl $NEXUS_URL/api/v1/oauth \\
+  -H "Content-Type: application/json" \\
+  -d '{"code":"<code>","code_verifier":"<verifier>"}'`}
+        </pre>
+        <p className="mt-3 text-xs leading-5 text-zinc-600">
+          Requiere sesión de usuario al emitir el code (cookie o bearer de cuenta). El canje no
+          reutiliza codes. Docs:{" "}
+          <Link href="/docs" className="text-amber-400 hover:underline">
+            /docs
+          </Link>
+          .
+        </p>
+      </section>
     </div>
   );
 }

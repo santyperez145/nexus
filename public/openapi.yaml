@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.10.0
+  version: 0.11.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference.
 servers:
   - url: /api/v1
@@ -477,12 +477,37 @@ paths:
     post:
       summary: Anthropic Messages envelope (engine = chat)
       security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, messages]
+              properties:
+                model: { type: string }
+                max_tokens: { type: integer }
+                messages: { type: array }
+                stream: { type: boolean }
+                fallbacks: { type: array }
+                provider: { type: object }
       responses:
         "200": { description: Anthropic message object }
   /responses:
     post:
       summary: OpenAI Responses envelope (engine = chat)
       security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, input]
+              properties:
+                model: { type: string }
+                input: {}
+                max_output_tokens: { type: integer }
+                stream: { type: boolean }
+                provider: { type: object }
       responses:
         "200": { description: Response object with output[] }
   /videos:
