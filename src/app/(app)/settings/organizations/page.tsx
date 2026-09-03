@@ -99,8 +99,8 @@ export default function OrgsPage() {
   return (
     <div>
       <AppPageHeader title="Organizations">
-        Equipos con roles owner/member, invites por email (7d) y accept por link o token. Paridad
-        B2B tipo OpenRouter orgs — sin inventar billing multi-tenant todavía.
+        Equipos con roles owner/admin/member. Invites por email (7d): owner y admin pueden invitar.
+        Billing multi-tenant sigue separado del wallet de cuenta.
       </AppPageHeader>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
@@ -208,7 +208,7 @@ export default function OrgsPage() {
                 ))}
               </div>
 
-              {o.role === "owner" ? (
+              {o.role === "owner" || o.role === "admin" ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Input
                     value={invite}

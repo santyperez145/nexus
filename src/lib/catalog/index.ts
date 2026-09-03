@@ -34,6 +34,7 @@ export const BUILTIN_ROUTERS: CatalogModel[] = [
     huggingFaceId: null,
     canonicalSlug: "nexus/auto",
     free: false,
+    verified: false,
     endpoints: [],
   },
   {
@@ -64,6 +65,7 @@ export const BUILTIN_ROUTERS: CatalogModel[] = [
     huggingFaceId: null,
     canonicalSlug: "nexus/free",
     free: true,
+    verified: false,
     endpoints: [],
   },
 ];

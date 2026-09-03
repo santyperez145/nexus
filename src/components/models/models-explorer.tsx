@@ -20,7 +20,7 @@ type Row = {
   output: string[];
   input: string[];
   pricing: { prompt: number; completion: number };
-  endpoints: Array<{ adapter: string; zdr?: boolean }>;
+  endpoints: Array<{ adapter: string; zdr?: boolean; verified?: boolean }>;
 };
 
 function matchesMod(m: Row, mod: string) {
@@ -355,6 +355,7 @@ export function ModelsExplorer({
                   const lat = latencyByModel.get(m.id);
                   const vision = m.input?.includes("image");
                   const zdr = m.endpoints.some((e) => e.zdr);
+                  const verified = m.endpoints.some((e) => e.verified);
                   return (
                     <tr
                       key={m.id}
@@ -384,6 +385,15 @@ export function ModelsExplorer({
                               zdr
                             </span>
                           ) : null}
+                          {verified ? (
+                            <span className="rounded border border-amber-200 bg-amber-50 px-1 text-[10px] text-amber-900">
+                              curated
+                            </span>
+                          ) : (
+                            <span className="rounded border border-zinc-200 bg-zinc-50 px-1 text-[10px] text-zinc-500">
+                              discovered
+                            </span>
+                          )}
                           {m.free ? (
                             <span className="rounded border border-emerald-200 bg-emerald-50 px-1 text-[10px] text-emerald-800">
                               free
@@ -454,6 +464,7 @@ export function ModelsExplorer({
             const on = selected.includes(m.id);
             const vision = m.input?.includes("image");
             const zdr = m.endpoints.some((e) => e.zdr);
+            const verified = m.endpoints.some((e) => e.verified);
             return (
               <div
                 key={m.id}
@@ -508,6 +519,15 @@ export function ModelsExplorer({
                         zdr
                       </span>
                     ) : null}
+                    {verified ? (
+                      <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-900">
+                        curated
+                      </span>
+                    ) : (
+                      <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                        discovered
+                      </span>
+                    )}
                     {m.free ? (
                       <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-800">
                         free

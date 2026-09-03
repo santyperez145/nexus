@@ -8,6 +8,10 @@ export type ModelEndpoint = {
   zdr: boolean;
   uptime: number;
   quantization: string;
+  /** Curated host (slug/price/ZDR). Does not imply live telemetry. */
+  verified?: boolean;
+  /** latency/throughput/uptime are placeholders, not measured. */
+  metricsEstimated?: boolean;
 };
 
 export type CatalogModel = {
@@ -42,5 +46,6 @@ export type CatalogModel = {
   huggingFaceId: string | null;
   canonicalSlug: string;
   free: boolean;
+  verified?: boolean;
   endpoints: ModelEndpoint[];
 };

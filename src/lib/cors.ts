@@ -11,6 +11,7 @@ const ALLOW_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD";
 const ALLOW_HEADERS = [
   "Authorization",
   "Content-Type",
+  "X-Request-Id",
   "X-API-Key",
   "HTTP-Referer",
   "X-Title",
@@ -89,6 +90,7 @@ export function credentialCorsHeaders(req: Request, appUrl: string) {
     "Access-Control-Allow-Methods": ALLOW_METHODS,
     "Access-Control-Allow-Headers": requestedHeaders(req),
     "Access-Control-Max-Age": "86400",
+    "Access-Control-Expose-Headers": "X-Request-Id, X-Title",
     Vary: "Origin",
   };
 }

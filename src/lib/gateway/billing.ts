@@ -109,6 +109,13 @@ export async function reserveCredits(
   await assertCredits(auth, estimatedMicros, opts);
   await debitIfEnough(auth.userId, need);
   auth.creditMicros = Math.max(0, auth.creditMicros - need);
+  await db.insert(schema.creditLedger).values({
+    id: id("led"),
+    userId: auth.userId,
+    type: "reserve",
+    micros: -need,
+    note: `hold ${need} µUSD`,
+  });
   return need;
 }
 
@@ -116,6 +123,13 @@ export async function releaseReserve(auth: AuthContext, reservedMicros: number) 
   if (auth.guest || reservedMicros <= 0) return;
   await creditBalance(auth.userId, reservedMicros);
   auth.creditMicros += reservedMicros;
+  await db.insert(schema.creditLedger).values({
+    id: id("led"),
+    userId: auth.userId,
+    type: "reserve_release",
+    micros: reservedMicros,
+    note: "hold released",
+  });
 }
 
 export async function settleUsage(opts: {
@@ -143,6 +157,14 @@ export async function settleUsage(opts: {
   if (reserved > 0) {
     if (micros < reserved) await creditBalance(opts.auth.userId, reserved - micros);
     else if (micros > reserved) await debitIfEnough(opts.auth.userId, micros - reserved);
+    await db.insert(schema.creditLedger).values({
+      id: id("led"),
+      userId: opts.auth.userId,
+      type: "reserve_release",
+      micros: reserved,
+      generationId: opts.generationId,
+      note: "hold closed",
+    }).catch(() => undefined);
   } else if (micros > 0) {
     await debitIfEnough(opts.auth.userId, micros);
   }

@@ -14,7 +14,7 @@ export type RoutePlan = {
   models: Array<{ model: CatalogModel; endpoints: ModelEndpoint[]; variants: string[] }>;
 };
 
-function sortEndpoints(
+export function sortEndpoints(
   endpoints: ModelEndpoint[],
   sort: ProviderPreferences["sort"] | "price",
   prefs?: ProviderPreferences,
@@ -24,17 +24,28 @@ function sortEndpoints(
   const maxLat = prefs?.preferred_max_latency != null ? prefs.preferred_max_latency * 1000 : undefined;
   copy.sort((a, b) => {
     if (minTps) {
-      const ah = a.throughputTps >= minTps ? 0 : 1;
-      const bh = b.throughputTps >= minTps ? 0 : 1;
+      const ah = a.throughputTps > 0 && a.throughputTps >= minTps ? 0 : 1;
+      const bh = b.throughputTps > 0 && b.throughputTps >= minTps ? 0 : 1;
       if (ah !== bh) return ah - bh;
     }
     if (maxLat) {
-      const ah = a.latencyMs <= maxLat ? 0 : 1;
-      const bh = b.latencyMs <= maxLat ? 0 : 1;
+      const ah = a.latencyMs > 0 && a.latencyMs <= maxLat ? 0 : 1;
+      const bh = b.latencyMs > 0 && b.latencyMs <= maxLat ? 0 : 1;
       if (ah !== bh) return ah - bh;
     }
-    if (sort === "throughput") return b.throughputTps - a.throughputTps;
-    if (sort === "latency") return a.latencyMs - b.latencyMs;
+    if (sort === "throughput") {
+      const at = a.throughputTps || -1;
+      const bt = b.throughputTps || -1;
+      return bt - at;
+    }
+    if (sort === "latency") {
+      const al = a.latencyMs || Number.POSITIVE_INFINITY;
+      const bl = b.latencyMs || Number.POSITIVE_INFINITY;
+      if (al === bl) {
+        return a.pricing.prompt + a.pricing.completion - (b.pricing.prompt + b.pricing.completion);
+      }
+      return al - bl;
+    }
     return a.pricing.prompt + a.pricing.completion - (b.pricing.prompt + b.pricing.completion);
   });
   return copy;

@@ -251,6 +251,8 @@ export const SCHEMA_SQL = [
     created_at timestamp NOT NULL DEFAULT now()
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS ledger_generation_uidx ON "credit_ledger"(generation_id)`,
+  `DROP INDEX IF EXISTS ledger_generation_uidx`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ledger_generation_type_uidx ON "credit_ledger"(generation_id, type)`,
   `CREATE TABLE IF NOT EXISTS "schema_migrations" (
     id text PRIMARY KEY,
     applied_at timestamp NOT NULL DEFAULT now()

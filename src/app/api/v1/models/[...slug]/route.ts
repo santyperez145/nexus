@@ -23,6 +23,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string[]
           zdr: e.zdr,
           uptime: e.uptime,
           quantization: e.quantization,
+          verified: Boolean(e.verified),
+          metrics_estimated: e.metricsEstimated !== false,
         })),
       },
     });

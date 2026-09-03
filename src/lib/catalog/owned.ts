@@ -40,11 +40,13 @@ function model(opts: {
       prompt: h.prompt ?? opts.prompt,
       completion: h.completion ?? opts.completion,
     },
-    latencyMs: h.latencyMs ?? (free ? 800 : 400),
-    throughputTps: h.throughputTps ?? (free ? 45 : 90),
+    latencyMs: h.latencyMs ?? 0,
+    throughputTps: h.throughputTps ?? 0,
     zdr: h.zdr ?? opts.zdr ?? false,
-    uptime: 0.995,
-    quantization: "fp8",
+    uptime: 0,
+    quantization: "unknown",
+    verified: true,
+    metricsEstimated: true,
   }));
   return {
     id: opts.id,
@@ -78,6 +80,7 @@ function model(opts: {
     huggingFaceId: null,
     canonicalSlug: opts.id,
     free,
+    verified: true,
     endpoints,
   };
 }

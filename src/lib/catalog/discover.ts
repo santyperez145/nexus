@@ -89,8 +89,10 @@ function endpointOf(item: Discovered, zdr: boolean): ModelEndpoint {
     latencyMs: 0,
     throughputTps: 0,
     zdr,
-    uptime: 0.99,
+    uptime: 0,
     quantization: "unknown",
+    verified: false,
+    metricsEstimated: true,
   };
 }
 
@@ -124,6 +126,7 @@ function toCatalog(item: Discovered, zdr: boolean): CatalogModel {
     huggingFaceId: null,
     canonicalSlug: item.id,
     free: false,
+    verified: false,
     endpoints: [endpointOf(item, zdr)],
   };
 }

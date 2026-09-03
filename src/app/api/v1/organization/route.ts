@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { APP_URL } from "@/lib/config";
 import { sendMail } from "@/lib/email";
 import { id } from "@/lib/ids";
+import { canManageOrg, normalizeInviteRole } from "@/lib/orgs/acl";
 import { slugify } from "@/lib/slug";
 import { randomKey } from "@/lib/crypto";
 
@@ -111,11 +112,27 @@ export async function POST(req: Request) {
         .from(schema.organizations)
         .where(eq(schema.organizations.id, body.organization_id))
         .limit(1);
-      if (!org || org.ownerId !== auth.userId) {
+      const [membership] = org
+        ? await db
+            .select({ role: schema.organizationMembers.role })
+            .from(schema.organizationMembers)
+            .where(
+              and(
+                eq(schema.organizationMembers.organizationId, org.id),
+                eq(schema.organizationMembers.userId, auth.userId),
+              ),
+            )
+            .limit(1)
+        : [];
+      const isOwner = Boolean(org && org.ownerId === auth.userId);
+      if (!org || !canManageOrg(isOwner, membership?.role)) {
         return jsonError(Object.assign(new Error("not found"), { status: 404 }));
       }
       const email = String(body.invite_email).trim().toLowerCase();
-      const role = body.role ?? "member";
+      const role = normalizeInviteRole(body.role, isOwner);
+      if (!role) {
+        return jsonError(Object.assign(new Error("invalid role"), { status: 400 }));
+      }
       const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
       if (user) {
         await db.insert(schema.organizationMembers).values({

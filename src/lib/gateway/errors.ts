@@ -1,3 +1,5 @@
+import { currentRequestId } from "./request-id";
+
 export function jsonError(error: unknown) {
   const status = typeof error === "object" && error && "status" in error ? Number(error.status) : 500;
   const message = error instanceof Error ? error.message : "Internal error";
@@ -30,6 +32,8 @@ export function jsonError(error: unknown) {
     metadata.provider_name = (error as { provider?: string }).provider;
   }
   const headers: Record<string, string> = {};
+  const requestId = currentRequestId();
+  if (requestId) headers["x-request-id"] = requestId;
   if (safe === 429) {
     headers["Retry-After"] = "60";
     headers["X-RateLimit-Limit"] = "60";

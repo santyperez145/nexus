@@ -18,6 +18,7 @@ describe("cors", () => {
     assert.equal(headers["Access-Control-Allow-Origin"], "https://app.example");
     assert.ok(headers["Access-Control-Allow-Headers"].includes("HTTP-Referer"));
     assert.ok(headers["Access-Control-Allow-Headers"].includes("X-Title"));
+    assert.ok(headers["Access-Control-Expose-Headers"].includes("X-Request-Id"));
   });
 
   it("trusts localhost and railway previews for cookie auth", () => {

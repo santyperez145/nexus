@@ -29,7 +29,11 @@ export default async function ModelsPage({
     output: m.architecture.outputModalities,
     input: m.architecture.inputModalities,
     pricing: { prompt: m.pricing.prompt, completion: m.pricing.completion },
-    endpoints: m.endpoints.map((e) => ({ adapter: e.adapter, zdr: Boolean(e.zdr) })),
+    endpoints: m.endpoints.map((e) => ({
+      adapter: e.adapter,
+      zdr: Boolean(e.zdr),
+      verified: Boolean(m.verified || e.verified),
+    })),
   }));
   return (
     <MarketingShell>
@@ -39,8 +43,8 @@ export default async function ModelsPage({
           className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
         />
         <MarketingPageHeader title="Models">
-          Un slug, varios labs. Trending 30d real · filtros por modalidad / free / autor / host ·
-          badges vision/ZDR · Try + Compare.
+          Un slug, varios labs. Filtros por modalidad / free / autor / host · badges vision / ZDR /
+          curated vs discovered. Latencia de catálogo no es telemetría live.
         </MarketingPageHeader>
         <ModelsExplorer
           models={models}

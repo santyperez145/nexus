@@ -4,9 +4,11 @@ import { db, ensureDb, schema } from "@/lib/db";
 import { sha256 } from "@/lib/crypto";
 import { enforcePathPolicy } from "./acl";
 import { guestAuthContext } from "./guest";
+import { bindRequestId } from "./request-id";
 import type { AuthContext } from "./types";
 
 export async function authenticateRequest(req: Request): Promise<AuthContext> {
+  bindRequestId(req);
   await ensureDb();
   const headerAuth = req.headers.get("authorization") ?? "";
   const token = headerAuth.toLowerCase().startsWith("bearer ")

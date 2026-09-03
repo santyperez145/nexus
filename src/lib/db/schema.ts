@@ -204,6 +204,7 @@ export const creditLedger = pgTable(
   (t) => [
     index("ledger_user_idx").on(t.userId),
     uniqueIndex("ledger_stripe_session_uidx").on(t.stripeSessionId),
+    uniqueIndex("ledger_generation_type_uidx").on(t.generationId, t.type),
   ],
 );
 

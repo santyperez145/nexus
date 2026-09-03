@@ -46,7 +46,9 @@ export async function GET(req: Request) {
       prompt_per_million: usdPerMillion(m.pricing.prompt),
       completion_per_million: usdPerMillion(m.pricing.completion),
       free: m.free,
+      verified: Boolean(m.verified),
       providers: m.endpoints.map((e) => e.adapter),
+      metrics_estimated: m.endpoints.some((e) => e.metricsEstimated !== false),
     },
   }));
   return Response.json({ data });
