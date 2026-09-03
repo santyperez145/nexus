@@ -49,6 +49,7 @@ export type ChatRequest = {
   include_reasoning?: boolean;
   reasoning?: { effort?: "low" | "medium" | "high"; max_tokens?: number };
   stream_options?: { include_usage?: boolean };
+  file_ids?: string[];
   user?: string;
 };
 

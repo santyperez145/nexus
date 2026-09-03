@@ -34,3 +34,26 @@ export async function POST(req: Request) {
     return jsonError(error);
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const auth = await authenticateRequest(req);
+    const idParam = new URL(req.url).searchParams.get("id");
+    if (!idParam) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
+    const [row] = await db
+      .select()
+      .from(schema.observabilityDestinations)
+      .where(eq(schema.observabilityDestinations.id, idParam))
+      .limit(1);
+    if (!row || row.userId !== auth.userId) {
+      return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+    }
+    await db
+      .update(schema.observabilityDestinations)
+      .set({ deleted: true })
+      .where(eq(schema.observabilityDestinations.id, idParam));
+    return Response.json({ data: { success: true } });
+  } catch (error) {
+    return jsonError(error);
+  }
+}

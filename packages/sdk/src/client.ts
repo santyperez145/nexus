@@ -28,6 +28,8 @@ export class Nexus {
   readonly audio: AudioResource;
   readonly keys: KeysResource;
   readonly providers: ProvidersResource;
+  readonly files: FilesResource;
+  readonly analytics: AnalyticsResource;
   #fetch: typeof fetch;
   #defaultHeaders: Record<string, string>;
 
@@ -47,6 +49,8 @@ export class Nexus {
     this.audio = new AudioResource(this);
     this.keys = new KeysResource(this);
     this.providers = new ProvidersResource(this);
+    this.files = new FilesResource(this);
+    this.analytics = new AnalyticsResource(this);
   }
 
   async request<T>(
@@ -54,6 +58,7 @@ export class Nexus {
     init: {
       method?: string;
       body?: unknown;
+      form?: FormData;
       query?: Record<string, string | number | undefined>;
       headers?: Record<string, string>;
       raw?: boolean;
@@ -70,8 +75,10 @@ export class Nexus {
     };
     if (this.httpReferer) headers["HTTP-Referer"] = this.httpReferer;
     if (this.title) headers["X-Title"] = this.title;
-    let body: string | undefined;
-    if (init.body !== undefined) {
+    let body: BodyInit | undefined;
+    if (init.form) {
+      body = init.form;
+    } else if (init.body !== undefined) {
       headers["Content-Type"] = headers["Content-Type"] ?? "application/json";
       body = JSON.stringify(init.body);
     }
@@ -215,5 +222,38 @@ class ProvidersResource {
   }
   health() {
     return this.client.request<{ data: unknown }>("/providers/health");
+  }
+}
+
+class FilesResource {
+  constructor(private readonly client: Nexus) {}
+  list() {
+    return this.client.request<{ data: unknown[] }>("/files");
+  }
+  get(id: string) {
+    return this.client.request<{ data: unknown }>("/files", { query: { id } });
+  }
+  upload(file: Blob, filename = "file") {
+    const form = new FormData();
+    form.append("file", file, filename);
+    return this.client.request<{ data: { id: string; filename: string; bytes: number } }>("/files", {
+      method: "POST",
+      form,
+    });
+  }
+  delete(id: string) {
+    return this.client.request<{ data: { success: boolean } }>("/files", { method: "DELETE", query: { id } });
+  }
+}
+
+class AnalyticsResource {
+  constructor(private readonly client: Nexus) {}
+  get() {
+    return this.client.request<{
+      data: {
+        totals: { requests: number; tokens: number; cost: number };
+        by_model: Array<{ model: string; tokens: number; cost: number; requests: number }>;
+      };
+    }>("/analytics");
   }
 }

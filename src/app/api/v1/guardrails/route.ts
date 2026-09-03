@@ -38,9 +38,13 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    await authenticateRequest(req);
+    const auth = await authenticateRequest(req);
     const idParam = new URL(req.url).searchParams.get("id");
     if (!idParam) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
+    const [row] = await db.select().from(schema.guardrails).where(eq(schema.guardrails.id, idParam)).limit(1);
+    if (!row || row.userId !== auth.userId) {
+      return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+    }
     await db.delete(schema.guardrails).where(eq(schema.guardrails.id, idParam));
     return Response.json({ data: { success: true } });
   } catch (error) {

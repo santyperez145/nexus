@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.5.0
+  version: 0.6.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference.
 servers:
   - url: /api/v1
@@ -40,6 +40,10 @@ paths:
                 top_k: { type: integer }
                 seed: { type: integer }
                 stop: { oneOf: [{ type: string }, { type: array, items: { type: string } }] }
+                file_ids:
+                  type: array
+                  items: { type: string }
+                  description: Uploaded file ids; text is injected into the prompt
                 transforms:
                   type: array
                   items: { type: string, enum: [middle-out] }
@@ -227,6 +231,69 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Transcript }
+  /files:
+    get:
+      summary: List or get a file
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: id
+          schema: { type: string }
+      responses:
+        "200": { description: File metadata }
+    post:
+      summary: Upload a file (multipart, max 4MB)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: File id }
+    delete:
+      summary: Delete a file
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: success }
+  /analytics:
+    get:
+      summary: Usage totals by model
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: totals and by_model }
+  /guardrails:
+    get:
+      summary: List guardrails
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Guardrails }
+    post:
+      summary: Create guardrail
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Guardrail }
+    delete:
+      summary: Delete guardrail
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: success }
+  /observability:
+    get:
+      summary: List generation webhooks
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Destinations }
+    post:
+      summary: Add webhook
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Destination }
+    delete:
+      summary: Soft-delete webhook
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: success }
+  /oauth:
+    post:
+      summary: Issue PKCE code or exchange for an API key
+      responses:
+        "200": { description: code or key }
   /status:
     get:
       summary: Wiring status (no secrets)

@@ -24,7 +24,7 @@ export default function RegisterPage() {
       setError(err.message ?? "No se pudo crear la cuenta");
       return;
     }
-    router.push("/chat");
+    router.push("/overview");
     router.refresh();
   }
 

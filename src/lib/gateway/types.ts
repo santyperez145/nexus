@@ -49,6 +49,7 @@ export type ChatRequest = {
   reasoning?: { effort?: "low" | "medium" | "high"; max_tokens?: number };
   transforms?: Array<"middle-out">;
   stream_options?: { include_usage?: boolean };
+  file_ids?: string[];
 };
 
 export type AuthContext = {

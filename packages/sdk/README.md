@@ -67,5 +67,7 @@ await nexus.chat.completions.create({
 | `nexus.audio.speech` | `/audio/speech` |
 | `nexus.keys.list` / `.create` / `.update` / `.delete` | `/keys` |
 | `nexus.providers.list` | `/providers` |
+| `nexus.files.list` / `.upload` / `.delete` | `/files` |
+| `nexus.analytics.get` | `/analytics` |
 
 `NEXUS_MODEL_IDS` es el union de slugs del catálogo (autocompletado). Routers: `nexus/auto`, `nexus/free`. Variantes: `:fast`, `:cheap`, `:quality`, `:online`.

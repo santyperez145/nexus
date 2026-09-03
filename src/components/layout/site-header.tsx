@@ -25,15 +25,15 @@ export async function SiteHeader() {
             Privacidad
           </Link>
           {session ? (
-            <Link href="/chat" className="hover:text-white">
-              Chat
+            <Link href="/overview" className="hover:text-white">
+              App
             </Link>
           ) : null}
         </nav>
         <div className="flex items-center gap-2">
           {session ? (
             <Button asChild size="sm">
-              <Link href="/activity">Dashboard</Link>
+              <Link href="/overview">Dashboard</Link>
             </Button>
           ) : (
             <>

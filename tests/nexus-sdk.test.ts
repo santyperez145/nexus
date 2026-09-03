@@ -82,4 +82,26 @@ describe("nexus-sdk", () => {
     });
     assert.equal(res.choices[0]?.message.content, "ok");
   });
+
+  it("uploads files as multipart and lists analytics", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        if (String(url).includes("/files")) {
+          return Response.json({ data: { id: "file_1", filename: "nota.txt", bytes: 4 } });
+        }
+        return Response.json({
+          data: { totals: { requests: 1, tokens: 2, cost: 0 }, by_model: [] },
+        });
+      },
+    });
+    const uploaded = await nexus.files.upload(new Blob(["hola"]), "nota.txt");
+    assert.equal(uploaded.data.id, "file_1");
+    assert.ok(calls[0].init.body instanceof FormData);
+    const analytics = await nexus.analytics.get();
+    assert.equal(analytics.data.totals.requests, 1);
+  });
 });

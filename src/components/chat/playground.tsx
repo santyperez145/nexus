@@ -4,14 +4,8 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatUsd } from "@/lib/money";
+import { useRemoteData } from "@/lib/use-remote-data";
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 type Stats = {
@@ -22,37 +16,36 @@ type Stats = {
   completionTokens?: number;
   cost?: number;
 };
+type FileRow = { id: string; filename: string; bytes: number };
 
-export function Playground({ models }: { models: { id: string; name: string }[] }) {
-  const [model, setModel] = useState("nexus/auto");
+export function Playground({
+  models,
+  defaultModel = "nexus/auto",
+}: {
+  models: { id: string; name: string }[];
+  defaultModel?: string;
+}) {
+  const [model, setModel] = useState(defaultModel);
+  const [query, setQuery] = useState("");
   const [input, setInput] = useState("");
   const [system, setSystem] = useState("");
   const [temperature, setTemperature] = useState(0.7);
   const [online, setOnline] = useState(false);
+  const [fileIds, setFileIds] = useState<string[]>([]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const list = useMemo(() => models, [models]);
-  const slug = online && !model.includes(":online") ? `${model}:online` : model;
+  const files = useRemoteData<FileRow[]>("/api/v1/files")[0] ?? [];
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = q
+      ? models.filter((m) => `${m.id} ${m.name}`.toLowerCase().includes(q))
+      : models;
+    return list.slice(0, 40);
+  }, [models, query]);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const snippet = `import OpenAI from "openai";
-
-const client = new OpenAI({
-  baseURL: "${origin}/api/v1",
-  apiKey: process.env.NEXUS_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": "${origin}",
-    "X-Title": "Nexus Playground",
-  },
-});
-
-await client.chat.completions.create({
-  model: "${slug}",
-  messages: [{ role: "user", content: "Hola" }],
-  stream_options: { include_usage: true },
-  ${online ? 'tools: [{ type: "nexus:web_search" }],' : ""}
-});`;
+  const slug = online && !model.includes(":online") ? `${model}:online` : model;
 
   function stop() {
     abortRef.current?.abort();
@@ -88,6 +81,7 @@ await client.chat.completions.create({
           temperature,
           stream_options: { include_usage: true },
           ...(online ? { tools: [{ type: "nexus:web_search" }] } : {}),
+          ...(fileIds.length ? { file_ids: fileIds } : {}),
         }),
       });
       const visible = next.filter((m) => m.role !== "system");
@@ -134,8 +128,7 @@ await client.chat.completions.create({
                 cost: json.usage.cost,
               };
             }
-            const delta = json.choices?.[0]?.delta?.content ?? "";
-            assistant += delta;
+            assistant += json.choices?.[0]?.delta?.content ?? "";
             setMessages([...visible, { role: "assistant", content: assistant }]);
           } catch {
             /* ignore */
@@ -154,37 +147,73 @@ await client.chat.completions.create({
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-        <Select value={model} onValueChange={setModel}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Modelo" />
-          </SelectTrigger>
-          <SelectContent>
-            {list.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.id}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <label className="flex items-center gap-2 text-sm text-zinc-400">
-          <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />
-          :online
-        </label>
-        <label className="flex items-center gap-2 text-sm text-zinc-400">
-          temp
-          <input
-            type="range"
-            min={0}
-            max={2}
-            step={0.1}
-            value={temperature}
-            onChange={(e) => setTemperature(Number(e.target.value))}
-            aria-label="Temperature"
-          />
-          <span className="w-8 font-mono text-xs">{temperature.toFixed(1)}</span>
-        </label>
+      <div className="grid gap-3">
+        <input
+          value={query || model}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setModel(e.target.value);
+          }}
+          placeholder="Buscar modelo (425 slugs)…"
+          className="h-9 rounded-md border border-white/10 bg-transparent px-3 font-mono text-sm"
+          aria-label="Modelo"
+        />
+        <div className="flex max-h-36 flex-wrap gap-1 overflow-y-auto">
+          {filtered.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => {
+                setModel(m.id);
+                setQuery("");
+              }}
+              className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
+                model === m.id ? "border-amber-400/60 text-amber-300" : "border-white/10 text-zinc-500"
+              }`}
+            >
+              {m.id}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />
+            :online
+          </label>
+          <label className="flex items-center gap-2">
+            temp
+            <input
+              type="range"
+              min={0}
+              max={2}
+              step={0.1}
+              value={temperature}
+              onChange={(e) => setTemperature(Number(e.target.value))}
+              aria-label="Temperature"
+            />
+            <span className="w-8 font-mono text-xs">{temperature.toFixed(1)}</span>
+          </label>
+        </div>
       </div>
+      {files.length ? (
+        <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
+          {files.map((f) => {
+            const on = fileIds.includes(f.id);
+            return (
+              <label key={f.id} className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={() =>
+                    setFileIds((ids) => (on ? ids.filter((id) => id !== f.id) : [...ids, f.id]))
+                  }
+                />
+                {f.filename}
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
       <Textarea
         value={system}
         onChange={(e) => setSystem(e.target.value)}
@@ -194,8 +223,8 @@ await client.chat.completions.create({
       <div className="min-h-[360px] space-y-3 rounded-xl border border-white/10 bg-black/30 p-4">
         {messages.length === 0 ? (
           <p className="text-sm text-zinc-500">
-            Chat con tu sesión. Key <code>sk-nx-</code> para apps. Activá <code>:online</code> para
-            búsqueda web (Tavily/Brave/Exa/Serper o DuckDuckGo).
+            Chat con tu sesión. Key <code>sk-nx-</code> para apps. Activá <code>:online</code> o adjuntá
+            files de Settings.
           </p>
         ) : (
           messages.map((m, i) => (
@@ -214,9 +243,7 @@ await client.chat.completions.create({
             </Link>
           ) : null}
           {stats.provider ? ` · ${stats.provider}` : ""}
-          {stats.promptTokens != null
-            ? ` · ${stats.promptTokens}+${stats.completionTokens ?? 0} tok`
-            : ""}
+          {stats.promptTokens != null ? ` · ${stats.promptTokens}+${stats.completionTokens ?? 0} tok` : ""}
           {stats.cost != null ? ` · ${formatUsd(stats.cost)}` : ""}
         </p>
       ) : null}
@@ -243,9 +270,6 @@ await client.chat.completions.create({
           ) : null}
         </div>
       </div>
-      <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-zinc-400">
-        {snippet}
-      </pre>
     </div>
   );
 }

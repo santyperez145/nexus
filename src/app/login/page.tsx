@@ -23,7 +23,7 @@ export default function LoginPage() {
       setError(err.message ?? "No se pudo entrar");
       return;
     }
-    router.push("/chat");
+    router.push("/overview");
     router.refresh();
   }
 

@@ -23,11 +23,12 @@ const ENDPOINTS = [
   ["GET/POST/DELETE", "/api/v1/guardrails", "Guardrails"],
   ["GET/POST/PATCH", "/api/v1/workspaces", "Workspaces + budgets"],
   ["GET", "/api/v1/analytics", "Analytics"],
-  ["GET/POST", "/api/v1/files", "Files"],
+  ["GET/POST/DELETE", "/api/v1/files", "Files (file_ids en chat)"],
+  ["GET/POST", "/api/v1/oauth", "OAuth PKCE → API key"],
   ["GET/POST", "/api/v1/presets", "Presets (@slug)"],
   ["GET", "/api/v1/datasets/models", "Rankings"],
   ["GET/POST", "/api/v1/organization", "Organizations"],
-  ["GET/POST", "/api/v1/observability", "Webhooks de generaciones"],
+  ["GET/POST/DELETE", "/api/v1/observability", "Webhooks de generaciones"],
   ["GET", "/api/v1/providers/health", "Circuit breakers"],
   ["GET", "/api/v1/status", "Estado de cables"],
 ];
@@ -94,6 +95,11 @@ const res = await nexus.chat.send({
           <code>completion_tokens_details.reasoning_tokens</code>. En stream, el último chunk trae
           usage si pasás <code>stream_options.include_usage: true</code>. El header{" "}
           <code>X-Request-Id</code> es el id de generación (<code>gen-…</code>).
+        </p>
+        <h2 className="mb-3 text-lg font-medium">Files</h2>
+        <p className="mb-6 text-sm text-zinc-400">
+          <code>POST /api/v1/files</code> (multipart, máx 4 MB) y después{" "}
+          <code>file_ids</code> en el completion. El gateway inyecta el texto en el prompt.
         </p>
         <h2 className="mb-3 text-lg font-medium">Presets</h2>
         <p className="mb-8 text-sm text-zinc-400">

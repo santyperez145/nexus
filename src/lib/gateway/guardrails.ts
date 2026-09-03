@@ -15,7 +15,11 @@ const SECRET = [
   /-----BEGIN (RSA |OPENSSH )?PRIVATE KEY-----/,
 ];
 
-export async function enforceGuardrails(auth: AuthContext, req: ChatRequest) {
+export async function enforceGuardrails(
+  auth: AuthContext,
+  req: ChatRequest,
+  estimatedMicros?: number,
+) {
   const rows = await db
     .select()
     .from(schema.guardrails)
@@ -35,6 +39,9 @@ export async function enforceGuardrails(auth: AuthContext, req: ChatRequest) {
     }
     if (g.sensitiveInfo && SECRET.some((r) => r.test(prompt))) {
       throw Object.assign(new Error(`Guardrail "${g.name}" detected sensitive credentials`), { status: 400 });
+    }
+    if (estimatedMicros != null && g.maxCostMicros != null && estimatedMicros > g.maxCostMicros) {
+      throw Object.assign(new Error(`Guardrail "${g.name}" max cost exceeded`), { status: 402 });
     }
   }
 }

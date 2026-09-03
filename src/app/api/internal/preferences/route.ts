@@ -2,6 +2,23 @@ import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 
+export async function GET() {
+  const session = await getSession();
+  if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const [user] = await db.select().from(schema.users).where(eq(schema.users.id, session.user.id)).limit(1);
+  return Response.json({
+    data: {
+      defaultModel: user?.defaultModel ?? "nexus/auto",
+      zdr: user?.zdr ?? false,
+      logPrompts: user?.logPrompts ?? false,
+      allowTraining: user?.allowTraining ?? false,
+      autoTopupEnabled: user?.autoTopupEnabled ?? false,
+      autoTopupThresholdUsd: user?.autoTopupThresholdUsd,
+      autoTopupAmountUsd: user?.autoTopupAmountUsd,
+    },
+  });
+}
+
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });

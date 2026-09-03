@@ -11,8 +11,9 @@ import { enforceGuardrails } from "./guardrails";
 import { isCircuitOpen, recordFailure, recordSuccess } from "./health";
 import { assertRateLimit } from "./rate-limit";
 import { buildServerTools } from "./server-tools";
-import { applyPreset } from "./presets";
+import { attachUserFiles } from "./files";
 import { applyMiddleOut } from "./middle-out";
+import { applyPreset } from "./presets";
 import { chatChunkPayload, chatCompletionPayload, usagePayload } from "./openai-compat";
 import { dispatchGenerationWebhook } from "@/lib/observability/dispatch";
 
@@ -36,6 +37,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
   req = await applyPreset(req, auth.userId);
   await enforceGuardrails(auth, req);
   let messages = normalizeMessages(req);
+  messages = await attachUserFiles(auth, req, messages);
   if (req.transforms?.includes("middle-out")) {
     messages = applyMiddleOut(messages);
   }
@@ -52,6 +54,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
   const estimate = usdToMicros(
     tokenCostUsd(estimateTokens(messages), req.max_tokens ?? 256, first.model.pricing),
   );
+  await enforceGuardrails(auth, req, estimate);
   await assertCredits(auth, estimate, first.model.free);
 
   const started = Date.now();
