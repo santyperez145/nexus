@@ -56,6 +56,18 @@ export const BLOG_POSTS: BlogPost[] = [
       "GET /rss.xml publica el changelog. Docs ahora cubren streaming, errors y limits.",
     ],
   },
+  {
+    slug: "vision-envelopes-arena",
+    title: "Visión multimodal, envelopes y Arena blind",
+    date: "2026-09-03",
+    summary:
+      "image_url en Chat/Files, Messages/Responses en el playground, Arena sin sesgo de slug.",
+    body: [
+      "El gateway ya aceptaba content[] con image_url; ahora Chat adjunta imágenes (pegar o file) y Files image/* se inyectan como parts, no como placeholder de bytes.",
+      "El playground puede apuntar a /messages y /responses además de chat/completions — misma inferencia, reshape distinto.",
+      "Arena corre A vs B en modo blind (slugs ocultos hasta votar) y copia resultado local. /api/v1/status expone mode live|echo según labs cableados.",
+    ],
+  },
 ];
 
 export function getPost(slug: string) {
