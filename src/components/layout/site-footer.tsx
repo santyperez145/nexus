@@ -27,6 +27,8 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
               ["/providers", "Providers"],
               ["/rankings", "Rankings"],
               ["/compare", "Compare"],
+              ["/credits", "Credits"],
+              ["/enterprise", "Enterprise"],
               ["/apps", "Apps"],
               ["/status", "Status"],
               ["/chat", "Chat"],

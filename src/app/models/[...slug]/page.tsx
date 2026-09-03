@@ -108,9 +108,28 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
         )}
 
         <pre className="mt-10 overflow-x-auto rounded-xl border border-zinc-200 bg-white p-4 text-xs text-zinc-700">
-{`curl $NEXUS_URL/api/v1/chat/completions \\
+{`# curl
+curl $NEXUS_URL/api/v1/chat/completions \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
-  -d '{"model":"${model.id}","messages":[{"role":"user","content":"Hola"}]}'`}
+  -H "HTTP-Referer: https://tu-app.example" \\
+  -H "X-Title: Tu App" \\
+  -d '{"model":"${model.id}","messages":[{"role":"user","content":"Hola"}]}'
+
+# nexus-sdk
+import { Nexus } from "nexus-sdk";
+const nexus = new Nexus({ apiKey: process.env.NEXUS_API_KEY });
+await nexus.chat.send({ model: "${model.id}", messages: [{ role: "user", content: "Hola" }] });
+
+# OpenAI SDK → Nexus
+import OpenAI from "openai";
+const client = new OpenAI({
+  baseURL: "$NEXUS_URL/api/v1",
+  apiKey: process.env.NEXUS_API_KEY,
+});
+await client.chat.completions.create({
+  model: "${model.id}",
+  messages: [{ role: "user", content: "Hola" }],
+});`}
         </pre>
       </div>
     </MarketingShell>
