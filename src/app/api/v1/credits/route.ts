@@ -19,6 +19,7 @@ export async function GET(req: Request) {
         total_credits: microsToUsd(purchased),
         total_usage: microsToUsd(used),
         remaining: microsToUsd(user?.creditMicros ?? 0),
+        manual_credits: process.env.ENABLE_MANUAL_CREDITS !== "false",
         ledger: ledger.slice(0, 50).map((l) => ({
           id: l.id,
           type: l.type,

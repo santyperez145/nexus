@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { id } from "@/lib/ids";
+import { slugify } from "@/lib/slug";
 import { microsToUsd, usdToMicros } from "@/lib/money";
 
 async function withBudgets(rows: (typeof schema.workspaces.$inferSelect)[]) {
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
       id: id("ws"),
       userId: auth.userId,
       name: body.name ?? "Workspace",
-      slug: (body.slug ?? body.name ?? "workspace").toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+      slug: slugify(String(body.slug ?? body.name ?? "workspace"), "workspace"),
       isDefault: false,
     };
     await db.insert(schema.workspaces).values(row);
@@ -108,6 +109,25 @@ export async function PATCH(req: Request) {
     const [fresh] = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
     const [mapped] = await withBudgets(fresh ? [fresh] : []);
     return Response.json({ data: mapped });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const auth = await authenticateRequest(req);
+    const workspaceId = new URL(req.url).searchParams.get("id");
+    if (!workspaceId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
+    const [ws] = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
+    if (!ws || ws.userId !== auth.userId) {
+      return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+    }
+    if (ws.isDefault) {
+      return jsonError(Object.assign(new Error("cannot delete default workspace"), { status: 400 }));
+    }
+    await db.delete(schema.workspaces).where(eq(schema.workspaces.id, workspaceId));
+    return Response.json({ data: { success: true } });
   } catch (error) {
     return jsonError(error);
   }

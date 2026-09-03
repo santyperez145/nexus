@@ -5,8 +5,10 @@ import { NexusMark } from "@/components/brand/nexus-logo";
 import { allModels } from "@/lib/catalog";
 import { CREDIT_PURCHASE_FEE } from "@/lib/config";
 import { NEXUS_PROVIDERS } from "@/lib/providers/registry";
+import { getSession } from "@/lib/auth";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getSession();
   const models = allModels().filter((m) => !m.id.startsWith("nexus/"));
   const labs = NEXUS_PROVIDERS.length;
   return (
@@ -27,9 +29,15 @@ export default function HomePage() {
           un detalle de infraestructura.
         </p>
         <div className="nexus-hero-cta mt-8 flex flex-wrap gap-3">
-          <Button asChild size="lg">
-            <Link href="/register">Empezar con $1</Link>
-          </Button>
+          {session ? (
+            <Button asChild size="lg">
+              <Link href="/overview">Ir al dashboard</Link>
+            </Button>
+          ) : (
+            <Button asChild size="lg">
+              <Link href="/register">Empezar con $1</Link>
+            </Button>
+          )}
           <Button asChild size="lg" variant="outline">
             <Link href="/docs">Ver la API</Link>
           </Button>

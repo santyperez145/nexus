@@ -10,6 +10,7 @@ type Workspace = {
   id: string;
   name: string;
   slug: string;
+  isDefault?: boolean;
   budget: { interval: string; limit: number; spent: number } | null;
 };
 
@@ -59,6 +60,7 @@ export default function WorkspacesPage() {
                   : "sin budget"}
               </span>
             </span>
+            <span className="flex gap-1">
             <Button
               variant="outline"
               size="sm"
@@ -75,6 +77,19 @@ export default function WorkspacesPage() {
             >
               Budget
             </Button>
+            {!w.isDefault ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  await fetch(`/api/v1/workspaces?id=${w.id}`, { method: "DELETE" });
+                  reload();
+                }}
+              >
+                Borrar
+              </Button>
+            ) : null}
+            </span>
           </div>
         ))}
       </div>

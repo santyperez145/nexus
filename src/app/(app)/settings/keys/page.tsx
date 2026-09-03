@@ -16,15 +16,20 @@ type KeyRow = {
   last_used: string | null;
   usage: number;
   limit: number | null;
-  limit_remaining: number | null;
+  workspace_id: string | null;
 };
+
+type Workspace = { id: string; name: string; slug: string; isDefault?: boolean };
 
 export default function KeysPage() {
   const [keys, reload] = useRemoteData<KeyRow[]>("/api/v1/keys");
-  const [name, setName] = useState("Default");
+  const [workspaces] = useRemoteData<Workspace[]>("/api/v1/workspaces");
+  const [name, setName] = useState("SDK");
   const [limit, setLimit] = useState("");
+  const [workspaceId, setWorkspaceId] = useState("");
   const [created, setCreated] = useState<string | null>(null);
   const rows = keys ?? [];
+  const spaces = workspaces ?? [];
 
   async function create(isManagement: boolean) {
     const res = await fetch("/api/v1/keys", {
@@ -34,7 +39,19 @@ export default function KeysPage() {
         name,
         is_management: isManagement,
         limit: limit ? Number(limit) : undefined,
+        workspace_id: workspaceId || undefined,
       }),
+    });
+    const json = await res.json();
+    setCreated(json.data?.key ?? null);
+    reload();
+  }
+
+  async function rotate(id: string) {
+    const res = await fetch("/api/v1/keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rotate_id: id }),
     });
     const json = await res.json();
     setCreated(json.data?.key ?? null);
@@ -59,7 +76,7 @@ export default function KeysPage() {
     <div>
       <h1 className="mb-2 text-2xl font-semibold">API Keys</h1>
       <p className="mb-6 text-sm text-zinc-500">
-        Al registrarte ya se crea una key Default. El plaintext solo se muestra al crear. Límite opcional en USD.
+        El plaintext solo se muestra al crear o rotar. Anclá la key a un workspace para que el budget corte.
       </p>
       <div className="mb-6 flex flex-wrap gap-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
@@ -70,6 +87,19 @@ export default function KeysPage() {
           className="w-32"
           inputMode="decimal"
         />
+        <select
+          value={workspaceId}
+          onChange={(e) => setWorkspaceId(e.target.value)}
+          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm"
+          aria-label="Workspace"
+        >
+          <option value="">Sin workspace</option>
+          {spaces.map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.name}
+            </option>
+          ))}
+        </select>
         <Button onClick={() => void create(false)}>Crear key</Button>
         <Button variant="outline" onClick={() => void create(true)}>
           Management
@@ -92,10 +122,14 @@ export default function KeysPage() {
               <span className="mt-1 block text-xs text-zinc-500">
                 uso {formatUsd(k.usage, 4)}
                 {k.limit != null ? ` / ${formatUsd(k.limit, 2)}` : " · sin límite"}
+                {k.workspace_id ? ` · ws ${spaces.find((w) => w.id === k.workspace_id)?.name ?? k.workspace_id}` : ""}
                 {k.last_used ? ` · last ${new Date(k.last_used).toLocaleString()}` : " · nunca usada"}
               </span>
             </span>
             <span className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={() => void rotate(k.id)}>
+                Rotar
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => void patch(k.id, { disabled: !k.disabled })}>
                 {k.disabled ? "Activar" : "Pausar"}
               </Button>

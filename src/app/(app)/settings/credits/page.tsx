@@ -11,6 +11,7 @@ type Credits = {
   remaining: number;
   total_credits: number;
   total_usage: number;
+  manual_credits?: boolean;
   ledger: Array<{ id: string; type: string; amount: number; note: string | null; created_at: string }>;
 };
 
@@ -71,6 +72,27 @@ export default function CreditsPage() {
           </div>
         ))}
       </div>
+      {credits?.manual_credits ? (
+        <p className="mt-4 text-sm text-zinc-500">
+          Stripe no es obligatorio en este entorno.{" "}
+          <button
+            type="button"
+            className="text-amber-400 hover:underline"
+            onClick={async () => {
+              const res = await fetch("/api/internal/credits/grant", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ usd: 10 }),
+              });
+              const json = await res.json();
+              setMsg(json.ok ? "Se acreditaron $10 (wallet manual)" : json.error);
+              reload();
+            }}
+          >
+            Cargar $10 sin Stripe
+          </button>
+        </p>
+      ) : null}
       <h2 className="mt-10 mb-3 text-lg font-medium">Auto top-up</h2>
       <div className="grid max-w-xl gap-2 md:grid-cols-3">
         <Input value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label="Umbral USD" />

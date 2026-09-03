@@ -23,6 +23,7 @@ function serializeKey(k: typeof schema.apiKeys.$inferSelect) {
     limit_reset: k.limitReset,
     include_byok_in_limit: k.includeByokInLimit,
     prefix: k.keyPrefix,
+    workspace_id: k.workspaceId,
   };
 }
 
@@ -44,6 +45,28 @@ export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
     const body = await req.json();
+    if (body.rotate_id) {
+      const [row] = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.id, body.rotate_id)).limit(1);
+      if (!row || row.userId !== auth.userId) {
+        return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+      }
+      await db.delete(schema.apiKeys).where(eq(schema.apiKeys.id, row.id));
+      const created = await issueApiKey({
+        userId: auth.userId,
+        workspaceId: row.workspaceId,
+        name: row.name,
+        isManagement: row.isManagement,
+        limitMicros: row.limitMicros,
+      });
+      return Response.json({
+        data: {
+          ...created,
+          key: created.key,
+          limit: created.limitMicros != null ? microsToUsd(created.limitMicros) : null,
+          usage: 0,
+        },
+      });
+    }
     const created = await issueApiKey({
       userId: auth.userId,
       workspaceId: body.workspace_id ?? auth.workspaceId ?? null,

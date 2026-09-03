@@ -20,6 +20,7 @@ export default async function OverviewPage() {
   const keys = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.userId, userId));
   const labs = wiredProviders().length;
   const models = allModels().filter((m) => !m.id.startsWith("nexus/")).length;
+  const unusedKeys = keys.filter((k) => !k.lastUsedAt);
 
   return (
     <div>
@@ -27,6 +28,23 @@ export default async function OverviewPage() {
       <p className="mb-8 text-sm text-zinc-500">
         Saldo, keys y las últimas generaciones. El pool de labs depende de las keys en Conexiones.
       </p>
+      {labs === 0 ? (
+        <p className="mb-6 rounded-lg border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-sm text-amber-100">
+          No hay labs cableados: el playground responde en eco local.{" "}
+          <Link href="/settings/connections" className="text-amber-400 hover:underline">
+            Conexiones
+          </Link>
+        </p>
+      ) : null}
+      {unusedKeys.length ? (
+        <p className="mb-6 rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-400">
+          Hay {unusedKeys.length} key(s) que nunca se usaron. La de bienvenida no se muestra: rotála en{" "}
+          <Link href="/settings/keys" className="text-amber-400 hover:underline">
+            API Keys
+          </Link>
+          .
+        </p>
+      ) : null}
       <div className="mb-10 grid gap-6 md:grid-cols-4">
         <div>
           <div className="text-xs text-zinc-500">Saldo</div>
@@ -56,6 +74,9 @@ export default async function OverviewPage() {
         </Button>
         <Button asChild variant="outline">
           <Link href="/settings/keys">API keys</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/settings/connections">Conexiones</Link>
         </Button>
       </div>
       <h2 className="mb-3 text-lg font-medium">Reciente</h2>
