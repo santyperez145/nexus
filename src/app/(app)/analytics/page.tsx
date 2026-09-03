@@ -30,10 +30,12 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="mb-2 text-2xl font-semibold">Analytics</h1>
-          <p className="text-sm text-zinc-500">
+          <h1 className="font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-zinc-50 md:text-[2rem]">
+            Analytics
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
             Uso real de generaciones (chat + media). Ventana {data.window_days}d · sin tracción inventada.
           </p>
         </div>
