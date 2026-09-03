@@ -21,6 +21,7 @@ const userId = "usr_ledger_atomic";
 const keyId = "key_ledger_atomic";
 const workspaceId = "ws_ledger_atomic";
 const sharedToken = "sk-nx-shared-billing-test";
+const limitedToken = "sk-nx-restricted-member-test";
 const auth: AuthContext = {
   userId,
   apiKeyId: keyId,
@@ -85,12 +86,43 @@ before(async () => {
     userId,
     role: "member",
   });
+  await database.db.insert(database.schema.users).values({
+    id: "usr_org_limited",
+    name: "Limited Member",
+    email: "org-limited@nexus.test",
+    creditMicros: 100_000,
+    notifyLowBalance: false,
+  });
+  await database.db.insert(database.schema.organizationMembers).values({
+    id: "member_limited",
+    organizationId: "org_shared",
+    userId: "usr_org_limited",
+    role: "member",
+  });
   await database.db.insert(database.schema.workspaces).values({
     id: "ws_shared_org",
     userId: "usr_org_owner",
     organizationId: "org_shared",
     name: "Shared workspace",
     slug: "shared-workspace",
+    isDefault: true,
+  });
+  await database.db.insert(database.schema.workspaceMembers).values({
+    id: "wsm_shared",
+    workspaceId: "ws_shared_org",
+    userId,
+  });
+  await database.db.insert(database.schema.workspaceMembers).values({
+    id: "wsm_limited_default",
+    workspaceId: "ws_shared_org",
+    userId: "usr_org_limited",
+  });
+  await database.db.insert(database.schema.workspaces).values({
+    id: "ws_restricted_org",
+    userId: "usr_org_owner",
+    organizationId: "org_shared",
+    name: "Restricted workspace",
+    slug: "restricted-workspace",
   });
   await database.db.insert(database.schema.workspaceBudgets).values({
     id: "budget_shared_org",
@@ -105,6 +137,15 @@ before(async () => {
     name: "Member workspace key",
     keyHash: sha256(sharedToken),
     keyPrefix: "sk-nx-share",
+    scopes: ["inference:write"],
+  });
+  await database.db.insert(database.schema.apiKeys).values({
+    id: "key_restricted_org",
+    userId: "usr_org_limited",
+    workspaceId: "ws_restricted_org",
+    name: "Restricted member key",
+    keyHash: sha256(limitedToken),
+    keyPrefix: "sk-nx-restrict",
     scopes: ["inference:write"],
   });
 });
@@ -162,17 +203,50 @@ describe("transactional credit ledger", () => {
 });
 
 describe("organization workspace RBAC", () => {
+  it("denies unassigned members and accepts them only after an explicit workspace grant", async () => {
+    const tenant = await import("../src/lib/gateway/tenant");
+    const initialIds = await tenant.accessibleWorkspaceIds("usr_org_limited");
+    assert.equal(initialIds.includes("ws_restricted_org"), false);
+    const { authenticateRequest } = await import("../src/lib/gateway/api-auth");
+    const request = () =>
+      new Request("https://nexus.test/api/v1/chat/completions", {
+        method: "POST",
+        headers: { authorization: `Bearer ${limitedToken}` },
+      });
+    await assert.rejects(() => authenticateRequest(request()), (error: unknown) => {
+      const denied = error as { status?: number; code?: string };
+      return denied.status === 401 && denied.code === "invalid_api_key";
+    });
+
+    await database.db.insert(database.schema.workspaceMembers).values({
+      id: "wsm_limited",
+      workspaceId: "ws_restricted_org",
+      userId: "usr_org_limited",
+    });
+    const grantedIds = await tenant.accessibleWorkspaceIds("usr_org_limited");
+    assert.ok(grantedIds.includes("ws_restricted_org"));
+    const granted = await authenticateRequest(request());
+    assert.equal(granted.workspaceId, "ws_restricted_org");
+    assert.equal(granted.billingUserId, "usr_org_owner");
+  });
+
   it("hydrates shared workspaces but reserves management for owner/admin", async () => {
     const tenant = await import("../src/lib/gateway/tenant");
     const workspaceIds = await tenant.accessibleWorkspaceIds(userId);
     assert.ok(workspaceIds.includes(workspaceId));
     assert.ok(workspaceIds.includes("ws_shared_org"));
+    assert.equal(workspaceIds.includes("ws_restricted_org"), false);
     assert.equal(await tenant.canManageWorkspace({ ...auth, workspaceIds }, "ws_shared_org"), false);
     await database.db
       .update(database.schema.organizationMembers)
       .set({ role: "admin" })
       .where(eq(database.schema.organizationMembers.id, "member_shared"));
-    assert.equal(await tenant.canManageWorkspace({ ...auth, workspaceIds }, "ws_shared_org"), true);
+    const adminWorkspaceIds = await tenant.accessibleWorkspaceIds(userId);
+    assert.ok(adminWorkspaceIds.includes("ws_restricted_org"));
+    assert.equal(
+      await tenant.canManageWorkspace({ ...auth, workspaceIds: adminWorkspaceIds }, "ws_shared_org"),
+      true,
+    );
     assert.equal(
       tenant.canAccess(
         { ...auth, workspaceId: "ws_shared_org", workspaceIds },

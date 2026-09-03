@@ -85,6 +85,9 @@ También sirve el SDK de OpenAI con `baseURL: .../api/v1`.
 
 Las API keys pueden limitarse a `inference`, `management:read` y `management:write`. Los presupuestos,
 límites por key, créditos y membresías de workspace se validan en el servidor; no dependen del cliente.
+El workspace predeterminado de una organización incluye a todos sus miembros. Los demás requieren
+asignación explícita; owner/admin conservan acceso administrativo global y un workspace compartido
+siempre factura al owner de la organización, aunque lo cree un admin.
 
 ## Verificación antes de desplegar
 

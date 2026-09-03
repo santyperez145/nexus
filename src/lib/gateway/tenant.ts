@@ -37,17 +37,44 @@ export async function accessibleWorkspaceIds(userId: string) {
     .from(schema.workspaces)
     .where(eq(schema.workspaces.userId, userId));
   const memberships = await db
-    .select({ organizationId: schema.organizationMembers.organizationId })
+    .select({
+      organizationId: schema.organizationMembers.organizationId,
+      role: schema.organizationMembers.role,
+    })
     .from(schema.organizationMembers)
     .where(eq(schema.organizationMembers.userId, userId));
-  const organizationIds = memberships.map((membership) => membership.organizationId);
-  const shared = organizationIds.length
+  const ownedOrganizations = await db
+    .select({ id: schema.organizations.id })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.ownerId, userId));
+  const managedOrganizationIds = [
+    ...ownedOrganizations.map((organization) => organization.id),
+    ...memberships
+      .filter((membership) => membership.role === "owner" || membership.role === "admin")
+      .map((membership) => membership.organizationId),
+  ];
+  const managed = managedOrganizationIds.length
     ? await db
         .select({ id: schema.workspaces.id })
         .from(schema.workspaces)
-        .where(inArray(schema.workspaces.organizationId, organizationIds))
+        .where(inArray(schema.workspaces.organizationId, managedOrganizationIds))
     : [];
-  return [...new Set([...owned, ...shared].map((workspace) => workspace.id))];
+  const assigned = await db
+    .select({ id: schema.workspaces.id })
+    .from(schema.workspaceMembers)
+    .innerJoin(
+      schema.workspaces,
+      eq(schema.workspaces.id, schema.workspaceMembers.workspaceId),
+    )
+    .innerJoin(
+      schema.organizationMembers,
+      and(
+        eq(schema.organizationMembers.organizationId, schema.workspaces.organizationId),
+        eq(schema.organizationMembers.userId, schema.workspaceMembers.userId),
+      ),
+    )
+    .where(eq(schema.workspaceMembers.userId, userId));
+  return [...new Set([...owned, ...managed, ...assigned].map((workspace) => workspace.id))];
 }
 
 export async function canManageWorkspace(auth: AuthContext, workspaceId: string) {

@@ -100,6 +100,14 @@ export const SCHEMA_SQL = [
     created_at timestamp NOT NULL DEFAULT now(),
     UNIQUE (user_id, slug)
   )`,
+  `CREATE TABLE IF NOT EXISTS "workspace_member" (
+    id text PRIMARY KEY,
+    workspace_id text NOT NULL REFERENCES "workspace"(id) ON DELETE CASCADE,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    created_at timestamp NOT NULL DEFAULT now(),
+    UNIQUE (workspace_id, user_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS workspace_member_user_idx ON "workspace_member"(user_id)`,
   `CREATE TABLE IF NOT EXISTS "workspace_budget" (
     id text PRIMARY KEY,
     workspace_id text NOT NULL REFERENCES "workspace"(id) ON DELETE CASCADE,

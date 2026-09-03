@@ -1,5 +1,5 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db, schema } from "@/lib/db";
+import { db, schema, withTransaction } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { id } from "@/lib/ids";
 import { slugify } from "@/lib/slug";
@@ -38,6 +38,57 @@ async function withBudgets(rows: (typeof schema.workspaces.$inferSelect)[]) {
   });
 }
 
+async function withMembers<T extends { id: string }>(rows: T[]) {
+  if (!rows.length) return [];
+  const members = await db
+    .select({
+      workspaceId: schema.workspaceMembers.workspaceId,
+      userId: schema.workspaceMembers.userId,
+    })
+    .from(schema.workspaceMembers)
+    .where(
+      inArray(
+        schema.workspaceMembers.workspaceId,
+        rows.map((row) => row.id),
+      ),
+    );
+  const byWorkspace = new Map<string, string[]>();
+  for (const member of members) {
+    byWorkspace.set(member.workspaceId, [
+      ...(byWorkspace.get(member.workspaceId) ?? []),
+      member.userId,
+    ]);
+  }
+  return rows.map((row) => ({ ...row, member_ids: byWorkspace.get(row.id) ?? [] }));
+}
+
+async function organizationMemberIds(organizationId: string) {
+  return db
+    .select({ userId: schema.organizationMembers.userId })
+    .from(schema.organizationMembers)
+    .where(eq(schema.organizationMembers.organizationId, organizationId));
+}
+
+async function validateMemberIds(organizationId: string, requested: unknown) {
+  if (!Array.isArray(requested) || requested.length > 500) {
+    throw Object.assign(new Error("member_ids must be an array with at most 500 entries"), {
+      status: 400,
+      code: "invalid_request",
+    });
+  }
+  const wanted = [...new Set(requested.map(String).filter(Boolean))];
+  const available = new Set(
+    (await organizationMemberIds(organizationId)).map((member) => member.userId),
+  );
+  if (wanted.some((userId) => !available.has(userId))) {
+    throw Object.assign(new Error("Every workspace member must belong to the organization"), {
+      status: 400,
+      code: "invalid_request",
+    });
+  }
+  return wanted;
+}
+
 export async function GET(req: Request) {
   try {
     const auth = await authenticateRequest(req);
@@ -48,12 +99,18 @@ export async function GET(req: Request) {
           .from(schema.workspaces)
           .where(inArray(schema.workspaces.id, workspaceIds))
       : [];
-    const mapped = await withBudgets(rows);
+    const mapped = await withMembers(await withBudgets(rows));
     const data = await Promise.all(
-      mapped.map(async (workspace) => ({
-        ...workspace,
-        can_manage: await canManageWorkspace(auth, workspace.id),
-      })),
+      mapped.map(async (workspace) => {
+        const canManage = await canManageWorkspace(auth, workspace.id);
+        return {
+          ...workspace,
+          member_ids: canManage
+            ? workspace.member_ids
+            : workspace.member_ids.filter((userId) => userId === auth.userId),
+          can_manage: canManage,
+        };
+      }),
     );
     return Response.json({ data });
   } catch (error) {
@@ -73,9 +130,10 @@ export async function POST(req: Request) {
       return jsonError(Object.assign(new Error("organization not found"), { status: 404 }));
     }
     let effectivePlan = auth.plan;
+    let workspaceOwnerId = auth.userId;
     if (organizationId) {
       const [owner] = await db
-        .select({ plan: schema.users.plan })
+        .select({ id: schema.users.id, plan: schema.users.plan })
         .from(schema.organizations)
         .innerJoin(schema.users, eq(schema.users.id, schema.organizations.ownerId))
         .where(eq(schema.organizations.id, organizationId))
@@ -89,6 +147,7 @@ export async function POST(req: Request) {
         );
       }
       effectivePlan = owner.plan;
+      workspaceOwnerId = owner.id;
     }
     const maxWorkspaces = limitsForPlan(effectivePlan).workspaces;
     const [existingCount] = await db
@@ -107,25 +166,40 @@ export async function POST(req: Request) {
         }),
       );
     }
+    const isOrganizationDefault = Boolean(
+      organizationId && Number(existingCount?.count ?? 0) === 0,
+    );
     const row = {
       id: id("ws"),
-      userId: auth.userId,
+      userId: workspaceOwnerId,
       organizationId,
       name: body.name ?? "Workspace",
       slug: slugify(String(body.slug ?? body.name ?? "workspace"), "workspace"),
-      isDefault: false,
+      isDefault: isOrganizationDefault,
     };
-    await db.insert(schema.workspaces).values(row);
-    if (body.limit != null) {
-      await db.insert(schema.workspaceBudgets).values({
-        id: id("wbud"),
-        workspaceId: row.id,
-        interval: body.interval ?? "monthly",
-        limitMicros: usdToMicros(Number(body.limit)),
-      });
-    }
+    const memberIds = organizationId
+      ? isOrganizationDefault
+        ? (await organizationMemberIds(organizationId)).map((member) => member.userId)
+        : await validateMemberIds(organizationId, body.member_ids ?? [])
+      : [];
+    await withTransaction(async (tx) => {
+      await tx.insert(schema.workspaces).values(row);
+      if (body.limit != null) {
+        await tx.insert(schema.workspaceBudgets).values({
+          id: id("wbud"),
+          workspaceId: row.id,
+          interval: body.interval ?? "monthly",
+          limitMicros: usdToMicros(Number(body.limit)),
+        });
+      }
+      if (memberIds.length) {
+        await tx.insert(schema.workspaceMembers).values(
+          memberIds.map((userId) => ({ id: id("wsm"), workspaceId: row.id, userId })),
+        );
+      }
+    });
     const [created] = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, row.id)).limit(1);
-    const [mapped] = await withBudgets(created ? [created] : []);
+    const [mapped] = await withMembers(await withBudgets(created ? [created] : []));
     return Response.json({ data: { ...(mapped ?? row), can_manage: true } });
   } catch (error) {
     return jsonError(error);
@@ -142,40 +216,75 @@ export async function PATCH(req: Request) {
     if (!ws || !(await canManageWorkspace(auth, workspaceId))) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
-    if (typeof body.name === "string") {
-      await db.update(schema.workspaces).set({ name: body.name }).where(eq(schema.workspaces.id, workspaceId));
-    }
-    if (typeof body.include_byok_in_budgets === "boolean") {
-      await db
-        .update(schema.workspaces)
-        .set({ includeByokInBudgets: body.include_byok_in_budgets })
-        .where(eq(schema.workspaces.id, workspaceId));
-    }
-    if (body.limit != null) {
-      const [existing] = await db
-        .select()
-        .from(schema.workspaceBudgets)
-        .where(eq(schema.workspaceBudgets.workspaceId, workspaceId))
-        .limit(1);
-      if (existing) {
-        await db
-          .update(schema.workspaceBudgets)
-          .set({
-            limitMicros: usdToMicros(Number(body.limit)),
-            interval: body.interval ?? existing.interval,
-          })
-          .where(eq(schema.workspaceBudgets.id, existing.id));
-      } else {
-        await db.insert(schema.workspaceBudgets).values({
-          id: id("wbud"),
-          workspaceId,
-          interval: body.interval ?? "monthly",
-          limitMicros: usdToMicros(Number(body.limit)),
-        });
+    let memberIds: string[] | null = null;
+    if (body.member_ids !== undefined) {
+      if (!ws.organizationId) {
+        return jsonError(
+          Object.assign(new Error("Personal workspaces do not have organization members"), {
+            status: 400,
+            code: "invalid_request",
+          }),
+        );
       }
+      if (ws.isDefault) {
+        return jsonError(
+          Object.assign(new Error("The default organization workspace includes every member"), {
+            status: 400,
+            code: "invalid_request",
+          }),
+        );
+      }
+      memberIds = await validateMemberIds(ws.organizationId, body.member_ids);
     }
+    await withTransaction(async (tx) => {
+      if (typeof body.name === "string") {
+        await tx
+          .update(schema.workspaces)
+          .set({ name: body.name })
+          .where(eq(schema.workspaces.id, workspaceId));
+      }
+      if (typeof body.include_byok_in_budgets === "boolean") {
+        await tx
+          .update(schema.workspaces)
+          .set({ includeByokInBudgets: body.include_byok_in_budgets })
+          .where(eq(schema.workspaces.id, workspaceId));
+      }
+      if (memberIds) {
+        await tx
+          .delete(schema.workspaceMembers)
+          .where(eq(schema.workspaceMembers.workspaceId, workspaceId));
+        if (memberIds.length) {
+          await tx.insert(schema.workspaceMembers).values(
+            memberIds.map((userId) => ({ id: id("wsm"), workspaceId, userId })),
+          );
+        }
+      }
+      if (body.limit != null) {
+        const [existing] = await tx
+          .select()
+          .from(schema.workspaceBudgets)
+          .where(eq(schema.workspaceBudgets.workspaceId, workspaceId))
+          .limit(1);
+        if (existing) {
+          await tx
+            .update(schema.workspaceBudgets)
+            .set({
+              limitMicros: usdToMicros(Number(body.limit)),
+              interval: body.interval ?? existing.interval,
+            })
+            .where(eq(schema.workspaceBudgets.id, existing.id));
+        } else {
+          await tx.insert(schema.workspaceBudgets).values({
+            id: id("wbud"),
+            workspaceId,
+            interval: body.interval ?? "monthly",
+            limitMicros: usdToMicros(Number(body.limit)),
+          });
+        }
+      }
+    });
     const [fresh] = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId)).limit(1);
-    const [mapped] = await withBudgets(fresh ? [fresh] : []);
+    const [mapped] = await withMembers(await withBudgets(fresh ? [fresh] : []));
     return Response.json({ data: mapped });
   } catch (error) {
     return jsonError(error);

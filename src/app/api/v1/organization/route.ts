@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { db, schema, withTransaction } from "@/lib/db";
 import { APP_URL } from "@/lib/config";
@@ -150,6 +150,29 @@ export async function POST(req: Request) {
           .onConflictDoNothing({
             target: [schema.organizationMembers.organizationId, schema.organizationMembers.userId],
           });
+        const defaultWorkspaces = await tx
+          .select({ id: schema.workspaces.id })
+          .from(schema.workspaces)
+          .where(
+            and(
+              eq(schema.workspaces.organizationId, invite.organizationId),
+              eq(schema.workspaces.isDefault, true),
+            ),
+          );
+        if (defaultWorkspaces.length) {
+          await tx
+            .insert(schema.workspaceMembers)
+            .values(
+              defaultWorkspaces.map((workspace) => ({
+                id: id("wsm"),
+                workspaceId: workspace.id,
+                userId: auth.userId,
+              })),
+            )
+            .onConflictDoNothing({
+              target: [schema.workspaceMembers.workspaceId, schema.workspaceMembers.userId],
+            });
+        }
       });
       return Response.json({ data: { organization_id: invite.organizationId, role: invite.role } });
     }
@@ -208,7 +231,34 @@ export async function POST(req: Request) {
         if (seats.used >= seats.capacity) {
           return jsonError(Object.assign(new Error("Team seat limit reached; add seats in Billing"), { status: 403, code: "plan_limit" }));
         }
-        await db.insert(schema.organizationMembers).values({ id: id("om"), organizationId: org.id, userId: user.id, role });
+        await withTransaction(async (tx) => {
+          await tx
+            .insert(schema.organizationMembers)
+            .values({ id: id("om"), organizationId: org.id, userId: user.id, role });
+          const defaultWorkspaces = await tx
+            .select({ id: schema.workspaces.id })
+            .from(schema.workspaces)
+            .where(
+              and(
+                eq(schema.workspaces.organizationId, org.id),
+                eq(schema.workspaces.isDefault, true),
+              ),
+            );
+          if (defaultWorkspaces.length) {
+            await tx
+              .insert(schema.workspaceMembers)
+              .values(
+                defaultWorkspaces.map((workspace) => ({
+                  id: id("wsm"),
+                  workspaceId: workspace.id,
+                  userId: user.id,
+                })),
+              )
+              .onConflictDoNothing({
+                target: [schema.workspaceMembers.workspaceId, schema.workspaceMembers.userId],
+              });
+          }
+        });
         return Response.json({
           data: { organization_id: org.id, user_id: user.id, email: user.email, status: "joined" },
         });
@@ -355,7 +405,26 @@ export async function DELETE(req: Request) {
       if (!member || member.userId === org.ownerId) {
         return jsonError(Object.assign(new Error("owner cannot be removed"), { status: 403 }));
       }
-      await db.delete(schema.organizationMembers).where(eq(schema.organizationMembers.id, member.id));
+      const workspaceIds = await db
+        .select({ id: schema.workspaces.id })
+        .from(schema.workspaces)
+        .where(eq(schema.workspaces.organizationId, orgId));
+      await withTransaction(async (tx) => {
+        if (workspaceIds.length) {
+          await tx
+            .delete(schema.workspaceMembers)
+            .where(
+              and(
+                eq(schema.workspaceMembers.userId, member.userId),
+                inArray(
+                  schema.workspaceMembers.workspaceId,
+                  workspaceIds.map((workspace) => workspace.id),
+                ),
+              ),
+            );
+        }
+        await tx.delete(schema.organizationMembers).where(eq(schema.organizationMembers.id, member.id));
+      });
       return Response.json({ data: { id: member.id, deleted: true } });
     }
     if (!org || org.ownerId !== auth.userId) {

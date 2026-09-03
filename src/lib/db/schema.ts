@@ -150,6 +150,24 @@ export const workspaces = pgTable(
   (t) => [uniqueIndex("workspace_slug_user").on(t.userId, t.slug)],
 );
 
+export const workspaceMembers = pgTable(
+  "workspace_member",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("workspace_member_unique").on(t.workspaceId, t.userId),
+    index("workspace_member_user_idx").on(t.userId),
+  ],
+);
+
 export const workspaceBudgets = pgTable(
   "workspace_budget",
   {

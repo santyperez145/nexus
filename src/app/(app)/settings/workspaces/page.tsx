@@ -16,32 +16,40 @@ type Workspace = {
   includeByokInBudgets?: boolean;
   organizationId?: string | null;
   can_manage?: boolean;
+  member_ids?: string[];
   budget: { interval: string; limit: number; spent: number } | null;
+};
+
+type Organization = {
+  id: string;
+  name: string;
+  role: string;
+  members?: Array<{ userId: string; name: string; email: string; role: string }>;
 };
 
 export default function WorkspacesPage() {
   const [rows, reload] = useRemoteData<Workspace[]>("/api/v1/workspaces");
-  const [organizations] = useRemoteData<Array<{ id: string; name: string; role: string }>>("/api/v1/organization");
+  const [organizations] = useRemoteData<Organization[]>("/api/v1/organization");
   const [name, setName] = useState("");
   const [limit, setLimit] = useState("50");
   const [editId, setEditId] = useState<string | null>(null);
   const [editLimit, setEditLimit] = useState("");
   const [organizationId, setOrganizationId] = useState("");
+  const [memberDrafts, setMemberDrafts] = useState<Record<string, string[]>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const list = rows ?? [];
 
   return (
     <div>
-      <AppPageHeader title="Workspaces">
-        Separa proyectos y budgets. Las keys pueden anclarse a un workspace; el gateway corta al
-        superar el límite.
+      <AppPageHeader title="Espacios de trabajo">
+        Separá proyectos, equipos y entornos con sus propias claves, accesos y límites de gasto.
       </AppPageHeader>
       <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
         <Input
           value={limit}
           onChange={(e) => setLimit(e.target.value)}
-          placeholder="Budget USD"
+          placeholder="Límite USD"
           className="w-32"
           inputMode="decimal"
         />
@@ -49,7 +57,7 @@ export default function WorkspacesPage() {
           value={organizationId}
           onChange={(event) => setOrganizationId(event.target.value)}
           className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm"
-          aria-label="Organización del workspace"
+          aria-label="Organización del espacio"
         >
           <option value="">Personal</option>
           {(organizations ?? [])
@@ -72,7 +80,7 @@ export default function WorkspacesPage() {
               }),
             });
             const json = await res.json();
-            setMsg(json.data ? "Workspace creado" : json.error?.message ?? "No se pudo crear");
+            setMsg(json.data ? "Espacio creado" : json.error?.message ?? "No se pudo crear");
             setName("");
             reload();
           }}
@@ -95,13 +103,13 @@ export default function WorkspacesPage() {
                     {w.name}
                     {w.isDefault ? (
                       <span className="ml-2 text-[10px] uppercase tracking-wide text-violet-700">
-                        default
+                        predeterminado
                       </span>
                     ) : null}
                   </div>
                   <div className="font-mono text-xs text-zinc-600">/{w.slug}</div>
                   {w.organizationId ? (
-                    <div className="mt-1 text-xs text-violet-700">workspace de organización</div>
+                    <div className="mt-1 text-xs text-violet-700">Espacio compartido de la organización</div>
                   ) : null}
                 </div>
                 {w.can_manage !== false ? <div className="flex flex-wrap gap-1">
@@ -113,7 +121,7 @@ export default function WorkspacesPage() {
                       setEditLimit(String(w.budget?.limit ?? 50));
                     }}
                   >
-                    Editar budget
+                    Editar límite
                   </Button>
                   <Button
                     variant="ghost"
@@ -130,7 +138,7 @@ export default function WorkspacesPage() {
                       reload();
                     }}
                   >
-                    BYOK {w.includeByokInBudgets ? "en budget" : "fuera"}
+                    Proveedores propios {w.includeByokInBudgets ? "incluidos" : "excluidos"}
                   </Button>
                   {!w.isDefault ? (
                     <ConfirmAction
@@ -144,7 +152,7 @@ export default function WorkspacesPage() {
                       }}
                     />
                   ) : null}
-                </div> : <span className="text-xs text-zinc-500">acceso member</span>}
+                </div> : <span className="text-xs text-zinc-500">Acceso como miembro</span>}
               </div>
 
               {w.budget ? (
@@ -152,7 +160,7 @@ export default function WorkspacesPage() {
                   <div className="mb-1.5 flex justify-between text-xs text-zinc-500">
                     <span>
                       {formatUsd(w.budget.spent, 4)} / {formatUsd(w.budget.limit, 2)} ·{" "}
-                      {w.budget.interval}
+                      {w.budget.interval === "monthly" ? "mensual" : w.budget.interval}
                     </span>
                     <span className="tabular-nums">{pct.toFixed(0)}%</span>
                   </div>
@@ -164,8 +172,76 @@ export default function WorkspacesPage() {
                   </div>
                 </div>
               ) : (
-                <p className="mt-3 text-xs text-zinc-600">Sin budget — el gasto no se corta por workspace.</p>
+                <p className="mt-3 text-xs text-zinc-600">Sin límite de gasto para este espacio.</p>
               )}
+
+              {w.organizationId && w.can_manage !== false ? (() => {
+                const organization = organizations?.find((item) => item.id === w.organizationId);
+                const assignable = organization?.members?.filter((member) => member.role === "member") ?? [];
+                const selected = memberDrafts[w.id] ?? w.member_ids ?? [];
+                return (
+                  <div className="mt-4 border-t border-zinc-100 pt-4">
+                    <div className="text-xs font-medium text-zinc-700">Acceso del equipo</div>
+                    {w.isDefault ? (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        El espacio predeterminado está disponible para todos los miembros de la organización.
+                      </p>
+                    ) : assignable.length ? (
+                      <>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {assignable.map((member) => {
+                            const checked = selected.includes(member.userId);
+                            return (
+                              <label
+                                key={member.userId}
+                                className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-700"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(event) => {
+                                    const next = event.target.checked
+                                      ? [...new Set([...selected, member.userId])]
+                                      : selected.filter((userId) => userId !== member.userId);
+                                    setMemberDrafts((current) => ({ ...current, [w.id]: next }));
+                                  }}
+                                />
+                                <span>{member.name || member.email}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          className="mt-3"
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            const res = await fetch("/api/v1/workspaces", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: w.id, member_ids: selected }),
+                            });
+                            const json = await res.json();
+                            setMsg(json.data ? "Accesos actualizados" : json.error?.message ?? "No se pudo guardar");
+                            if (json.data) {
+                              setMemberDrafts((current) => {
+                                const next = { ...current };
+                                delete next[w.id];
+                                return next;
+                              });
+                              reload();
+                            }
+                          }}
+                        >
+                          Guardar accesos
+                        </Button>
+                      </>
+                    ) : (
+                      <p className="mt-1 text-xs text-zinc-500">No hay miembros para asignar.</p>
+                    )}
+                  </div>
+                );
+              })() : null}
 
               {editId === w.id ? (
                 <div className="mt-3 flex flex-wrap gap-2 border-t border-zinc-100 pt-3">
