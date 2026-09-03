@@ -61,4 +61,6 @@ export type AuthContext = {
   zdr: boolean;
   allowTraining: boolean;
   logPrompts: boolean;
+  /** Public playground: eco local only, never lab keys. */
+  guest?: boolean;
 };

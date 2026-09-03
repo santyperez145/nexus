@@ -1,15 +1,17 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.12.0
-  description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference.
+  version: 0.13.0
+  description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference. Guest playground via X-Nexus-Guest (local echo, IP rate-limited).
 servers:
   - url: /api/v1
 paths:
   /chat/completions:
     post:
       summary: Chat Completions
-      security: [{ bearerAuth: [] }]
+      security:
+        - bearerAuth: []
+        - {}
       parameters:
         - in: header
           name: HTTP-Referer
@@ -19,6 +21,10 @@ paths:
           name: X-Title
           schema: { type: string }
           description: App name for activity attribution
+        - in: header
+          name: X-Nexus-Guest
+          schema: { type: string, enum: ["1"] }
+          description: Public playground — local echo only, never burns lab keys (8 rpm/IP)
       requestBody:
         required: true
         content:

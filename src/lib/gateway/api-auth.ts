@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db, ensureDb, schema } from "@/lib/db";
 import { sha256 } from "@/lib/crypto";
+import { guestAuthContext } from "./guest";
 import type { AuthContext } from "./types";
 
 export async function authenticateRequest(req: Request): Promise<AuthContext> {
@@ -47,6 +48,9 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
 
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session?.user) {
+    if (req.headers.get("x-nexus-guest") === "1") {
+      return guestAuthContext();
+    }
     throw Object.assign(new Error("Missing bearer token"), { status: 401 });
   }
   const [user] = await db

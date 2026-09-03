@@ -38,8 +38,8 @@ export default async function ChatPage({
       {guest ? (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3">
           <p className="text-sm text-amber-100/90">
-            Modo público: explorá el UI y el route trace. Para completar, entrá — signup incluye $1 de
-            crédito.
+            Modo público: podés completar en eco local (sin keys). Cuenta = $1 de crédito + hops live /
+            BYOK.
           </p>
           <div className="flex gap-2">
             <Button asChild size="sm" variant="outline">

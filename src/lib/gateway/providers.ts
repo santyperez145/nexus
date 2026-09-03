@@ -63,6 +63,8 @@ export async function completeChat(opts: {
   temperature?: number;
   maxTokens?: number;
   byok?: string;
+  /** Skip lab keys (guest playground). */
+  forceLocal?: boolean;
   tools?: ToolSet;
   seed?: number;
   topP?: number;
@@ -73,7 +75,7 @@ export async function completeChat(opts: {
   responseFormat?: { type: string; json_schema?: unknown };
   reasoningEffort?: "low" | "medium" | "high";
 }) {
-  const apiKey = envKey(opts.endpoint.adapter, opts.byok);
+  const apiKey = opts.forceLocal ? undefined : envKey(opts.endpoint.adapter, opts.byok);
   if (!apiKey) {
     return localComplete(opts.messages, opts.endpoint);
   }
@@ -120,6 +122,7 @@ export async function streamChat(opts: {
   temperature?: number;
   maxTokens?: number;
   byok?: string;
+  forceLocal?: boolean;
   tools?: ToolSet;
   seed?: number;
   topP?: number;
@@ -128,7 +131,7 @@ export async function streamChat(opts: {
   presencePenalty?: number;
   stop?: string | string[];
 }) {
-  const apiKey = envKey(opts.endpoint.adapter, opts.byok);
+  const apiKey = opts.forceLocal ? undefined : envKey(opts.endpoint.adapter, opts.byok);
   if (!apiKey) {
     const local = await localComplete(opts.messages, opts.endpoint);
     return { ...local, stream: null as ReadableStream<string> | null };

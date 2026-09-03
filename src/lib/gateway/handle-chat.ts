@@ -10,6 +10,7 @@ import { assertCredits, checkFreeRateLimit, maybeAutoTopup, settleUsage } from "
 import { enforceGuardrails } from "./guardrails";
 import { isCircuitOpen, recordFailure, recordSuccess } from "./health";
 import { assertRateLimit } from "./rate-limit";
+import { assertGuestRateLimit } from "./guest";
 import { buildServerTools } from "./server-tools";
 import { attachUserFiles } from "./files";
 import { applyMiddleOut } from "./middle-out";
@@ -72,6 +73,79 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
   }
 
   const first = plan.models[0];
+
+  // Guest playground: eco local only (never burn platform/BYOK keys), IP rate-limited.
+  if (auth.guest) {
+    await assertGuestRateLimit(headers);
+    const endpoint = first.endpoints[0];
+    if (!endpoint) {
+      throw Object.assign(new Error("No endpoint available for guest demo"), { status: 404 });
+    }
+    const started = Date.now();
+    const genId = generationId();
+    if (req.stream) {
+      return streamCompletion({
+        req,
+        auth,
+        headers,
+        messages,
+        candidate: first,
+        endpoint,
+        genId,
+        started,
+        routeHops,
+        forceLocal: true,
+      });
+    }
+    const result = await completeChat({
+      endpoint,
+      messages,
+      temperature: req.temperature,
+      maxTokens: req.max_tokens ?? req.max_completion_tokens ?? req.reasoning?.max_tokens,
+      forceLocal: true,
+      seed: req.seed,
+      topP: req.top_p,
+      topK: req.top_k,
+      frequencyPenalty: req.frequency_penalty,
+      presencePenalty: req.presence_penalty,
+      stop: req.stop,
+      responseFormat: req.response_format,
+      reasoningEffort: req.reasoning?.effort,
+    });
+    await persistGeneration({
+      genId,
+      auth,
+      headers,
+      requested: plan.requested,
+      routed: first.model.id,
+      provider: "local",
+      result,
+      costMicros: 0,
+      latencyMs: Date.now() - started,
+      streamed: false,
+      isByok: false,
+      messages,
+      routeHops,
+    });
+    return jsonCompletion(
+      chatCompletionPayload({
+        id: genId,
+        model: first.model.id,
+        provider: "local",
+        text: result.text,
+        finishReason: result.finishReason,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        costUsd: 0,
+        isByok: false,
+        pricing: endpoint.pricing,
+        reasoning: result.reasoning,
+        toolCalls: result.toolCalls,
+      }),
+      genId,
+    );
+  }
+
   await assertRateLimit(auth);
   await checkFreeRateLimit(auth, first.model.free);
   const estimate = usdToMicros(
@@ -288,6 +362,7 @@ async function streamCompletion(opts: {
   candidate: ReturnType<typeof resolveRoute>["models"][number];
   endpoint: (typeof opts)["candidate"]["endpoints"][number];
   byok?: string;
+  forceLocal?: boolean;
   genId: string;
   started: number;
   tools?: ReturnType<typeof buildServerTools>;
@@ -299,6 +374,7 @@ async function streamCompletion(opts: {
     temperature: opts.req.temperature,
     maxTokens: opts.req.max_tokens ?? opts.req.max_completion_tokens ?? opts.req.reasoning?.max_tokens,
     byok: opts.byok,
+    forceLocal: opts.forceLocal,
     tools: opts.tools,
     seed: opts.req.seed,
     topP: opts.req.top_p,

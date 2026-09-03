@@ -230,6 +230,23 @@ const r = await nexus.chat.send({
   }],
 });`,
   },
+  {
+    slug: "guest-playground",
+    title: "Guest eco (sin API key)",
+    blurb: "Header X-Nexus-Guest: 1 — completion local rate-limited. Nunca quema keys de lab.",
+    tags: ["guest", "demo"],
+    model: "nexus/auto",
+    curl: `curl $NEXUS_URL/api/v1/chat/completions \\
+  -H "X-Nexus-Guest: 1" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "nexus/auto",
+    "stream": false,
+    "messages": [{"role":"user","content":"ping guest"}]
+  }'`,
+    sdk: `// Browser playground manda X-Nexus-Guest automáticamente.
+// Desde curl/SDK usá el header; la respuesta es eco local (provider: local).`,
+  },
 ];
 
 export function findRecipe(slug: string) {

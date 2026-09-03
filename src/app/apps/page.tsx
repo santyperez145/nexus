@@ -5,11 +5,13 @@ import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { RECIPES } from "@/lib/apps/recipes";
 import { db, ensureDb, schema } from "@/lib/db";
 import { formatUsd, microsToUsd } from "@/lib/money";
+import { wiredProviders } from "@/lib/providers/registry";
 
 export const dynamic = "force-dynamic";
 
 export default async function AppsPage() {
   await ensureDb();
+  const wired = wiredProviders().length;
   const rows = await db
     .select({
       title: schema.generations.appTitle,
@@ -34,14 +36,45 @@ export default async function AppsPage() {
     }))
     .filter((a) => a.requests > 0);
 
+  const totalReq = apps.reduce((s, a) => s + a.requests, 0);
+
   return (
     <MarketingShell>
-      <div className="mx-auto max-w-5xl px-4 py-12 md:py-16">
+      <div className="relative mx-auto max-w-5xl px-4 py-12 md:py-16">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+        />
         <MarketingPageHeader title="Apps">
-          Recipes curados para arrancar + ranking real por{" "}
+          Recipes curados + ranking real por{" "}
           <code className="text-zinc-700">HTTP-Referer</code> /{" "}
-          <code className="text-zinc-700">X-Title</code>. Sin directorio inventado.
+          <code className="text-zinc-700">X-Title</code>. Sin directorio inventado — solo lo que
+          pegó a esta instancia.
         </MarketingPageHeader>
+
+        <div className="mb-10 grid gap-3 sm:grid-cols-3">
+          {[
+            { k: "Recipes", v: String(RECIPES.length) },
+            { k: "Apps atribuidas", v: String(apps.length) },
+            { k: "Req atribuidos", v: totalReq.toLocaleString() },
+          ].map((s) => (
+            <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
+              <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold text-zinc-900">
+                {s.v}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="mb-8 text-sm text-zinc-500">
+          Gateway mode: {wired ? `${wired} labs live` : "local echo"}. Guest puede probar recipes
+          vía{" "}
+          <Link href="/chat" className="text-amber-700 hover:underline">
+            /chat
+          </Link>{" "}
+          sin key (eco).
+        </p>
 
         <section className="mb-12">
           <h2 className="mb-4 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
@@ -68,6 +101,7 @@ export default async function AppsPage() {
                     </span>
                   ))}
                 </div>
+                <div className="mt-3 font-mono text-[11px] text-zinc-400">{r.model}</div>
               </Link>
             ))}
           </div>
@@ -80,9 +114,13 @@ export default async function AppsPage() {
           {!apps.length ? (
             <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-4 py-12 text-center text-sm text-zinc-500">
               Todavía no hay atribución. Desde el SDK o curl mandá headers y van a aparecer acá.
+              <pre className="mx-auto mt-4 max-w-md overflow-x-auto rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-left font-mono text-[11px] text-zinc-600">
+{`-H "HTTP-Referer: https://tu-app.example"
+-H "X-Title: Mi App"`}
+              </pre>
               <div className="mt-4">
                 <Link href="/docs" className="text-amber-700 hover:underline">
-                  Docs de atribución →
+                  Docs →
                 </Link>
               </div>
             </div>

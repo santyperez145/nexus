@@ -173,11 +173,12 @@ export function Playground({
 
   async function streamOne(laneIndex: number, model: string, thread: Msg[], signal: AbortSignal) {
     const visible = thread.filter((m) => m.role !== "system");
-    const headers = {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "HTTP-Referer": origin,
       "X-Title": "Nexus Playground",
     };
+    if (guest) headers["X-Nexus-Guest"] = "1";
 
     if (envelope !== "chat") {
       const path = envelope === "messages" ? "/api/v1/messages" : "/api/v1/responses";
@@ -472,8 +473,9 @@ export function Playground({
         </div>
       ) : null}
       {guest ? (
-        <p className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-zinc-400">
-          Guest · el route trace funciona; el completion pide sesión.{" "}
+        <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-sm text-amber-100/90">
+          Guest demo · completions en eco local (sin keys de lab), rate-limit por IP. Signup incluye $1
+          para hops live / BYOK.{" "}
           <Link href="/register" className="text-amber-400 hover:underline">
             Crear cuenta
           </Link>

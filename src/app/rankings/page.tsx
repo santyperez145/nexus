@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { sql, gte } from "drizzle-orm";
+import { sql, gte, ne, and } from "drizzle-orm";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { RankingsClient } from "@/components/models/rankings-client";
 import { allModels, usdPerMillion } from "@/lib/catalog";
 import { db, ensureDb, schema } from "@/lib/db";
+import { GUEST_USER_ID } from "@/lib/gateway/guest";
 
 export const dynamic = "force-dynamic";
 
@@ -22,32 +23,25 @@ export default async function RankingsPage({
   const windowKey = sp.window === "7d" || sp.window === "30d" ? sp.window : "all";
   await ensureDb();
 
-  // Request-scoped cutoff (force-dynamic); avoid Date.now in component body for purity lint.
   const since =
     windowKey === "7d" || windowKey === "30d"
       ? rankingWindowStart(windowKey)
       : null;
 
-  const usage = since
-    ? await db
-        .select({
-          model: schema.generations.routedModel,
-          tokens: sql<number>`sum(${schema.generations.promptTokens} + ${schema.generations.completionTokens})`,
-          requests: sql<number>`count(*)`,
-          avgLatency: sql<number | null>`avg(${schema.generations.latencyMs})`,
-        })
-        .from(schema.generations)
-        .where(gte(schema.generations.createdAt, since))
-        .groupBy(schema.generations.routedModel)
-    : await db
-        .select({
-          model: schema.generations.routedModel,
-          tokens: sql<number>`sum(${schema.generations.promptTokens} + ${schema.generations.completionTokens})`,
-          requests: sql<number>`count(*)`,
-          avgLatency: sql<number | null>`avg(${schema.generations.latencyMs})`,
-        })
-        .from(schema.generations)
-        .groupBy(schema.generations.routedModel);
+  const usageWhere = since
+    ? and(ne(schema.generations.userId, GUEST_USER_ID), gte(schema.generations.createdAt, since))
+    : ne(schema.generations.userId, GUEST_USER_ID);
+
+  const usage = await db
+    .select({
+      model: schema.generations.routedModel,
+      tokens: sql<number>`sum(${schema.generations.promptTokens} + ${schema.generations.completionTokens})`,
+      requests: sql<number>`count(*)`,
+      avgLatency: sql<number | null>`avg(${schema.generations.latencyMs})`,
+    })
+    .from(schema.generations)
+    .where(usageWhere)
+    .groupBy(schema.generations.routedModel);
 
   const byUsage = new Map(usage.map((u) => [u.model, u]));
   const rows = allModels()
@@ -61,6 +55,7 @@ export default async function RankingsPage({
         u?.avgLatency != null && Number.isFinite(Number(u.avgLatency))
           ? Math.round(Number(u.avgLatency))
           : null;
+      const inputs = m.architecture?.inputModalities ?? ["text"];
       return {
         id: m.id,
         promptPerM: usdPerMillion(m.pricing.prompt),
@@ -70,8 +65,13 @@ export default async function RankingsPage({
         latencyMs: measured ?? catalogLatency,
         measured: measured != null,
         providers: [...new Set(m.endpoints.map((e) => e.adapter))].slice(0, 3),
+        vision: inputs.includes("image"),
+        modality: m.architecture?.modality ?? "text->text",
       };
     });
+
+  const measuredCount = rows.filter((r) => r.measured).length;
+  const withTraffic = rows.filter((r) => r.tokens > 0).length;
 
   return (
     <MarketingShell>
@@ -82,10 +82,25 @@ export default async function RankingsPage({
         />
         <MarketingPageHeader title="Rankings">
           Popular = tokens reales de esta instancia
-          {windowKey !== "all" ? ` (${windowKey})` : ""}. Latencia prioriza avg medido de{" "}
-          <code className="text-zinc-700">generation.latency_ms</code>; si no hay datos, cae al
-          catálogo. Sin tracción inventada · {rows.length} modelos.
+          {windowKey !== "all" ? ` (${windowKey})` : ""}. Latencia prioriza avg medido; si no hay
+          samples, cae al catálogo. Guest playground excluido · sin tracción inventada.
         </MarketingPageHeader>
+
+        <div className="mb-6 grid gap-3 sm:grid-cols-3">
+          {[
+            { k: "Modelos", v: String(rows.length) },
+            { k: "Con tráfico", v: String(withTraffic) },
+            { k: "Latencia medida", v: String(measuredCount) },
+          ].map((s) => (
+            <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+              <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
+              <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold text-zinc-900">
+                {s.v}
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div className="mb-6 flex flex-wrap gap-2 text-sm">
           {(
             [

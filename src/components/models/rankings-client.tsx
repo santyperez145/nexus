@@ -13,9 +13,12 @@ export type RankingRow = {
   latencyMs: number | null;
   measured?: boolean;
   providers?: string[];
+  vision?: boolean;
+  modality?: string;
 };
 
 type Sort = "popular" | "price" | "latency";
+type Modality = "all" | "text" | "vision";
 
 export function RankingsClient({
   rows,
@@ -26,9 +29,15 @@ export function RankingsClient({
 }) {
   const [sort, setSort] = useState<Sort>("popular");
   const [freeOnly, setFreeOnly] = useState(false);
+  const [modality, setModality] = useState<Modality>("all");
 
   const ranked = useMemo(() => {
-    const list = rows.filter((r) => (freeOnly ? r.free : true));
+    const list = rows.filter((r) => {
+      if (freeOnly && !r.free) return false;
+      if (modality === "vision" && !r.vision) return false;
+      if (modality === "text" && r.vision) return false;
+      return true;
+    });
     if (sort === "price") {
       list.sort((a, b) => {
         if (a.free !== b.free) return a.free ? -1 : 1;
@@ -48,7 +57,7 @@ export function RankingsClient({
       });
     }
     return list.slice(0, 80);
-  }, [rows, sort, freeOnly]);
+  }, [rows, sort, freeOnly, modality]);
 
   const maxBar = Math.max(
     1,
@@ -78,7 +87,15 @@ export function RankingsClient({
   if (ranked.length === 0) {
     return (
       <div>
-        <Toolbar tabs={tabs} sort={sort} setSort={setSort} freeOnly={freeOnly} setFreeOnly={setFreeOnly} />
+        <Toolbar
+          tabs={tabs}
+          sort={sort}
+          setSort={setSort}
+          freeOnly={freeOnly}
+          setFreeOnly={setFreeOnly}
+          modality={modality}
+          setModality={setModality}
+        />
         <p className="rounded-xl border border-dashed border-zinc-200 bg-white px-4 py-10 text-center text-sm text-zinc-500">
           Sin filas para este criterio.{" "}
           <Link href="/chat" className="text-amber-700 hover:underline">
@@ -92,7 +109,15 @@ export function RankingsClient({
 
   return (
     <div>
-      <Toolbar tabs={tabs} sort={sort} setSort={setSort} freeOnly={freeOnly} setFreeOnly={setFreeOnly} />
+      <Toolbar
+        tabs={tabs}
+        sort={sort}
+        setSort={setSort}
+        freeOnly={freeOnly}
+        setFreeOnly={setFreeOnly}
+        modality={modality}
+        setModality={setModality}
+      />
       <p className="mb-4 text-sm text-zinc-500">{tabs.find((t) => t.id === sort)?.blurb}</p>
 
       {sort === "popular" && ranked.every((r) => r.tokens === 0) ? (
@@ -133,9 +158,24 @@ export function RankingsClient({
               >
                 <span className="font-mono text-xs text-zinc-400">{i + 1}</span>
                 <div className="min-w-0">
-                  <Link href={`/models/${m.id}`} className="font-mono text-sm text-amber-700 hover:underline">
-                    {m.id}
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/models/${m.id}`}
+                      className="font-mono text-sm text-amber-700 hover:underline"
+                    >
+                      {m.id}
+                    </Link>
+                    {m.vision ? (
+                      <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-violet-800">
+                        vision
+                      </span>
+                    ) : null}
+                    {m.free ? (
+                      <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-800">
+                        free
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="mt-1.5 h-1 max-w-xs overflow-hidden rounded-full bg-zinc-100">
                     <div
                       className="h-full rounded-full bg-amber-500/50"
@@ -181,13 +221,22 @@ function Toolbar({
   setSort,
   freeOnly,
   setFreeOnly,
+  modality,
+  setModality,
 }: {
   tabs: Array<{ id: Sort; label: string }>;
   sort: Sort;
   setSort: (s: Sort) => void;
   freeOnly: boolean;
   setFreeOnly: (v: boolean) => void;
+  modality: Modality;
+  setModality: (m: Modality) => void;
 }) {
+  const modes: Array<{ id: Modality; label: string }> = [
+    { id: "all", label: "All" },
+    { id: "text", label: "Text" },
+    { id: "vision", label: "Vision" },
+  ];
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap gap-1 rounded-xl border border-zinc-200 bg-white p-1">
@@ -204,10 +253,26 @@ function Toolbar({
           </button>
         ))}
       </div>
-      <label className="flex items-center gap-2 text-sm text-zinc-600">
-        <input type="checkbox" checked={freeOnly} onChange={(e) => setFreeOnly(e.target.checked)} />
-        Solo free
-      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 rounded-lg border border-zinc-200 bg-white p-0.5">
+          {modes.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setModality(m.id)}
+              className={`rounded-md px-2.5 py-1 text-xs ${
+                modality === m.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-sm text-zinc-600">
+          <input type="checkbox" checked={freeOnly} onChange={(e) => setFreeOnly(e.target.checked)} />
+          Solo free
+        </label>
+      </div>
     </div>
   );
 }
