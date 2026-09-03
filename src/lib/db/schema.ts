@@ -347,3 +347,18 @@ export const observabilityDestinations = pgTable("observability_destination", {
   deleted: boolean("deleted").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const chatShares = pgTable("chat_share", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  title: text("title"),
+  payload: jsonb("payload")
+    .$type<{
+      model: string;
+      messages: Array<{ role: string; content: string }>;
+      stats?: Record<string, unknown> | null;
+      comparing?: boolean;
+    }>()
+    .notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

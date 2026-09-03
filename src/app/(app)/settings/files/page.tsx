@@ -58,7 +58,7 @@ export default function FilesPage() {
         }
       >
         Subí texto, código o PDF (multi). En el playground marcá el file (<code>file_ids</code>) y el
-        gateway lo inyecta. Máx 4 MB c/u.
+        gateway lo inyecta. Máx 8 MB c/u.
       </AppPageHeader>
 
       <div

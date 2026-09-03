@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatUsd } from "@/lib/money";
 import { useRemoteData } from "@/lib/use-remote-data";
+import {
+  deleteChatSession,
+  newSessionId,
+  upsertChatSession,
+  useChatSessions,
+} from "@/components/chat/chat-sessions";
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 type Stats = {
@@ -69,6 +75,9 @@ export function Playground({
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const [route, setRoute] = useState<RoutePreview | null>(null);
+  const [sessionId, setSessionId] = useState(() => newSessionId());
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const sessions = useChatSessions();
   const [filesData, reloadFiles] = useRemoteData<FileRow[]>("/api/v1/files");
   const files = filesData ?? [];
   const presets = useRemoteData<PresetRow[]>("/api/v1/presets")[0] ?? [];
@@ -176,17 +185,11 @@ export function Playground({
             ? "Necesitás sesión o una API key. Creá cuenta (incluye $1) o Entrá para chatear."
             : "Sesión expirada — volvé a entrar."
           : (err.error?.message ?? "Error de gateway");
+      const messages = [...visible, { role: "assistant" as const, content: message }];
       setLanes((prev) =>
-        prev.map((lane, i) =>
-          i === laneIndex
-            ? {
-                ...lane,
-                messages: [...visible, { role: "assistant", content: message }],
-              }
-            : lane,
-        ),
+        prev.map((lane, i) => (i === laneIndex ? { ...lane, messages } : lane)),
       );
-      return;
+      return { messages, stats: null as Stats | null };
     }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -238,7 +241,11 @@ export function Playground({
         }
       }
     }
-    setLanes((prev) => prev.map((lane, i) => (i === laneIndex ? { ...lane, stats: meta } : lane)));
+    const messages = [...visible, { role: "assistant" as const, content: assistant }];
+    setLanes((prev) =>
+      prev.map((lane, i) => (i === laneIndex ? { ...lane, messages, stats: meta } : lane)),
+    );
+    return { messages, stats: meta };
   }
 
   async function send() {
@@ -259,7 +266,21 @@ export function Playground({
     });
     setLanes((prev) => prev.map((lane, i) => ({ ...lane, messages: snapshot[i].visible, stats: null })));
     try {
-      await Promise.all(snapshot.map((s, i) => streamOne(i, s.model, s.thread, ac.signal)));
+      const results = await Promise.all(
+        snapshot.map((s, i) => streamOne(i, s.model, s.thread, ac.signal)),
+      );
+      const first = results[0];
+      if (first?.messages.length) {
+        const title =
+          first.messages.find((m) => m.role === "user")?.content.slice(0, 72) ||
+          applyOnline(snapshot[0].model, online);
+        upsertChatSession({
+          id: sessionId,
+          title,
+          model: snapshot[0].model,
+          messages: first.messages,
+        });
+      }
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
         setLanes((prev) =>
@@ -274,10 +295,82 @@ export function Playground({
     }
   }
 
+  async function shareThread() {
+    const lane = lanes[0];
+    if (!lane?.messages.length) return;
+    setShareMsg(null);
+    const res = await fetch("/api/v1/shares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: applyOnline(lane.model, online),
+        messages: lane.messages,
+        stats: lane.stats,
+        comparing: lanes.length > 1,
+        title: lane.messages.find((m) => m.role === "user")?.content.slice(0, 72),
+      }),
+    });
+    const json = await res.json();
+    if (!json.data?.url) {
+      setShareMsg(json.error?.message ?? "No se pudo compartir");
+      return;
+    }
+    const url = `${origin}${json.data.url}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareMsg(`Copiado: ${url}`);
+    } catch {
+      setShareMsg(url);
+    }
+  }
+
   const comparing = lanes.length > 1;
 
   return (
     <div className="grid gap-4">
+      {sessions.length ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+          <span className="uppercase tracking-wide text-zinc-600">Historial</span>
+          {sessions.slice(0, 8).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`max-w-[10rem] truncate rounded border px-2 py-1 text-left ${
+                s.id === sessionId
+                  ? "border-amber-400/40 text-amber-200"
+                  : "border-white/10 text-zinc-400 hover:text-zinc-200"
+              }`}
+              onClick={() => {
+                setSessionId(s.id);
+                setLanes([{ model: s.model, query: "", messages: s.messages, stats: null }]);
+              }}
+              title={s.title}
+            >
+              {s.title || s.model}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="text-amber-400 hover:underline"
+            onClick={() => {
+              setSessionId(newSessionId());
+              setLanes([{ model: defaultModel, query: "", messages: [], stats: null }]);
+              setShareMsg(null);
+            }}
+          >
+            Nueva
+          </button>
+          {sessions[0] ? (
+            <button
+              type="button"
+              className="text-zinc-600 hover:text-rose-300"
+              onClick={() => deleteChatSession(sessions[0].id)}
+            >
+              Borrar última
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {guest ? (
         <p className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-zinc-400">
           Guest · el route trace funciona; el completion pide sesión.{" "}
@@ -538,7 +631,7 @@ export function Playground({
             }
           }}
         />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={() => void send()} disabled={busy}>
             {busy ? "Generando…" : comparing ? "Enviar a ambos" : "Enviar"}
           </Button>
@@ -547,7 +640,13 @@ export function Playground({
               Stop
             </Button>
           ) : null}
+          {lanes[0]?.messages.length ? (
+            <Button variant="outline" onClick={() => void shareThread()} disabled={busy}>
+              Compartir
+            </Button>
+          ) : null}
         </div>
+        {shareMsg ? <p className="text-xs text-amber-300/90">{shareMsg}</p> : null}
       </div>
     </div>
   );

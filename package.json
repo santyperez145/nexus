@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit && tsc -p packages/sdk --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "tip-to-tip": "tsx scripts/tip-to-tip.ts",
     "catalog:build": "node scripts/build-catalog.mjs",
     "sdk:sync-models": "tsx scripts/sync-sdk-models.ts && npm run build --prefix packages/sdk",
     "db:studio": "drizzle-kit studio",

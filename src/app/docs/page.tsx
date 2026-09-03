@@ -164,7 +164,7 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
         </p>
         <h2 className="mb-3 text-lg font-medium text-zinc-900">Files</h2>
         <p className="mb-6 text-sm text-zinc-600">
-          <code className="text-zinc-800">POST /api/v1/files</code> (multipart, máx 4 MB) y después{" "}
+          <code className="text-zinc-800">POST /api/v1/files</code> (multipart, máx 8 MB) y después{" "}
           <code className="text-zinc-800">file_ids</code> en el completion. El gateway inyecta el
           texto en el prompt.
         </p>

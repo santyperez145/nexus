@@ -23,6 +23,14 @@ describe("extractFileText", () => {
     assert.match(text, /Nexus/);
   });
 
+  it("decodes hex PDF strings", () => {
+    const hex = Buffer.from("Nexus Hex").toString("hex");
+    const raw = `%PDF-1.4\n<${hex}>`;
+    const b64 = Buffer.from(raw, "latin1").toString("base64");
+    const text = extractFileText("application/pdf", b64, "hex.pdf");
+    assert.match(text, /Nexus Hex/);
+  });
+
   it("falls back for opaque binaries", () => {
     const b64 = Buffer.from([0, 1, 2, 3]).toString("base64");
     assert.match(extractFileText("application/octet-stream", b64, "blob.bin"), /blob.bin/);

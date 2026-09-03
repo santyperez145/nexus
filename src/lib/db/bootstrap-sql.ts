@@ -243,4 +243,11 @@ export const SCHEMA_SQL = [
     deleted boolean NOT NULL DEFAULT false,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS "chat_share" (
+    id text PRIMARY KEY,
+    user_id text REFERENCES "user"(id) ON DELETE SET NULL,
+    title text,
+    payload jsonb NOT NULL,
+    created_at timestamp NOT NULL DEFAULT now()
+  )`,
 ];
