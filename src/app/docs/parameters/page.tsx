@@ -29,7 +29,8 @@ export default function ParametersDocsPage() {
             ["response_format", "json_object o json_schema"],
             ["stream + stream_options.include_usage", "SSE + usage final"],
             ["transforms", '["middle-out"] comprime hilos largos'],
-            ["file_ids", "Inyecta texto de Files"],
+            ["file_ids", "Texto → system; imágenes → content[] image_url"],
+            ["messages[].content[]", "Multimodal: text + image_url (data: o https)"],
             ["plugins", '[{ "id": "web" }] con :online'],
             ["reasoning / include_reasoning", "Esfuerzo cuando el modelo lo expone"],
             ["provider", "Ver /docs/provider-routing"],
@@ -45,6 +46,27 @@ export default function ParametersDocsPage() {
             </div>
           ))}
         </div>
+
+        <pre className="mb-6 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+{`{
+  "model": "openai/gpt-4o",
+  "messages": [{
+    "role": "user",
+    "content": [
+      { "type": "text", "text": "Qué hay en la imagen?" },
+      { "type": "image_url", "image_url": { "url": "data:image/png;base64,…" } }
+    ]
+  }]
+}`}
+        </pre>
+        <p className="mb-8 text-sm text-zinc-600">
+          Visión: adjuntá en{" "}
+          <Link href="/chat" className="text-amber-700 hover:underline">
+            Chat
+          </Link>{" "}
+          o subí a Files (mime image/*) y pasá <code className="text-zinc-800">file_ids</code>. Sin
+          lab vision-capable → eco local puede ignorar pixels.
+        </p>
 
         <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`{

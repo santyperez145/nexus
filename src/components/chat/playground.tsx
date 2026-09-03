@@ -13,7 +13,7 @@ import {
   useChatSessions,
 } from "@/components/chat/chat-sessions";
 
-type Msg = { role: "user" | "assistant" | "system"; content: string };
+type Msg = { role: "user" | "assistant" | "system"; content: string; images?: string[] };
 type Stats = {
   id: string;
   provider: string;
@@ -38,6 +38,19 @@ const STARTERS = [
 function applyOnline(model: string, online: boolean) {
   if (!online || model.startsWith("@") || model.includes(":online")) return model;
   return `${model}:online`;
+}
+
+function toApiMessages(thread: Msg[]) {
+  return thread.map((m) => ({
+    role: m.role,
+    content:
+      m.images?.length
+        ? [
+            { type: "text", text: m.content },
+            ...m.images.map((url) => ({ type: "image_url", image_url: { url } })),
+          ]
+        : m.content,
+  }));
 }
 
 export function Playground({
@@ -74,6 +87,7 @@ export function Playground({
   const [onlyRaw, setOnlyRaw] = useState("");
   const [ignoreRaw, setIgnoreRaw] = useState("");
   const [fileIds, setFileIds] = useState<string[]>([]);
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const [route, setRoute] = useState<RoutePreview | null>(null);
@@ -173,13 +187,13 @@ export function Playground({
               model: applyOnline(model, online),
               max_tokens: 1024,
               temperature,
-              messages: thread,
+              messages: toApiMessages(thread),
               provider: providerPrefs(),
               ...(fileIds.length ? { file_ids: fileIds } : {}),
             }
           : {
               model: applyOnline(model, online),
-              input: thread,
+              input: toApiMessages(thread),
               max_output_tokens: 1024,
               temperature,
               provider: providerPrefs(),
@@ -236,7 +250,7 @@ export function Playground({
       signal,
       body: JSON.stringify({
         model: applyOnline(model, online),
-        messages: thread,
+        messages: toApiMessages(thread),
         stream: true,
         temperature,
         stream_options: { include_usage: true },
@@ -318,10 +332,12 @@ export function Playground({
   }
 
   async function send() {
-    if (!input.trim() || busy) return;
-    const prompt = input;
+    if ((!input.trim() && !pendingImages.length) || busy) return;
+    const prompt = input.trim() || (pendingImages.length ? "Describe la imagen." : "");
+    const images = pendingImages.length ? [...pendingImages] : undefined;
     void previewRoute(lanes[0]?.model ?? defaultModel);
     setInput("");
+    setPendingImages([]);
     setBusy(true);
     const ac = new AbortController();
     abortRef.current = ac;
@@ -329,7 +345,7 @@ export function Playground({
       const thread: Msg[] = [
         ...(system ? [{ role: "system" as const, content: system }] : []),
         ...lane.messages.filter((m) => m.role !== "system"),
-        { role: "user", content: prompt },
+        { role: "user", content: prompt, ...(images ? { images } : {}) },
       ];
       return { model: lane.model, thread, visible: thread.filter((m) => m.role !== "system") };
     });
@@ -347,7 +363,7 @@ export function Playground({
           id: sessionId,
           title,
           model: snapshot[0].model,
-          messages: first.messages,
+          messages: first.messages.map((m) => ({ role: m.role, content: m.content })),
         });
       }
     } catch (error) {
@@ -361,6 +377,21 @@ export function Playground({
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  function readImageFiles(list: FileList | File[]) {
+    const files = [...list].filter((f) => f.type.startsWith("image/")).slice(0, 4);
+    for (const file of files) {
+      if (file.size > 4 * 1024 * 1024) continue;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = String(reader.result ?? "");
+        if (url.startsWith("data:")) {
+          setPendingImages((prev) => [...prev, url].slice(0, 4));
+        }
+      };
+      reader.readAsDataURL(file);
     }
   }
 
@@ -671,6 +702,19 @@ export function Playground({
               lane.messages.map((m, i) => (
                 <div key={i} className={m.role === "user" ? "text-amber-100" : "text-zinc-200"}>
                   <div className="mb-1 text-xs uppercase tracking-wide text-zinc-500">{m.role}</div>
+                  {m.images?.length ? (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {m.images.map((src, j) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={j}
+                          src={src}
+                          alt=""
+                          className="max-h-28 rounded-lg border border-white/10"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="whitespace-pre-wrap text-sm">{m.content}</div>
                 </div>
               ))
@@ -707,10 +751,54 @@ export function Playground({
         </div>
       ) : null}
       <div className="grid gap-2">
+        {pendingImages.length ? (
+          <div className="flex flex-wrap gap-2">
+            {pendingImages.map((src, i) => (
+              <div key={i} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="h-16 w-16 rounded-lg border border-white/10 object-cover" />
+                <button
+                  type="button"
+                  className="absolute -right-1 -top-1 rounded-full bg-zinc-900 px-1.5 text-[10px] text-zinc-300"
+                  onClick={() => setPendingImages((prev) => prev.filter((_, j) => j !== i))}
+                  aria-label="Quitar imagen"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+          <label className="cursor-pointer rounded-md border border-white/10 px-2 py-1 hover:border-amber-500/40 hover:text-amber-200">
+            + imagen
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.length) readImageFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <span>o pegá (Ctrl+V) · vision content[] · máx 4 · 4MB</span>
+          <Link href="/docs/parameters" className="text-amber-400/80 hover:underline">
+            docs
+          </Link>
+        </div>
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribe un prompt…"
+          placeholder="Escribe un prompt… (visión: adjuntá imagen)"
+          onPaste={(e) => {
+            const files = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+            if (files.length) {
+              e.preventDefault();
+              readImageFiles(files);
+            }
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

@@ -10,6 +10,8 @@ const key = process.env.NEXUS_API_KEY;
 
 type Summary = {
   status: number;
+  statusMode: string | null;
+  statusOk: boolean | null;
   previewMode: string | null;
   hops: number;
   wiredHops: number;
@@ -23,6 +25,8 @@ type Summary = {
 async function main() {
   const summary: Summary = {
     status: 0,
+    statusMode: null,
+    statusOk: null,
     previewMode: null,
     hops: 0,
     wiredHops: 0,
@@ -36,7 +40,9 @@ async function main() {
   const statusRes = await fetch(`${base}/api/v1/status`);
   summary.status = statusRes.status;
   const status = await statusRes.json();
-  console.log("status", statusRes.status, JSON.stringify(status).slice(0, 240));
+  summary.statusMode = status.mode ?? null;
+  summary.statusOk = typeof status.ok === "boolean" ? status.ok : null;
+  console.log("status", statusRes.status, JSON.stringify(status).slice(0, 280));
 
   const previewRes = await fetch(`${base}/api/v1/routing/preview`, {
     method: "POST",
@@ -54,7 +60,7 @@ async function main() {
   console.log("preview", summary.previewMode, "hops", summary.hops, "wired", summary.wiredHops);
 
   if (!key) {
-    summary.ok = statusRes.ok && previewRes.ok;
+    summary.ok = statusRes.ok && previewRes.ok && summary.statusOk !== false;
     console.log("public smoke only (set NEXUS_API_KEY for completion)");
     console.log("SUMMARY", JSON.stringify(summary));
     process.exit(summary.ok ? 0 : 1);
@@ -89,11 +95,18 @@ async function main() {
     console.log("generation", genRes.status, gen.data?.provider ?? gen.data?.model ?? "");
   }
 
-  if (summary.wiredHops > 0 && summary.provider === "local") {
-    console.warn("warn: hops wired but completion provider=local — check BYOK/routing");
+  const liveMismatch =
+    (summary.wiredHops > 0 || summary.statusMode === "live") && summary.provider === "local";
+  if (liveMismatch) {
+    console.warn("warn: status/preview suggest live hops but completion provider=local");
+    if (process.env.NEXUS_STRICT_LIVE === "1") {
+      summary.ok = false;
+      console.log("SUMMARY", JSON.stringify(summary));
+      process.exit(1);
+    }
   }
 
-  summary.ok = statusRes.ok && previewRes.ok && chatRes.ok;
+  summary.ok = statusRes.ok && previewRes.ok && chatRes.ok && summary.statusOk !== false;
   console.log("SUMMARY", JSON.stringify(summary));
   process.exit(summary.ok ? 0 : 1);
 }

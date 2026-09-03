@@ -80,6 +80,9 @@ export function ArenaClient({
   const [busy, setBusy] = useState(false);
   const votes = useSyncExternalStore(subscribeVotes, getVotesSnapshot, () => EMPTY);
   const [msg, setMsg] = useState<string | null>(null);
+  const [blind, setBlind] = useState(true);
+  const [reveal, setReveal] = useState(false);
+  const [swap, setSwap] = useState(false);
 
   const tallies = useMemo(() => {
     const map = new Map<string, { wins: number; losses: number; ties: number }>();
@@ -161,6 +164,8 @@ export function ArenaClient({
     setMsg(null);
     setOutA("");
     setOutB("");
+    setReveal(false);
+    setSwap(Math.random() < 0.5);
     const ac = new AbortController();
     try {
       await Promise.all([runLane(a, setOutA, ac.signal), runLane(b, setOutB, ac.signal)]);
@@ -173,12 +178,44 @@ export function ArenaClient({
 
   function vote(v: Vote) {
     if (!outA || !outB) return;
-    saveVote({ a, b, vote: v });
+    // Map UI lane vote through blind swap back to model A/B
+    let mapped: Vote = v;
+    if (blind && swap && (v === "a" || v === "b")) {
+      mapped = v === "a" ? "b" : "a";
+    }
+    saveVote({ a, b, vote: mapped });
+    setReveal(true);
     setMsg(
-      v === "tie"
+      mapped === "tie"
         ? "Empate guardado (solo en este dispositivo)."
-        : `Voto ${v.toUpperCase()} guardado localmente.`,
+        : `Voto ${mapped.toUpperCase()} → ${mapped === "a" ? a : b} (local).`,
     );
+  }
+
+  const left = swap
+    ? { model: b, text: outB, ui: "a" as const }
+    : { model: a, text: outA, ui: "a" as const };
+  const right = swap
+    ? { model: a, text: outA, ui: "b" as const }
+    : { model: b, text: outB, ui: "b" as const };
+
+  async function copyShare() {
+    const body = [
+      `Nexus Arena`,
+      `A: ${a}`,
+      `B: ${b}`,
+      `Prompt: ${prompt.slice(0, 200)}`,
+      `---`,
+      outA.slice(0, 400),
+      `---`,
+      outB.slice(0, 400),
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(body);
+      setMsg("Resultado copiado (texto).");
+    } catch {
+      setMsg("No se pudo copiar.");
+    }
   }
 
   return (
@@ -220,7 +257,7 @@ export function ArenaClient({
         className="mb-3 min-h-[88px] border-zinc-300 bg-white text-zinc-900"
         aria-label="Prompt arena"
       />
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button
           className="bg-amber-600 text-white hover:bg-amber-700"
           disabled={busy || a === b}
@@ -228,20 +265,31 @@ export function ArenaClient({
         >
           {busy ? "Corriendo…" : "Correr A vs B"}
         </Button>
+        <label className="flex items-center gap-2 text-sm text-zinc-600">
+          <input type="checkbox" checked={blind} onChange={(e) => setBlind(e.target.checked)} />
+          Blind (oculta slugs hasta votar)
+        </label>
         <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
           <Link href={`/chat?model=${encodeURIComponent(a)}&compare=${encodeURIComponent(b)}`}>
             Abrir en Chat
           </Link>
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!outA || !outB}
+          onClick={() => void copyShare()}
+        >
+          Copiar resultado
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {[
-          { id: a, text: outA, vote: "a" as const },
-          { id: b, text: outB, vote: "b" as const },
-        ].map((lane) => (
-          <div key={lane.id} className="rounded-xl border border-zinc-200 bg-white p-4">
-            <div className="mb-2 font-mono text-xs text-amber-700">{lane.id}</div>
+        {[left, right].map((lane) => (
+          <div key={lane.ui + lane.model} className="rounded-xl border border-zinc-200 bg-white p-4">
+            <div className="mb-2 font-mono text-xs text-amber-700">
+              {blind && !reveal ? `Modelo ${lane.ui.toUpperCase()}` : lane.model}
+            </div>
             <pre className="min-h-[160px] whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
               {lane.text || (busy ? "…" : "—")}
             </pre>
@@ -250,9 +298,9 @@ export function ArenaClient({
               variant="outline"
               className="mt-3 border-zinc-300"
               disabled={!outA || !outB || busy}
-              onClick={() => vote(lane.vote)}
+              onClick={() => vote(lane.ui)}
             >
-              Gana {lane.vote.toUpperCase()}
+              Gana {lane.ui.toUpperCase()}
             </Button>
           </div>
         ))}

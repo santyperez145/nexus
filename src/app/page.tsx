@@ -45,13 +45,33 @@ export default async function HomePage() {
           </p>
           <div className="nexus-hero-cta mt-10 flex flex-wrap justify-center gap-3">
             {session ? (
-              <Button asChild size="lg" className="h-11 rounded-md bg-amber-600 px-6 text-white hover:bg-amber-700">
-                <Link href="/overview">Ir al dashboard</Link>
-              </Button>
+              <>
+                <Button asChild size="lg" className="h-11 rounded-md bg-amber-600 px-6 text-white hover:bg-amber-700">
+                  <Link href="/overview">Ir al dashboard</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-11 rounded-md border-zinc-300 bg-white/80 px-6 text-zinc-900 backdrop-blur hover:bg-white"
+                >
+                  <Link href="/chat">Abrir Chat</Link>
+                </Button>
+              </>
             ) : (
-              <Button asChild size="lg" className="h-11 rounded-md bg-amber-600 px-6 text-white hover:bg-amber-700">
-                <Link href="/register">Obtener API key</Link>
-              </Button>
+              <>
+                <Button asChild size="lg" className="h-11 rounded-md bg-amber-600 px-6 text-white hover:bg-amber-700">
+                  <Link href="/register">Obtener API key</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="h-11 rounded-md border-zinc-300 bg-white/80 px-6 text-zinc-900 backdrop-blur hover:bg-white"
+                >
+                  <Link href="/chat">Probar Chat</Link>
+                </Button>
+              </>
             )}
             <Button
               asChild

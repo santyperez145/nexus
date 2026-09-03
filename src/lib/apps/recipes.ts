@@ -200,6 +200,36 @@ const r = await nexus.chat.send({
   n: 1,
 });`,
   },
+  {
+    slug: "vision-image-url",
+    title: "Visión multimodal",
+    blurb: "messages[].content[] con text + image_url (data: o https).",
+    tags: ["vision", "multimodal"],
+    model: "openai/gpt-4o",
+    curl: `curl $NEXUS_URL/api/v1/chat/completions \\
+  -H "Authorization: Bearer $NEXUS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "openai/gpt-4o",
+    "messages": [{
+      "role": "user",
+      "content": [
+        { "type": "text", "text": "Qué hay en la imagen?" },
+        { "type": "image_url", "image_url": { "url": "https://…" } }
+      ]
+    }]
+  }'`,
+    sdk: `const r = await nexus.chat.send({
+  model: "openai/gpt-4o",
+  messages: [{
+    role: "user",
+    content: [
+      { type: "text", text: "Qué hay en la imagen?" },
+      { type: "image_url", image_url: { url: "https://…" } },
+    ],
+  }],
+});`,
+  },
 ];
 
 export function findRecipe(slug: string) {

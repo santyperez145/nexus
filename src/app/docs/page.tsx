@@ -14,6 +14,7 @@ const ENDPOINTS = [
   ["GET", "/api/v1/models", "Catálogo (category, output_modalities)"],
   ["GET", "/api/v1/models/{author}/{slug}", "Detalle de modelo"],
   ["GET", "/api/v1/models/{author}/{slug}/endpoints", "Hosts de un modelo"],
+  ["GET", "/api/v1/models/count", "Conteo de modelos (category filters)"],
   ["GET", "/api/v1/providers", "Providers"],
   ["GET", "/api/v1/credits", "Créditos"],
   ["GET", "/api/v1/generation?id=", "Stats de una generación"],

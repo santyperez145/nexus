@@ -150,7 +150,9 @@ export default async function StatusPage() {
           JSON machine-readable:{" "}
           <Link href="/api/v1/status" className="text-amber-700 hover:underline">
             GET /api/v1/status
-          </Link>
+          </Link>{" "}
+          → <code className="text-zinc-700">mode: live|echo</code>,{" "}
+          <code className="text-zinc-700">ok</code> requiere Postgres cableado.
         </p>
       </div>
     </MarketingShell>

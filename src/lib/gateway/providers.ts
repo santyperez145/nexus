@@ -30,6 +30,11 @@ function toCoreMessages(messages: ChatMessage[]): ModelMessage[] {
   }) as ModelMessage[];
 }
 
+/** Exported for unit tests — multimodal OpenAI → AI SDK parts. */
+export function mapChatMessagesForProvider(messages: ChatMessage[]) {
+  return toCoreMessages(messages);
+}
+
 function languageModel(endpoint: ModelEndpoint, apiKey: string) {
   const model = endpoint.providerModel;
   const spec = providerById(endpoint.adapter);

@@ -229,9 +229,42 @@ export default async function OverviewPage() {
             </Link>
           </div>
           {recent.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-zinc-500">
-              Todavía no hay generaciones. Abrí el playground o pegale a{" "}
-              <code className="text-zinc-400">/api/v1/chat/completions</code>.
+            <div className="rounded-2xl border border-dashed border-white/10 px-4 py-8">
+              <p className="text-center text-sm text-zinc-400">Todavía no hay generaciones.</p>
+              <ol className="mx-auto mt-4 max-w-md space-y-2 text-sm text-zinc-500">
+                <li>
+                  1.{" "}
+                  <Link href="/settings/keys" className="text-amber-400 hover:underline">
+                    Revelá tu API key
+                  </Link>{" "}
+                  Default
+                </li>
+                <li>
+                  2.{" "}
+                  <Link href="/welcome" className="text-amber-400 hover:underline">
+                    Ping en Welcome
+                  </Link>{" "}
+                  o abrí{" "}
+                  <Link href="/chat" className="text-amber-400 hover:underline">
+                    Chat
+                  </Link>
+                </li>
+                <li>
+                  3. Apps:{" "}
+                  <code className="text-zinc-400">POST /api/v1/chat/completions</code>
+                </li>
+              </ol>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <Button asChild size="sm">
+                  <Link href="/chat">Abrir Chat</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/studio">Studio</Link>
+                </Button>
+                <Button asChild size="sm" variant="ghost">
+                  <Link href="/docs">Docs</Link>
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-white/10">
