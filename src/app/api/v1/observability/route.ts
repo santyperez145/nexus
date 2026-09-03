@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { canAccess, userScope } from "@/lib/gateway/tenant";
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { assertPublicHttpUrl } from "@/lib/net/public-url";
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
     const rows = await db
       .select()
       .from(schema.observabilityDestinations)
-      .where(eq(schema.observabilityDestinations.userId, auth.userId));
+      .where(userScope(auth, schema.observabilityDestinations.userId, schema.observabilityDestinations.workspaceId));
     return Response.json({
       data: rows
         .filter((r) => !r.deleted)
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
         .from(schema.observabilityDestinations)
         .where(eq(schema.observabilityDestinations.id, String(body.id)))
         .limit(1);
-      if (!row || row.userId !== auth.userId || row.deleted) {
+      if (!row || !canAccess(auth, row) || row.deleted) {
         return jsonError(Object.assign(new Error("not found"), { status: 404 }));
       }
       const config = (row.config ?? {}) as { url?: string; secret?: string };
@@ -90,7 +91,7 @@ export async function DELETE(req: Request) {
       .from(schema.observabilityDestinations)
       .where(eq(schema.observabilityDestinations.id, idParam))
       .limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await db

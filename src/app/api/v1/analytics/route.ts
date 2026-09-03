@@ -1,6 +1,7 @@
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, gte } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { userScope } from "@/lib/gateway/tenant";
 import { microsToUsd } from "@/lib/money";
 
 export async function GET(req: Request) {
@@ -11,7 +12,12 @@ export async function GET(req: Request) {
     const rows = await db
       .select()
       .from(schema.generations)
-      .where(and(eq(schema.generations.userId, auth.userId), gte(schema.generations.createdAt, since)))
+      .where(
+        and(
+          userScope(auth, schema.generations.userId, schema.generations.workspaceId)!,
+          gte(schema.generations.createdAt, since),
+        ),
+      )
       .orderBy(desc(schema.generations.createdAt))
       .limit(2000);
 

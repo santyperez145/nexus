@@ -15,9 +15,23 @@ function envKey(adapter: string, override?: string) {
 
 function toCoreMessages(messages: ChatMessage[]): ModelMessage[] {
   return messages.map((m) => {
-    const role = m.role === "tool" ? "assistant" : m.role;
+    if (m.role === "tool") {
+      const text = typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? "");
+      return {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: m.tool_call_id ?? "tool",
+            toolName: m.name ?? "tool",
+            output: { type: "text", value: text },
+          },
+        ],
+      } as ModelMessage;
+    }
+    const role = m.role;
     if (typeof m.content === "string") {
-      return { role, content: m.content };
+      return { role, content: m.content } as ModelMessage;
     }
     const parts = (m.content ?? []).map((p) => {
       if (p.image_url?.url) return { type: "image" as const, image: p.image_url.url };
@@ -26,8 +40,8 @@ function toCoreMessages(messages: ChatMessage[]): ModelMessage[] {
       }
       return { type: "text" as const, text: p.text ?? "" };
     });
-    return { role, content: parts };
-  }) as ModelMessage[];
+    return { role, content: parts } as ModelMessage;
+  });
 }
 
 /** Exported for unit tests — multimodal OpenAI → AI SDK parts. */
@@ -66,6 +80,7 @@ export async function completeChat(opts: {
   /** Skip lab keys (guest playground). */
   forceLocal?: boolean;
   tools?: ToolSet;
+  toolChoice?: "auto" | "none" | "required" | { type: "tool"; toolName: string };
   seed?: number;
   topP?: number;
   topK?: number;
@@ -85,10 +100,12 @@ export async function completeChat(opts: {
   }
   const stop = opts.stop == null ? undefined : Array.isArray(opts.stop) ? opts.stop : [opts.stop];
   const openai: {
-    responseFormat?: { type: "json_object" };
+    responseFormat?: { type: "json_object" } | { type: "json_schema"; schema: unknown };
     reasoningEffort?: "low" | "medium" | "high";
   } = {};
-  if (opts.responseFormat?.type === "json_object" || opts.responseFormat?.type === "json_schema") {
+  if (opts.responseFormat?.type === "json_schema" && opts.responseFormat.json_schema) {
+    openai.responseFormat = { type: "json_schema", schema: opts.responseFormat.json_schema };
+  } else if (opts.responseFormat?.type === "json_object" || opts.responseFormat?.type === "json_schema") {
     openai.responseFormat = { type: "json_object" };
   }
   if (opts.reasoningEffort) openai.reasoningEffort = opts.reasoningEffort;
@@ -103,8 +120,14 @@ export async function completeChat(opts: {
     frequencyPenalty: opts.frequencyPenalty,
     presencePenalty: opts.presencePenalty,
     stopSequences: stop,
-    ...(Object.keys(openai).length ? { providerOptions: { openai } } : {}),
-    ...(opts.tools ? { tools: opts.tools, stopWhen: stepCountIs(6) } : {}),
+    ...(Object.keys(openai).length ? { providerOptions: { openai } as never } : {}),
+    ...(opts.tools
+      ? {
+          tools: opts.tools,
+          stopWhen: stepCountIs(6),
+          ...(opts.toolChoice ? { toolChoice: opts.toolChoice } : {}),
+        }
+      : {}),
   });
   const reasoning = typeof result.reasoningText === "string" ? result.reasoningText : null;
   return {
@@ -128,6 +151,7 @@ export async function streamChat(opts: {
   byok?: string;
   forceLocal?: boolean;
   tools?: ToolSet;
+  toolChoice?: "auto" | "none" | "required" | { type: "tool"; toolName: string };
   seed?: number;
   topP?: number;
   topK?: number;
@@ -158,7 +182,13 @@ export async function streamChat(opts: {
     frequencyPenalty: opts.frequencyPenalty,
     presencePenalty: opts.presencePenalty,
     stopSequences: stop,
-    ...(opts.tools ? { tools: opts.tools, stopWhen: stepCountIs(6) } : {}),
+    ...(opts.tools
+      ? {
+          tools: opts.tools,
+          stopWhen: stepCountIs(6),
+          ...(opts.toolChoice ? { toolChoice: opts.toolChoice } : {}),
+        }
+      : {}),
   });
   return {
     textStream: result.textStream,

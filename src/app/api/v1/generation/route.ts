@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { canAccess } from "@/lib/gateway/tenant";
 import { db, schema } from "@/lib/db";
 import { microsToUsd } from "@/lib/money";
 
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
     const id = new URL(req.url).searchParams.get("id");
     if (!id) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.generations).where(eq(schema.generations.id, id)).limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("Generation not found"), { status: 404 }));
     }
     return Response.json({

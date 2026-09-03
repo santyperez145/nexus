@@ -148,14 +148,18 @@ export async function settleUsage(opts: {
   }
 
   if (micros > 0) {
-    await db.insert(schema.creditLedger).values({
-      id: id("led"),
-      userId: opts.auth.userId,
-      type: computed.ledgerType,
-      micros: -micros,
-      generationId: opts.generationId,
-      note: opts.isByok ? `BYOK fee ${(BYOK_FEE * 100).toFixed(0)}%` : null,
-    });
+    try {
+      await db.insert(schema.creditLedger).values({
+        id: id("led"),
+        userId: opts.auth.userId,
+        type: computed.ledgerType,
+        micros: -micros,
+        generationId: opts.generationId,
+        note: opts.isByok ? `BYOK fee ${(BYOK_FEE * 100).toFixed(0)}%` : null,
+      });
+    } catch {
+      /* unique generation_id: already settled */
+    }
     const [after] = await db
       .select({ creditMicros: schema.users.creditMicros })
       .from(schema.users)

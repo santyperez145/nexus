@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, like, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { userScope } from "@/lib/gateway/tenant";
 import { microsToUsd } from "@/lib/money";
 
 export async function GET(req: Request) {
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
     const workspace = url.searchParams.get("workspace")?.trim();
     const app = url.searchParams.get("app")?.trim();
 
-    const filters = [eq(schema.generations.userId, auth.userId)];
+    const filters = [userScope(auth, schema.generations.userId, schema.generations.workspaceId)!];
     if (model) filters.push(like(schema.generations.routedModel, `%${model}%`));
     if (provider) filters.push(eq(schema.generations.provider, provider));
     if (byok === "1") filters.push(eq(schema.generations.isByok, true));

@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { canAccess, userScope } from "@/lib/gateway/tenant";
 import { extractFileText } from "@/lib/files/extract";
 import { id } from "@/lib/ids";
 
@@ -12,7 +13,7 @@ export async function GET(req: Request) {
     const fileId = new URL(req.url).searchParams.get("id");
     if (fileId) {
       const [row] = await db.select().from(schema.files).where(eq(schema.files.id, fileId)).limit(1);
-      if (!row || row.userId !== auth.userId) {
+      if (!row || !canAccess(auth, row)) {
         return jsonError(Object.assign(new Error("not found"), { status: 404 }));
       }
       return Response.json({
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
     const rows = await db
       .select()
       .from(schema.files)
-      .where(eq(schema.files.userId, auth.userId))
+      .where(userScope(auth, schema.files.userId, schema.files.workspaceId))
       .orderBy(desc(schema.files.createdAt));
     return Response.json({
       data: rows.map((f) => ({
@@ -81,7 +82,7 @@ export async function DELETE(req: Request) {
     const fileId = new URL(req.url).searchParams.get("id");
     if (!fileId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.files).where(eq(schema.files.id, fileId)).limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await db.delete(schema.files).where(eq(schema.files.id, fileId));

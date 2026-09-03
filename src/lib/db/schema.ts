@@ -294,6 +294,7 @@ export const presets = pgTable("preset", {
   config: jsonb("config").$type<Record<string, unknown>>().notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  workspaceId: text("workspace_id"),
 });
 
 export const oauthCodes = pgTable("oauth_code", {
@@ -361,4 +362,25 @@ export const chatShares = pgTable("chat_share", {
     }>()
     .notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const auditLogs = pgTable(
+  "audit_log",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    workspaceId: text("workspace_id"),
+    action: text("action").notNull(),
+    resource: text("resource"),
+    resourceId: text("resource_id"),
+    ip: text("ip"),
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("audit_log_user_idx").on(t.userId, t.createdAt)],
+);
+
+export const schemaMigrations = pgTable("schema_migrations", {
+  id: text("id").primaryKey(),
+  appliedAt: timestamp("applied_at").notNull().defaultNow(),
 });

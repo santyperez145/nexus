@@ -1,13 +1,14 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { canAccess, userScope } from "@/lib/gateway/tenant";
 import { id } from "@/lib/ids";
 import { usdToMicros } from "@/lib/money";
 
 export async function GET(req: Request) {
   try {
     const auth = await authenticateRequest(req);
-    const rows = await db.select().from(schema.guardrails).where(eq(schema.guardrails.userId, auth.userId));
+    const rows = await db.select().from(schema.guardrails).where(userScope(auth, schema.guardrails.userId, schema.guardrails.workspaceId));
     return Response.json({ data: rows });
   } catch (error) {
     return jsonError(error);
@@ -42,7 +43,7 @@ export async function DELETE(req: Request) {
     const idParam = new URL(req.url).searchParams.get("id");
     if (!idParam) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.guardrails).where(eq(schema.guardrails.id, idParam)).limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await db.delete(schema.guardrails).where(eq(schema.guardrails.id, idParam));

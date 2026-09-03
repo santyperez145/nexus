@@ -250,4 +250,22 @@ export const SCHEMA_SQL = [
     payload jsonb NOT NULL,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ledger_generation_uidx ON "credit_ledger"(generation_id)`,
+  `CREATE TABLE IF NOT EXISTS "schema_migrations" (
+    id text PRIMARY KEY,
+    applied_at timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE TABLE IF NOT EXISTS "audit_log" (
+    id text PRIMARY KEY,
+    user_id text NOT NULL,
+    workspace_id text,
+    action text NOT NULL,
+    resource text,
+    resource_id text,
+    ip text,
+    meta jsonb,
+    created_at timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS audit_log_user_idx ON "audit_log"(user_id, created_at)`,
+  `ALTER TABLE "preset" ADD COLUMN IF NOT EXISTS workspace_id text`,
 ];

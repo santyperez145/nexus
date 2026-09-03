@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { canAccess, userScope } from "@/lib/gateway/tenant";
 import { id } from "@/lib/ids";
 import { slugify } from "@/lib/slug";
 
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
     const rows = await db
       .select()
       .from(schema.presets)
-      .where(eq(schema.presets.userId, auth.userId))
+      .where(userScope(auth, schema.presets.userId, schema.presets.workspaceId))
       .orderBy(desc(schema.presets.updatedAt));
     return Response.json({ data: rows });
   } catch (error) {
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
     const row = {
       id: id("pre"),
       userId: auth.userId,
+      workspaceId: auth.workspaceId ?? null,
       slug: slugify(String(body.slug ?? `preset-${Date.now()}`), "preset"),
       version: 1,
       config: {
@@ -48,7 +50,7 @@ export async function DELETE(req: Request) {
     const presetId = new URL(req.url).searchParams.get("id");
     if (!presetId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.presets).where(eq(schema.presets.id, presetId)).limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await db.delete(schema.presets).where(eq(schema.presets.id, presetId));

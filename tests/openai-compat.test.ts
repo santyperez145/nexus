@@ -76,7 +76,8 @@ describe("openai-compat", () => {
     const resp = toResponseEnvelope(chat);
     assert.equal(resp.object, "response");
     assert.equal(resp.status, "completed");
-    assert.equal(resp.output[0]?.content[0]?.text, "hola mundo");
+    const textOut = resp.output.find((o) => o.type === "message");
+    assert.equal(textOut && "content" in textOut ? textOut.content[0]?.text : "", "hola mundo");
     assert.equal(resp.usage.input_tokens, 2);
     assert.equal(resp.metadata.nexus_chat_id, "gen-abc");
   });
@@ -97,7 +98,8 @@ describe("openai-compat", () => {
     const msg = toAnthropicMessage(chat);
     assert.equal(msg.type, "message");
     assert.equal(msg.role, "assistant");
-    assert.equal(msg.content[0]?.text, "bonjour");
+    const textBlock = msg.content.find((b) => b.type === "text");
+    assert.equal(textBlock && "text" in textBlock ? textBlock.text : "", "bonjour");
     assert.equal(msg.stop_reason, "end_turn");
   });
 });

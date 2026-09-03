@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 import { encryptSecret } from "@/lib/crypto";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { canAccess, userScope } from "@/lib/gateway/tenant";
+import { writeAudit } from "@/lib/gateway/audit";
 import { id } from "@/lib/ids";
 
 export async function GET(req: Request) {
@@ -10,7 +12,7 @@ export async function GET(req: Request) {
     const rows = await db
       .select()
       .from(schema.byokCredentials)
-      .where(eq(schema.byokCredentials.userId, auth.userId));
+      .where(userScope(auth, schema.byokCredentials.userId, schema.byokCredentials.workspaceId));
     return Response.json({
       data: rows
         .filter((r) => !r.deleted)
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
       label: body.label ?? body.provider,
     };
     await db.insert(schema.byokCredentials).values(row);
+    await writeAudit(auth, "byok.create", { resource: "byok", resourceId: row.id, headers: req.headers });
     return Response.json({ data: { id: row.id, provider: row.provider, label: row.label } });
   } catch (error) {
     return jsonError(error);
@@ -55,13 +58,14 @@ export async function DELETE(req: Request) {
       .from(schema.byokCredentials)
       .where(eq(schema.byokCredentials.id, idParam))
       .limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await db
       .update(schema.byokCredentials)
       .set({ deleted: true, encryptedKey: "" })
       .where(eq(schema.byokCredentials.id, idParam));
+    await writeAudit(auth, "byok.delete", { resource: "byok", resourceId: idParam, headers: req.headers });
     return Response.json({ data: { success: true } });
   } catch (error) {
     return jsonError(error);

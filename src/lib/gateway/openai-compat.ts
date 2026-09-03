@@ -142,10 +142,14 @@ export function toResponseEnvelope(chat: ChatLike) {
           {
             type: "output_text" as const,
             text,
-            ...(msg?.reasoning ? { annotations: [] as unknown[] } : {}),
           },
         ],
       },
+      ...(msg?.tool_calls ?? []).map((call, i) => ({
+        type: "function_call" as const,
+        id: `fc_${chat.id}_${i}`,
+        call,
+      })),
     ],
     usage: {
       input_tokens: chat.usage?.prompt_tokens ?? 0,
@@ -176,7 +180,24 @@ export function toAnthropicMessage(chat: ChatLike) {
     type: "message" as const,
     role: "assistant" as const,
     model: chat.model,
-    content: [{ type: "text" as const, text }],
+    content: [
+      { type: "text" as const, text },
+      ...((msg?.tool_calls ?? []).map((call) => {
+        const c = call as { id?: string; function?: { name?: string; arguments?: string }; name?: string };
+        return {
+          type: "tool_use" as const,
+          id: c.id ?? "tool",
+          name: c.function?.name ?? c.name ?? "tool",
+          input: (() => {
+            try {
+              return JSON.parse(c.function?.arguments ?? "{}");
+            } catch {
+              return {};
+            }
+          })(),
+        };
+      })),
+    ].filter((block) => block.type !== "text" || block.text),
     stop_reason: stopReason,
     stop_sequence: null,
     usage: {
@@ -192,20 +213,107 @@ export function toAnthropicMessage(chat: ChatLike) {
   };
 }
 
-/** If the chat handler streamed, pass through; otherwise reshape JSON. */
+/** If the chat handler streamed, remap SSE to the target protocol; otherwise reshape JSON. */
 export async function reshapeChatResponse(
   res: Response,
   shape: "response" | "anthropic",
 ): Promise<Response> {
   if (!res.ok) return res;
   const ct = res.headers.get("content-type") ?? "";
-  if (ct.includes("text/event-stream")) return res;
+  if (ct.includes("text/event-stream")) {
+    return reshapeChatStream(res, shape);
+  }
   const chat = (await res.json()) as ChatLike;
   const body = shape === "response" ? toResponseEnvelope(chat) : toAnthropicMessage(chat);
   return Response.json(body, {
     status: res.status,
     headers: {
       "X-Nexus-Upstream-Object": "chat.completion",
+      "X-Nexus-Envelope": shape,
+    },
+  });
+}
+
+export function sseEvent(event: string, data: unknown) {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+export function chatChunkToProtocolSse(chunk: ReturnType<typeof chatChunkPayload>, shape: "response" | "anthropic") {
+  const delta = typeof chunk.choices[0]?.delta?.content === "string" ? chunk.choices[0].delta.content : "";
+  const done = chunk.choices[0]?.finish_reason != null;
+  if (shape === "response") {
+    if (delta) {
+      return sseEvent("response.output_text.delta", { type: "response.output_text.delta", delta });
+    }
+    if (done) {
+      return sseEvent("response.completed", {
+        type: "response.completed",
+        response: { id: chunk.id.startsWith("gen-") ? `resp_${chunk.id.slice(4)}` : `resp_${chunk.id}`, status: "completed" },
+      });
+    }
+    return "";
+  }
+  if (delta) {
+    return sseEvent("content_block_delta", {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "text_delta", text: delta },
+    });
+  }
+  if (done) {
+    return sseEvent("message_stop", { type: "message_stop" });
+  }
+  return "";
+}
+
+function reshapeChatStream(res: Response, shape: "response" | "anthropic") {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const body = new ReadableStream({
+    async start(controller) {
+      const send = (chunk: string) => {
+        if (chunk) controller.enqueue(encoder.encode(chunk));
+      };
+      if (shape === "response") {
+        send(sseEvent("response.created", { type: "response.created" }));
+      } else {
+        send(sseEvent("message_start", { type: "message_start" }));
+        send(sseEvent("content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }));
+      }
+      const reader = res.body?.getReader();
+      if (!reader) {
+        controller.close();
+        return;
+      }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          const line = part.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          const raw = line.slice(6).trim();
+          if (raw === "[DONE]") continue;
+          try {
+            const json = JSON.parse(raw) as ReturnType<typeof chatChunkPayload>;
+            send(chatChunkToProtocolSse(json, shape));
+          } catch {
+            /* skip malformed */
+          }
+        }
+      }
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+  return new Response(body, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
       "X-Nexus-Envelope": shape,
     },
   });

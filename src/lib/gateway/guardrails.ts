@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { canAccess } from "./tenant";
 import type { AuthContext, ChatRequest } from "./types";
 
 const INJECTION = [
@@ -24,10 +25,11 @@ export async function enforceGuardrails(
     .select()
     .from(schema.guardrails)
     .where(eq(schema.guardrails.userId, auth.userId));
+  const scoped = rows.filter((g) => canAccess(auth, g));
   const model = req.model ?? "";
   const prompt = JSON.stringify(req.messages ?? req.prompt ?? "");
 
-  for (const g of rows) {
+  for (const g of scoped) {
     if (g.allowedModels?.length && !g.allowedModels.some((m) => model.startsWith(m))) {
       throw Object.assign(new Error(`Guardrail "${g.name}" blocked model ${model}`), {
         status: 403,

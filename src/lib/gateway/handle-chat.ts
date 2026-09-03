@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { generationId } from "@/lib/ids";
-import { decryptSecret } from "@/lib/crypto";
 import { tokenCostUsd, usdToMicros } from "@/lib/money";
+import type { ToolSet } from "ai";
 import type { AuthContext, ChatMessage, ChatRequest } from "./types";
 import { resolveRoute } from "./router";
 import { completeChat, estimateTokens, hasProviderKey, streamChat } from "./providers";
@@ -11,7 +11,9 @@ import { enforceGuardrails } from "./guardrails";
 import { isCircuitOpen, recordFailure, recordSuccess } from "./health";
 import { assertRateLimit } from "./rate-limit";
 import { assertGuestRateLimit } from "./guest";
-import { buildServerTools } from "./server-tools";
+import { mapToolChoice, mergeTools } from "./client-tools";
+import { resolveByokKey } from "./byok";
+import { canAccess } from "./tenant";
 import { attachUserFiles } from "./files";
 import { applyMiddleOut } from "./middle-out";
 import { applyPreset } from "./presets";
@@ -39,14 +41,8 @@ function normalizeMessages(req: ChatRequest): ChatMessage[] {
   throw Object.assign(new Error("Either messages or prompt is required"), { status: 400 });
 }
 
-async function byokFor(userId: string, provider: string) {
-  const creds = await db
-    .select()
-    .from(schema.byokCredentials)
-    .where(eq(schema.byokCredentials.userId, userId));
-  const match = creds.find((c) => !c.deleted && c.provider === provider);
-  if (!match) return undefined;
-  return decryptSecret(match.encryptedKey);
+async function byokFor(auth: AuthContext, provider: string) {
+  return resolveByokKey(auth.userId, provider, auth);
 }
 
 export async function handleChat(req: ChatRequest, auth: AuthContext, headers: Headers) {
@@ -132,11 +128,16 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
   );
   await enforceGuardrails(auth, req, estimate);
   const byokRows = await db
-    .select({ provider: schema.byokCredentials.provider, deleted: schema.byokCredentials.deleted })
+    .select({
+      provider: schema.byokCredentials.provider,
+      deleted: schema.byokCredentials.deleted,
+      userId: schema.byokCredentials.userId,
+      workspaceId: schema.byokCredentials.workspaceId,
+    })
     .from(schema.byokCredentials)
     .where(eq(schema.byokCredentials.userId, auth.userId));
   const byokProviders = new Set(
-    byokRows.filter((r) => !r.deleted && r.provider).map((r) => r.provider),
+    byokRows.filter((r) => !r.deleted && r.provider && canAccess(auth, r)).map((r) => r.provider),
   );
   const anyPlatform = first.endpoints.some((e) => hasProviderKey(e));
   const anyByok = first.endpoints.some(
@@ -162,13 +163,13 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
         continue;
       }
       const byok =
-        (await byokFor(auth.userId, endpoint.adapter)) ?? (await byokFor(auth.userId, endpoint.name));
+        (await byokFor(auth, endpoint.adapter)) ?? (await byokFor(auth, endpoint.name));
       if (!hasProviderKey(endpoint, byok)) {
         lastError = `No API key for provider ${endpoint.adapter}`;
         lastUnwired = endpoint;
         continue;
       }
-      const tools = buildServerTools(req, candidate.variants);
+      const tools = mergeTools(req, candidate.variants);
       try {
         if (req.stream) {
           const streamedRes = await streamCompletion({
@@ -195,6 +196,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
           maxTokens: req.max_tokens ?? req.max_completion_tokens ?? req.reasoning?.max_tokens,
           byok,
           tools,
+          toolChoice: mapToolChoice(req.tool_choice),
           seed: req.seed,
           topP: req.top_p,
           topK: req.top_k,
@@ -277,7 +279,7 @@ async function streamCompletion(opts: {
   forceLocal?: boolean;
   genId: string;
   started: number;
-  tools?: ReturnType<typeof buildServerTools>;
+  tools?: ToolSet;
   routeHops?: Array<{ model: string; adapter: string; zdr: boolean }>;
   reservedMicros?: number;
 }) {
@@ -289,6 +291,7 @@ async function streamCompletion(opts: {
     byok: opts.byok,
     forceLocal: opts.forceLocal,
     tools: opts.tools,
+    toolChoice: mapToolChoice(opts.req.tool_choice),
     seed: opts.req.seed,
     topP: opts.req.top_p,
     topK: opts.req.top_k,
