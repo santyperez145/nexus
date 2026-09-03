@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Sparkline } from "@/components/charts/sparkline";
 import { formatUsd } from "@/lib/money";
 import { useRemoteData } from "@/lib/use-remote-data";
 
@@ -84,27 +83,75 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-amber-400/[0.07] to-transparent p-5">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-amber-500/80">Insight {days}d</div>
+          <div className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-zinc-50 md:text-4xl">
+            {t.requests.toLocaleString()}{" "}
+            <span className="text-lg font-medium text-zinc-500">requests</span>
+          </div>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-400">
+            {formatUsd(t.cost)} · {t.tokens.toLocaleString()} tokens
+            {t.avg_latency_ms != null ? ` · ${t.avg_latency_ms} ms avg` : ""}
+            {t.requests === 0
+              ? " — todavía vacío. Corré Chat o Studio para poblar el ledger."
+              : "."}
+          </p>
+          {t.requests === 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href="/chat"
+                className="rounded-md bg-amber-500/20 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-500/30"
+              >
+                Abrir Chat
+              </Link>
+              <Link href="/studio" className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200">
+                Studio
+              </Link>
+            </div>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            {
+              k: "Error rate",
+              v: `${Math.round((t.error_rate ?? 0) * 100)}%`,
+              hint: `${t.errors ?? 0} errs`,
+            },
+            {
+              k: "Local echo",
+              v: `${Math.round((t.local_pct ?? 0) * 100)}%`,
+              hint: "sin lab key",
+            },
+            {
+              k: "BYOK",
+              v: `${Math.round((t.byok_pct ?? 0) * 100)}%`,
+              hint: "fee 5% lista",
+            },
+            {
+              k: "Latencia",
+              v: t.avg_latency_ms != null ? `${t.avg_latency_ms}` : "—",
+              hint: "ms avg",
+            },
+          ].map((c) => (
+            <div key={c.k} className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3">
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">{c.k}</div>
+              <div className="mt-1 font-mono text-lg tabular-nums text-zinc-100">{c.v}</div>
+              <div className="text-[11px] text-zinc-600">{c.hint}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-8 grid gap-3 sm:grid-cols-3">
         {[
           { k: "Requests", v: String(t.requests) },
           { k: "Tokens", v: t.tokens.toLocaleString() },
           { k: "Costo", v: formatUsd(t.cost) },
-          {
-            k: "Latencia avg",
-            v: t.avg_latency_ms != null ? `${t.avg_latency_ms} ms` : "—",
-          },
-          {
-            k: "Error rate",
-            v: `${Math.round((t.error_rate ?? 0) * 100)}%`,
-          },
-          {
-            k: "Local / BYOK",
-            v: `${Math.round((t.local_pct ?? 0) * 100)}% · ${Math.round((t.byok_pct ?? 0) * 100)}%`,
-          },
         ].map((c) => (
-          <div key={c.k} className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3">
-            <div className="text-[10px] uppercase tracking-wide text-zinc-500">{c.k}</div>
-            <div className="mt-1 font-[family-name:var(--font-syne)] text-xl font-semibold tabular-nums">
+          <div key={c.k} className="rounded-xl border border-white/10 px-3 py-2.5">
+            <div className="text-[10px] uppercase tracking-wide text-zinc-600">{c.k}</div>
+            <div className="mt-0.5 font-[family-name:var(--font-syne)] text-xl font-semibold tabular-nums text-zinc-100">
               {c.v}
             </div>
           </div>
@@ -113,7 +160,9 @@ export default function AnalyticsPage() {
 
       <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-medium text-zinc-300">Serie diaria</h2>
+          <h2 className="font-[family-name:var(--font-syne)] text-base font-semibold text-zinc-200">
+            Serie diaria
+          </h2>
           <div className="flex gap-1">
             {(["requests", "tokens", "cost"] as const).map((m) => (
               <button
@@ -129,14 +178,13 @@ export default function AnalyticsPage() {
             ))}
           </div>
         </div>
-        <Sparkline values={series} className="mb-4 h-14 w-full" />
-        <div className="flex h-24 items-end gap-px">
+        <div className="flex h-28 items-end gap-px">
           {series.map((v, i) => (
             <div
               key={data.by_day?.[i]?.day ?? i}
               title={`${data.by_day?.[i]?.day ?? ""}: ${metric === "cost" ? formatUsd(v) : v.toLocaleString()}`}
-              className="min-w-0 flex-1 rounded-t bg-amber-400/40"
-              style={{ height: `${Math.max(v > 0 ? 6 : 2, (v / maxDay) * 100)}%` }}
+              className="min-w-0 flex-1 rounded-t bg-amber-400/45 transition-[height]"
+              style={{ height: `${Math.max(v > 0 ? 8 : 2, (v / maxDay) * 100)}%` }}
             />
           ))}
         </div>

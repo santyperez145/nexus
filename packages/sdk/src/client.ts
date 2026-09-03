@@ -45,6 +45,7 @@ export class Nexus {
   readonly shares: SharesResource;
   readonly datasets: DatasetsResource;
   readonly auth: AuthResource;
+  readonly oauth: OauthResource;
   #fetch: typeof fetch;
   #defaultHeaders: Record<string, string>;
 
@@ -81,6 +82,7 @@ export class Nexus {
     this.shares = new SharesResource(this);
     this.datasets = new DatasetsResource(this);
     this.auth = new AuthResource(this);
+    this.oauth = new OauthResource(this);
   }
 
   async request<T>(
@@ -527,6 +529,45 @@ class SharesResource {
         payload: { model: string; messages: Array<{ role: string; content: string }> };
       };
     }>("/shares", { query: { id } });
+  }
+  list() {
+    return this.client.request<{
+      data: Array<{
+        id: string;
+        title: string | null;
+        model: string;
+        url: string;
+        created_at: string;
+      }>;
+    }>("/shares");
+  }
+  delete(id: string) {
+    return this.client.request<{ data: { id: string; deleted: boolean } }>("/shares", {
+      method: "DELETE",
+      query: { id },
+    });
+  }
+}
+
+class OauthResource {
+  constructor(private readonly client: Nexus) {}
+  /** Describe PKCE flow (no auth required). */
+  describe() {
+    return this.client.request<{ data: { flow: string; steps: string[] } }>("/oauth");
+  }
+  /** Issue one-time code (requires user session / account bearer). */
+  challenge(codeChallenge: string) {
+    return this.client.request<{ code: string }>("/oauth", {
+      method: "POST",
+      body: { code_challenge: codeChallenge },
+    });
+  }
+  /** Exchange code + verifier for sk-nx- key (shown once). */
+  exchange(code: string, codeVerifier: string) {
+    return this.client.request<{ key: string }>("/oauth", {
+      method: "POST",
+      body: { code, code_verifier: codeVerifier },
+    });
   }
 }
 

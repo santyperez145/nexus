@@ -80,8 +80,15 @@ await nexus.chat.completions.create({
 | `nexus.organization.*` | `/organization` |
 | `nexus.observability.*` | `/observability` |
 | `nexus.routing.preview` | `POST /routing/preview` |
+| `nexus.status.get` | `GET /status` |
+| `nexus.shares.create` / `.get` / `.list` / `.delete` | `/shares` |
+| `nexus.datasets.models` | `/datasets/models` |
+| `nexus.auth.key` | `/auth/key` |
+| `nexus.oauth.describe` / `.challenge` / `.exchange` | `/oauth` PKCE |
 
 > El nombre npm público `nexus-sdk` puede estar ocupado por un paquete ajeno. En este monorepo usá
 > `"nexus-sdk": "file:packages/sdk"`. En prod, preferí un scope propio (`@tu-org/nexus`).
 
 `NEXUS_MODEL_IDS` es el union de slugs del catálogo (autocompletado). Routers: `nexus/auto`, `nexus/free`. Variantes: `:fast`, `:cheap`, `:quality`, `:online`.
+
+`generations.list` acepta filtros: `model`, `provider`, `byok`, `errors`, `days`, `api_key`, `workspace`, `app`.

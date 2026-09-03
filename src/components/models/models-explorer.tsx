@@ -59,7 +59,7 @@ export function ModelsExplorer({
   const [freeOnly, setFreeOnly] = useState(initialFree);
   const [author, setAuthor] = useState(initialAuthor);
   const [sort, setSort] = useState<"new" | "price" | "context" | "latency">(initialSort);
-  const [table, setTable] = useState(true);
+  const [table, setTable] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [latencyByModel, setLatencyByModel] = useState<Map<string, number>>(new Map());
   const router = useRouter();
@@ -261,7 +261,7 @@ export function ModelsExplorer({
             onClick={() => setTable((v) => !v)}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-600 hover:text-zinc-900"
           >
-            {table ? "Vista lista" : "Vista tabla"}
+            {table ? "Vista cards" : "Vista tabla"}
           </button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
@@ -376,40 +376,71 @@ export function ModelsExplorer({
           </div>
         </div>
       ) : (
-        <div className="grid gap-0">
-          {filtered.map((m) => (
-            <Link
-              key={m.id}
-              href={`/models/${m.id}`}
-              className="block border-t border-zinc-200 py-4 transition-colors hover:border-amber-600"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <div>
-                  <div className="font-medium text-zinc-900">{m.name}</div>
-                  <div className="font-mono text-xs text-amber-700/90">{m.id}</div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {filtered.map((m) => {
+            const lat = latencyByModel.get(m.id);
+            const on = selected.includes(m.id);
+            return (
+              <div
+                key={m.id}
+                className={`group relative overflow-hidden rounded-2xl border bg-white p-4 transition-colors ${
+                  on ? "border-amber-600/50 ring-1 ring-amber-600/20" : "border-zinc-200 hover:border-amber-600/40"
+                }`}
+              >
+                <div className="absolute right-3 top-3">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => toggleSelect(m.id)}
+                    aria-label={`Seleccionar ${m.id}`}
+                    className="size-4"
+                  />
                 </div>
-                <div className="text-sm text-zinc-500">
-                  {m.free
-                    ? "Gratis"
-                    : `${formatUsd(usdPerMillion(m.pricing.prompt), 2)} / ${formatUsd(usdPerMillion(m.pricing.completion), 2)} per 1M`}
-                </div>
+                <Link href={`/models/${m.id}`} className="block pr-8">
+                  <div className="font-[family-name:var(--font-syne)] text-lg font-semibold tracking-tight text-zinc-950">
+                    {m.name}
+                  </div>
+                  <div className="mt-0.5 font-mono text-xs text-amber-700">{m.id}</div>
+                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-500">{m.description}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+                    <span className="font-mono tabular-nums">
+                      {m.free
+                        ? "Gratis"
+                        : `${formatUsd(usdPerMillion(m.pricing.prompt), 2)} / ${formatUsd(usdPerMillion(m.pricing.completion), 2)}`}
+                    </span>
+                    <span>·</span>
+                    <span className="tabular-nums">{(m.contextLength / 1000).toFixed(0)}k ctx</span>
+                    {lat != null ? (
+                      <>
+                        <span>·</span>
+                        <span className="tabular-nums">{lat} ms</span>
+                      </>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {m.output.slice(0, 3).map((o) => (
+                      <span
+                        key={o}
+                        className="rounded border border-zinc-200 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500"
+                      >
+                        {o}
+                      </span>
+                    ))}
+                    {(m.endpoints.length ? m.endpoints.map((e) => e.adapter) : ["router"])
+                      .slice(0, 3)
+                      .map((a) => (
+                        <span
+                          key={`${m.id}-c-${a}`}
+                          className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500"
+                        >
+                          {a}
+                        </span>
+                      ))}
+                  </div>
+                </Link>
               </div>
-              <p className="mt-2 line-clamp-2 text-sm text-zinc-500">{m.description}</p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                <span className="rounded border border-zinc-200 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">
-                  {(m.contextLength / 1000).toFixed(0)}k ctx
-                </span>
-                {(m.endpoints.length ? m.endpoints.map((e) => e.adapter) : ["router"]).map((a) => (
-                  <span
-                    key={`${m.id}-l-${a}`}
-                    className="rounded border border-zinc-200 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500"
-                  >
-                    {a}
-                  </span>
-                ))}
-              </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
