@@ -1,3 +1,6 @@
+import Image from "next/image";
+import { officialMarkFor } from "@/lib/catalog/official-marks";
+
 function stableHash(value: string) {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i += 1) {
@@ -19,12 +22,32 @@ const PALETTES = [
 export function ModelArtwork({
   id,
   name,
+  author,
   className = "h-16 w-16",
 }: {
   id: string;
   name: string;
+  author?: string | null;
   className?: string;
 }) {
+  const officialMark = officialMarkFor(author);
+  if (officialMark) {
+    return (
+      <div
+        className={`relative shrink-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm ${className}`}
+        title={`Identidad publicada por ${author?.replace(/^~/, "")}`}
+      >
+        <Image
+          src={officialMark.src}
+          alt={`Identidad oficial de ${author?.replace(/^~/, "")}`}
+          width={256}
+          height={256}
+          className="h-full w-full object-contain p-2"
+        />
+      </div>
+    );
+  }
+
   const hash = stableHash(id);
   const colors = PALETTES[hash % PALETTES.length];
   const initials = name

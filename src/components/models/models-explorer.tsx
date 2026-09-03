@@ -249,7 +249,12 @@ export function ModelsExplorer({
                 href={`/models/${t.id}`}
                 className="flex min-w-[13rem] shrink-0 items-center gap-2.5 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 transition-colors hover:border-zinc-400"
               >
-                <ModelArtwork id={t.id} name={t.row?.name ?? t.id} className="h-10 w-10 rounded-xl" />
+                <ModelArtwork
+                  id={t.id}
+                  name={t.row?.name ?? t.id}
+                  author={t.row?.author}
+                  className="h-10 w-10 rounded-xl"
+                />
                 <div className="min-w-0">
                   <div className="font-mono text-[10px] text-zinc-400">#{i + 1}</div>
                   <div className="truncate font-mono text-xs text-violet-700">{t.id}</div>
@@ -438,7 +443,7 @@ export function ModelsExplorer({
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex items-center gap-2.5">
-                          <ModelArtwork id={m.id} name={m.name} className="h-10 w-10 rounded-xl" />
+                          <ModelArtwork id={m.id} name={m.name} author={m.author} className="h-10 w-10 rounded-xl" />
                           <div className="min-w-0">
                             <Link href={`/models/${m.id}`} className="font-mono text-[13px] text-violet-700 hover:underline">
                               {m.id}
@@ -563,7 +568,7 @@ export function ModelsExplorer({
                 </div>
                 <Link href={`/models/${m.id}`} className="block pr-16">
                   <div className="flex items-start gap-3">
-                    <ModelArtwork id={m.id} name={m.name} className="h-14 w-14" />
+                    <ModelArtwork id={m.id} name={m.name} author={m.author} className="h-14 w-14" />
                     <div className="min-w-0 pt-0.5">
                       <div className="truncate text-lg font-semibold tracking-tight text-zinc-950">
                         {m.name}

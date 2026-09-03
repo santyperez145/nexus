@@ -194,7 +194,12 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
           ← Catálogo
         </Link>
         <div className="relative mt-5 flex items-start gap-4 sm:gap-6">
-          <ModelArtwork id={model.id} name={model.name} className="h-20 w-20 rounded-3xl sm:h-24 sm:w-24" />
+          <ModelArtwork
+            id={model.id}
+            name={model.name}
+            author={model.author}
+            className="h-20 w-20 rounded-3xl sm:h-24 sm:w-24"
+          />
           <div className="min-w-0 pt-1">
             <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl md:text-5xl">
               {model.name}
@@ -413,7 +418,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                   href={`/models/${m.id}`}
                   className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 transition-colors hover:border-zinc-300"
                 >
-                  <ModelArtwork id={m.id} name={m.name} className="h-10 w-10 rounded-xl" />
+                  <ModelArtwork id={m.id} name={m.name} author={m.author} className="h-10 w-10 rounded-xl" />
                   <div className="min-w-0">
                     <div className="truncate font-medium text-zinc-900">{m.name}</div>
                     <div className="truncate font-mono text-[11px] text-zinc-500">{m.id}</div>
