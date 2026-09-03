@@ -3,6 +3,7 @@
  * Escala aparte del dashboard Next.js. En prod: GATEWAY_URL + rewrite.
  */
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
 import { ensureDb } from "../src/lib/db";
 import { authenticateRequest, jsonError } from "../src/lib/gateway/api-auth";
@@ -14,6 +15,26 @@ import { embedTexts } from "../src/lib/gateway/providers";
 
 const app = new Hono();
 const port = Number(process.env.GATEWAY_PORT ?? 4001);
+
+app.use(
+  "*",
+  cors({
+    origin: "*",
+    allowHeaders: [
+      "Authorization",
+      "Content-Type",
+      "X-API-Key",
+      "HTTP-Referer",
+      "X-Title",
+      "X-Requested-With",
+      "OpenAI-Beta",
+      "OpenAI-Organization",
+    ],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    exposeHeaders: ["X-Request-Id"],
+    maxAge: 86400,
+  }),
+);
 
 app.get("/healthz", async (c) => {
   const providers = await providerSnapshot();
