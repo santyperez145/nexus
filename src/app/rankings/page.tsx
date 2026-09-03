@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { SiteHeader } from "@/components/layout/site-header";
-import { SiteFooter } from "@/components/layout/site-footer";
+import { MarketingShell } from "@/components/layout/marketing-shell";
 import { allModels, usdPerMillion } from "@/lib/catalog";
 import { db, ensureDb, schema } from "@/lib/db";
 import { sql } from "drizzle-orm";
@@ -30,10 +29,9 @@ export default async function RankingsPage() {
     });
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <SiteHeader />
+    <MarketingShell>
       <div className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="mb-2 text-3xl font-semibold">Rankings</h1>
+        <h1 className="mb-2 text-3xl font-semibold tracking-tight">Rankings</h1>
         <p className="mb-8 text-zinc-500">
           Tokens reales de esta plataforma; el precio desempata. {ranked.length} modelos en
           catálogo.
@@ -42,14 +40,17 @@ export default async function RankingsPage() {
           {ranked.slice(0, 80).map((m, i) => {
             const u = byUsage.get(m.id);
             return (
-              <li key={m.id} className="flex items-baseline justify-between gap-4 border-t border-white/10 pt-3">
+              <li
+                key={m.id}
+                className="flex items-baseline justify-between gap-4 border-t border-zinc-200 pt-3"
+              >
                 <span className="w-8 text-zinc-500">{i + 1}</span>
                 <span className="flex-1 font-mono text-sm">
-                  <Link href={`/models/${m.id}`} className="hover:text-amber-400">
+                  <Link href={`/models/${m.id}`} className="text-amber-700 hover:underline">
                     {m.id}
                   </Link>
                 </span>
-                <span className="text-sm text-zinc-400">
+                <span className="text-sm text-zinc-500">
                   {Number(u?.tokens ?? 0).toLocaleString()} tok · {Number(u?.requests ?? 0)} req
                 </span>
               </li>
@@ -57,7 +58,6 @@ export default async function RankingsPage() {
           })}
         </ol>
       </div>
-      <SiteFooter />
-    </div>
+    </MarketingShell>
   );
 }

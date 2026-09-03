@@ -1,5 +1,4 @@
-import { SiteHeader } from "@/components/layout/site-header";
-import { SiteFooter } from "@/components/layout/site-footer";
+import { MarketingShell } from "@/components/layout/marketing-shell";
 
 const ENDPOINTS = [
   ["POST", "/api/v1/chat/completions", "Chat Completions (OpenAI)"],
@@ -36,18 +35,21 @@ const ENDPOINTS = [
 
 export default function DocsPage() {
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <SiteHeader />
+    <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="mb-4 text-3xl font-semibold">API</h1>
-        <p className="mb-8 text-zinc-400">
-          SDK propio <code>nexus-sdk</code> (425 modelos) o el SDK de OpenAI apuntando a{" "}
-          <code>/api/v1</code>. Variantes <code>:fast</code> <code>:cheap</code>{" "}
-          <code>:quality</code> <code>:free</code> <code>:online</code>. Routers{" "}
-          <code>nexus/auto</code> y <code>nexus/free</code>. Alias{" "}
-          <code>~openai/latest</code> / <code>anthropic/latest</code>.
+        <h1 className="mb-4 text-3xl font-semibold tracking-tight">API</h1>
+        <p className="mb-8 text-zinc-600">
+          SDK propio <code className="text-zinc-800">nexus-sdk</code> (425 modelos) o el SDK de
+          OpenAI apuntando a <code className="text-zinc-800">/api/v1</code>. Variantes{" "}
+          <code className="text-zinc-800">:fast</code> <code className="text-zinc-800">:cheap</code>{" "}
+          <code className="text-zinc-800">:quality</code> <code className="text-zinc-800">:free</code>{" "}
+          <code className="text-zinc-800">:online</code>. Routers{" "}
+          <code className="text-zinc-800">nexus/auto</code> y{" "}
+          <code className="text-zinc-800">nexus/free</code>. Alias{" "}
+          <code className="text-zinc-800">~openai/latest</code> /{" "}
+          <code className="text-zinc-800">anthropic/latest</code>.
         </p>
-        <pre className="mb-8 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm">
+        <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`import { Nexus } from "nexus-sdk";
 
 const nexus = new Nexus({
@@ -62,7 +64,7 @@ const res = await nexus.chat.send({
   provider: { sort: "throughput", allow_fallbacks: true },
 });`}
         </pre>
-        <pre className="mb-8 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm">
+        <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`curl $NEXUS_URL/api/v1/chat/completions \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
   -H "HTTP-Referer: https://tu-app.example" \\
@@ -84,52 +86,70 @@ const res = await nexus.chat.send({
     "messages": [{"role":"user","content":"Qué pasó hoy en AI?"}]
   }'`}
         </pre>
-        <h2 className="mb-3 text-lg font-medium">Atribución</h2>
-        <p className="mb-6 text-sm text-zinc-400">
-          Mandá <code>HTTP-Referer</code> (origen de tu app) y <code>X-Title</code> (nombre). Quedan
-          en activity y en <code>GET /api/v1/generation?id=</code>. CORS en <code>/api/v1</code>{" "}
-          refleja cualquier origin (Bearer); no uses cookies ahí.
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Atribución</h2>
+        <p className="mb-6 text-sm text-zinc-600">
+          Mandá <code className="text-zinc-800">HTTP-Referer</code> (origen de tu app) y{" "}
+          <code className="text-zinc-800">X-Title</code> (nombre). Quedan en activity y en{" "}
+          <code className="text-zinc-800">GET /api/v1/generation?id=</code>. CORS en{" "}
+          <code className="text-zinc-800">/api/v1</code> refleja cualquier origin (Bearer); no uses
+          cookies ahí.
         </p>
-        <h2 className="mb-3 text-lg font-medium">Usage</h2>
-        <p className="mb-6 text-sm text-zinc-400">
-          El completion incluye <code>usage.cost</code>, <code>is_byok</code>,{" "}
-          <code>prompt_tokens_details.cached_tokens</code> y{" "}
-          <code>completion_tokens_details.reasoning_tokens</code>. En stream, el último chunk trae
-          usage si pasás <code>stream_options.include_usage: true</code>. El header{" "}
-          <code>X-Request-Id</code> es el id de generación (<code>gen-…</code>).
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Usage</h2>
+        <p className="mb-6 text-sm text-zinc-600">
+          El completion incluye <code className="text-zinc-800">usage.cost</code>,{" "}
+          <code className="text-zinc-800">is_byok</code>,{" "}
+          <code className="text-zinc-800">prompt_tokens_details.cached_tokens</code> y{" "}
+          <code className="text-zinc-800">completion_tokens_details.reasoning_tokens</code>. En
+          stream, el último chunk trae usage si pasás{" "}
+          <code className="text-zinc-800">stream_options.include_usage: true</code>. El header{" "}
+          <code className="text-zinc-800">X-Request-Id</code> es el id de generación (
+          <code className="text-zinc-800">gen-…</code>).
         </p>
-        <h2 className="mb-3 text-lg font-medium">Files</h2>
-        <p className="mb-6 text-sm text-zinc-400">
-          <code>POST /api/v1/files</code> (multipart, máx 4 MB) y después{" "}
-          <code>file_ids</code> en el completion. El gateway inyecta el texto en el prompt.
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Files</h2>
+        <p className="mb-6 text-sm text-zinc-600">
+          <code className="text-zinc-800">POST /api/v1/files</code> (multipart, máx 4 MB) y después{" "}
+          <code className="text-zinc-800">file_ids</code> en el completion. El gateway inyecta el
+          texto en el prompt.
         </p>
-        <h2 className="mb-3 text-lg font-medium">Presets</h2>
-        <p className="mb-8 text-sm text-zinc-400">
-          <code>model: @mi-preset</code> o <code>nexus/preset/mi-preset</code> mezcla el config
-          guardado en Settings → Presets.
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Presets</h2>
+        <p className="mb-8 text-sm text-zinc-600">
+          <code className="text-zinc-800">model: @mi-preset</code> o{" "}
+          <code className="text-zinc-800">nexus/preset/mi-preset</code> mezcla el config guardado en
+          Settings → Presets.
         </p>
-        <h2 className="mb-3 text-lg font-medium">Cablear</h2>
-        <ol className="mb-8 list-decimal space-y-2 pl-5 text-sm text-zinc-400">
-          <li>Copiá <code>.env.example</code> a <code>.env.local</code>.</li>
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Cablear</h2>
+        <ol className="mb-8 list-decimal space-y-2 pl-5 text-sm text-zinc-600">
+          <li>
+            Copiá <code className="text-zinc-800">.env.example</code> a{" "}
+            <code className="text-zinc-800">.env.local</code>.
+          </li>
           <li>Keys de labs (OpenAI, Groq, Together…). Sin key, ese host se salta.</li>
-          <li>Opcional: <code>TAVILY_API_KEY</code> / Brave / Exa / Serper para búsqueda.</li>
+          <li>
+            Opcional: <code className="text-zinc-800">TAVILY_API_KEY</code> / Brave / Exa / Serper
+            para búsqueda.
+          </li>
           <li>Stripe para créditos reales. Redis para rate limit.</li>
           <li>En la app: Conexiones → Probar cables → Sync catálogo.</li>
         </ol>
         <div className="grid gap-2">
           {ENDPOINTS.map(([method, path, label]) => (
-            <div key={path} className="flex gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm">
-              <span className="w-36 shrink-0 font-mono text-amber-400">{method}</span>
-              <span className="flex-1 font-mono text-zinc-200">{path}</span>
+            <div
+              key={path}
+              className="flex flex-wrap gap-3 border border-zinc-200 bg-white px-3 py-2 text-sm"
+            >
+              <span className="w-36 shrink-0 font-mono text-amber-700">{method}</span>
+              <span className="flex-1 font-mono text-zinc-800">{path}</span>
               <span className="text-zinc-500">{label}</span>
             </div>
           ))}
         </div>
         <p className="mt-8 text-sm text-zinc-500">
-          Spec: <a className="text-amber-400 hover:underline" href="/openapi.yaml">/openapi.yaml</a>
+          Spec:{" "}
+          <a className="text-amber-700 hover:underline" href="/openapi.yaml">
+            /openapi.yaml
+          </a>
         </p>
       </div>
-      <SiteFooter />
-    </div>
+    </MarketingShell>
   );
 }

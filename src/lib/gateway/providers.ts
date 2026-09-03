@@ -169,7 +169,7 @@ export async function embedTexts(texts: string[], modelId: string, byok?: string
 async function localComplete(messages: ChatMessage[], endpoint: ModelEndpoint) {
   const last = messages.filter((m) => m.role === "user").at(-1);
   const text = typeof last?.content === "string" ? last.content : "Hola";
-  const reply = `[Nexus local · ${endpoint.adapter}/${endpoint.providerModel}] No hay API key del proveedor configurada. Echo: ${text.slice(0, 400)}`;
+  const reply = `[Nexus local · ${endpoint.adapter}/${endpoint.providerModel}] Sin key de lab en este deploy. Agregá BYOK en Settings → Connections o configurá la key de plataforma. Echo: ${text.slice(0, 400)}`;
   return {
     text: reply,
     promptTokens: estimateTokens(messages),

@@ -76,11 +76,11 @@ export function ModelsExplorer({ models }: { models: Row[] }) {
             key={item.id}
             type="button"
             onClick={() => setMod(item.id)}
-            className={mod === item.id ? "text-amber-300" : "text-zinc-500 hover:text-white"}
+            className={mod === item.id ? "text-amber-700" : "text-zinc-500 hover:text-zinc-900"}
           >
             {item.label}
             {item.id !== "all" ? (
-              <span className="ml-1 text-zinc-600">{models.filter((m) => matchesMod(m, item.id)).length}</span>
+              <span className="ml-1 text-zinc-400">{models.filter((m) => matchesMod(m, item.id)).length}</span>
             ) : null}
           </button>
         ))}
@@ -90,13 +90,13 @@ export function ModelsExplorer({ models }: { models: Row[] }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Buscar modelo, autor, lab…"
-          className="h-9 rounded-md border border-white/10 bg-transparent px-3 text-sm"
+          className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
           aria-label="Buscar modelos"
         />
         <select
           value={lab}
           onChange={(e) => setLab(e.target.value)}
-          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm"
+          className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
           aria-label="Filtrar por lab"
         >
           <option value="all">Todos los labs</option>
@@ -109,7 +109,7 @@ export function ModelsExplorer({ models }: { models: Row[] }) {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as typeof sort)}
-          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm"
+          className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
           aria-label="Ordenar"
         >
           <option value="new">Más nuevos</option>
@@ -119,7 +119,7 @@ export function ModelsExplorer({ models }: { models: Row[] }) {
         <button
           type="button"
           onClick={() => setTable((v) => !v)}
-          className="h-9 text-left text-sm text-zinc-500 hover:text-white"
+          className="h-9 text-left text-sm text-zinc-500 hover:text-zinc-900"
         >
           {table ? "Lista" : "Tabla"}
         </button>
@@ -138,17 +138,17 @@ export function ModelsExplorer({ models }: { models: Row[] }) {
             </thead>
             <tbody>
               {filtered.map((m) => (
-                <tr key={m.id} className="border-t border-white/5">
+                <tr key={m.id} className="border-t border-zinc-200">
                   <td className="py-2 pr-4">
-                    <Link href={`/models/${m.id}`} className="font-mono text-amber-400/80 hover:underline">
+                    <Link href={`/models/${m.id}`} className="font-mono text-amber-700 hover:underline">
                       {m.id}
                     </Link>
                   </td>
-                  <td className="py-2 pr-4 text-zinc-400">{(m.contextLength / 1000).toFixed(0)}k</td>
-                  <td className="py-2 pr-4 text-zinc-400">
+                  <td className="py-2 pr-4 text-zinc-500">{(m.contextLength / 1000).toFixed(0)}k</td>
+                  <td className="py-2 pr-4 text-zinc-500">
                     {m.free ? "Gratis" : formatUsd(usdPerMillion(m.pricing.prompt), 2)}
                   </td>
-                  <td className="py-2 text-zinc-600">{m.endpoints.map((e) => e.adapter).join(" · ") || "router"}</td>
+                  <td className="py-2 text-zinc-400">{m.endpoints.map((e) => e.adapter).join(" · ") || "router"}</td>
                 </tr>
               ))}
             </tbody>
@@ -157,20 +157,24 @@ export function ModelsExplorer({ models }: { models: Row[] }) {
       ) : (
         <div className="grid gap-6">
           {filtered.map((m) => (
-            <Link key={m.id} href={`/models/${m.id}`} className="block border-t border-white/10 pt-4 hover:border-amber-400/40">
+            <Link
+              key={m.id}
+              href={`/models/${m.id}`}
+              className="block border-t border-zinc-200 pt-4 hover:border-amber-600"
+            >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <div className="font-medium text-white">{m.name}</div>
-                  <div className="font-mono text-xs text-amber-400/80">{m.id}</div>
+                  <div className="font-medium text-zinc-900">{m.name}</div>
+                  <div className="font-mono text-xs text-amber-700/90">{m.id}</div>
                 </div>
-                <div className="text-sm text-zinc-400">
+                <div className="text-sm text-zinc-500">
                   {m.free
                     ? "Gratis"
                     : `${formatUsd(usdPerMillion(m.pricing.prompt), 2)} / ${formatUsd(usdPerMillion(m.pricing.completion), 2)} per 1M`}
                 </div>
               </div>
               <p className="mt-2 line-clamp-2 text-sm text-zinc-500">{m.description}</p>
-              <p className="mt-2 font-mono text-[11px] text-zinc-600">
+              <p className="mt-2 font-mono text-[11px] text-zinc-400">
                 {(m.contextLength / 1000).toFixed(0)}k ctx
                 {m.endpoints.length ? ` · ${m.endpoints.map((e) => e.adapter).join(" · ")}` : " · router Nexus"}
               </p>
