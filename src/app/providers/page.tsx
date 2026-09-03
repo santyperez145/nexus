@@ -53,7 +53,12 @@ export default async function ProvidersPage() {
                 } ${i % 2 ? "bg-zinc-50/50" : ""}`}
               >
                 <div className="min-w-0">
-                  <div className="font-medium text-zinc-900">{p.label}</div>
+                  <Link
+                    href={`/providers/${p.id}`}
+                    className="font-medium text-zinc-900 hover:text-amber-800"
+                  >
+                    {p.label}
+                  </Link>
                   <div className="font-mono text-xs text-amber-700">{p.id}</div>
                 </div>
                 <span className="font-mono text-[11px] text-zinc-500">{p.kind}</span>
@@ -80,10 +85,10 @@ export default async function ProvidersPage() {
                   {circuit === "open" ? "open" : p.zdr ? "ZDR" : circuit}
                 </span>
                 <Link
-                  href={`/models?lab=${encodeURIComponent(p.id)}`}
+                  href={`/providers/${p.id}`}
                   className="hidden text-xs text-amber-700 hover:underline md:block"
                 >
-                  Ver models →
+                  Ficha →
                 </Link>
               </div>
             );

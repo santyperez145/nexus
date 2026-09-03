@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { NexusWordmark } from "@/components/brand/nexus-logo";
+import { SiteHeaderNav } from "@/components/layout/site-header-nav";
 import { cn } from "@/lib/utils";
 
 export async function SiteHeader({ tone = "dark" }: { tone?: "dark" | "light" }) {
@@ -18,49 +19,7 @@ export async function SiteHeader({ tone = "dark" }: { tone?: "dark" | "light" })
         <Link href="/" className={cn("text-[15px]", light ? "text-zinc-900" : "text-zinc-100")}>
           <NexusWordmark tone={tone} />
         </Link>
-        <nav
-          className={cn(
-            "hidden items-center gap-6 text-sm md:flex",
-            light ? "text-zinc-500" : "text-zinc-400",
-          )}
-        >
-          <Link href="/models" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Modelos
-          </Link>
-          <Link href="/chat" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Chat
-          </Link>
-          <Link href="/providers" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Providers
-          </Link>
-          <Link href="/rankings" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Rankings
-          </Link>
-          <Link href="/compare" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Compare
-          </Link>
-          <Link href="/arena" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Arena
-          </Link>
-          <Link href="/apps" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Apps
-          </Link>
-          <Link href="/status" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Status
-          </Link>
-          <Link href="/credits" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Credits
-          </Link>
-          <Link href="/enterprise" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Enterprise
-          </Link>
-          <Link href="/blog" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Blog
-          </Link>
-          <Link href="/docs" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
-            Docs
-          </Link>
-        </nav>
+        <SiteHeaderNav light={light} />
         <div className="flex items-center gap-2">
           {session ? (
             <Button

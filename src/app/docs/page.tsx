@@ -65,6 +65,26 @@ export default function DocsPage() {
             </a>
           ))}
         </div>
+        <div className="mb-8 grid gap-2 sm:grid-cols-2">
+          <a
+            href="/docs/provider-routing"
+            className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
+          >
+            <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">
+              Provider routing
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">only · ignore · sort · ZDR · fallbacks</div>
+          </a>
+          <a
+            href="/docs/parameters"
+            className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
+          >
+            <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">
+              Parameters
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">sampling · tools · JSON · transforms</div>
+          </a>
+        </div>
         <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`import { Nexus } from "nexus-sdk";
 

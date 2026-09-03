@@ -1,7 +1,7 @@
 "use client";
 
 import { AppPageHeader } from "@/components/layout/app-page-header";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRemoteData } from "@/lib/use-remote-data";
@@ -16,25 +16,105 @@ type Guard = {
   blockedModels: string[] | null;
 };
 
-export default function GuardrailsPage() {
-  const [rows, reload] = useRemoteData<Guard[]>("/api/v1/guardrails");
-  const [name, setName] = useState("Default");
-  const [maxCost, setMaxCost] = useState("0.05");
-  const [allowed, setAllowed] = useState("");
-  const [blocked, setBlocked] = useState("");
-  const list = rows ?? [];
+type ModelRow = { id: string };
 
-  function parseList(raw: string) {
-    return raw
+function ChipField({
+  label,
+  values,
+  onChange,
+  tone,
+}: {
+  label: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+  tone: "allow" | "block";
+}) {
+  const [draft, setDraft] = useState("");
+  const chip =
+    tone === "allow"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+      : "border-rose-500/40 bg-rose-500/10 text-rose-200";
+
+  function add() {
+    const parts = draft
       .split(/[,\n]/)
       .map((s) => s.trim())
       .filter(Boolean);
+    if (!parts.length) return;
+    onChange([...new Set([...values, ...parts])]);
+    setDraft("");
   }
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+      <div className="mb-2 text-xs uppercase tracking-wide text-zinc-500">{label}</div>
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {values.map((v) => (
+          <button
+            key={v}
+            type="button"
+            className={`rounded border px-2 py-0.5 font-mono text-[11px] ${chip}`}
+            onClick={() => onChange(values.filter((x) => x !== v))}
+            title="Quitar"
+          >
+            {v} ×
+          </button>
+        ))}
+        {values.length === 0 ? <span className="text-xs text-zinc-600">vacío</span> : null}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder={tone === "allow" ? "openai/, nexus/auto" : ":free, deepseek"}
+          className="font-mono text-xs"
+        />
+        <Button type="button" variant="outline" size="sm" onClick={add}>
+          +
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function passes(id: string, allow: string[], block: string[]) {
+  if (block.some((b) => id.includes(b))) return false;
+  if (!allow.length) return true;
+  return allow.some((a) => id.startsWith(a) || id.includes(a));
+}
+
+export default function GuardrailsPage() {
+  const [rows, reload] = useRemoteData<Guard[]>("/api/v1/guardrails");
+  const [models] = useRemoteData<ModelRow[]>("/api/v1/models");
+  const [name, setName] = useState("Default");
+  const [maxCost, setMaxCost] = useState("0.05");
+  const [allowed, setAllowed] = useState<string[]>([]);
+  const [blocked, setBlocked] = useState<string[]>([]);
+  const list = rows ?? [];
+
+  const modelIds = useMemo(() => (models ?? []).map((m) => m.id), [models]);
+
+  const matchCount = useMemo(() => {
+    if (!modelIds.length) return null;
+    return modelIds.filter((id) => passes(id, allowed, blocked)).length;
+  }, [modelIds, allowed, blocked]);
+
+  const samples = useMemo(() => {
+    if (!modelIds.length) return [] as string[];
+    return modelIds.filter((id) => passes(id, allowed, blocked)).slice(0, 6);
+  }, [modelIds, allowed, blocked]);
 
   return (
     <div>
       <AppPageHeader title="Guardrails">
-        Techo de costo, allow/block de modelos, prompt injection y secretos. El gateway corta antes del lab.
+        Techo de costo, allow/block de modelos, prompt injection y secretos. El gateway corta antes del
+        lab. Preview abajo usa el catálogo vivo de esta instancia.
       </AppPageHeader>
       <div className="mb-4 grid gap-2 md:grid-cols-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
@@ -43,22 +123,31 @@ export default function GuardrailsPage() {
           onChange={(e) => setMaxCost(e.target.value)}
           placeholder="max USD"
         />
-        <Input
-          value={allowed}
-          onChange={(e) => setAllowed(e.target.value)}
-          placeholder="Allow prefixes: openai/,nexus/auto"
-        />
-        <Input
-          value={blocked}
-          onChange={(e) => setBlocked(e.target.value)}
-          placeholder="Block substrings: :free,deepseek"
-        />
       </div>
+      <div className="mb-4 grid gap-3 md:grid-cols-2">
+        <ChipField label="Allow prefixes" values={allowed} onChange={setAllowed} tone="allow" />
+        <ChipField label="Block substrings" values={blocked} onChange={setBlocked} tone="block" />
+      </div>
+      {matchCount != null ? (
+        <div className="mb-4 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-zinc-400">
+          <span className="text-zinc-200">{matchCount}</span> / {modelIds.length} modelos pasarían
+          esta policy.
+          {samples.length ? (
+            <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[11px] text-zinc-500">
+              {samples.map((id) => (
+                <span key={id} className="rounded border border-white/10 px-1.5 py-0.5">
+                  {id}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-rose-300/80">Ningún slug del catálogo matchea.</p>
+          )}
+        </div>
+      ) : null}
       <Button
         className="mb-6"
         onClick={async () => {
-          const allow = parseList(allowed);
-          const block = parseList(blocked);
           await fetch("/api/v1/guardrails", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -67,12 +156,12 @@ export default function GuardrailsPage() {
               prompt_injection: true,
               sensitive_info: true,
               max_cost: maxCost ? Number(maxCost) : undefined,
-              allowed_models: allow.length ? allow : undefined,
-              blocked_models: block.length ? block : undefined,
+              allowed_models: allowed.length ? allowed : undefined,
+              blocked_models: blocked.length ? blocked : undefined,
             }),
           });
-          setAllowed("");
-          setBlocked("");
+          setAllowed([]);
+          setBlocked([]);
           reload();
         }}
       >
@@ -92,13 +181,27 @@ export default function GuardrailsPage() {
                 {g.maxCostMicros != null ? `max ${g.maxCostMicros / 1_000_000} USD` : "sin techo"}
               </div>
               {g.allowedModels?.length ? (
-                <div className="mt-1 font-mono text-[11px] text-emerald-400/80">
-                  allow: {g.allowedModels.join(", ")}
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {g.allowedModels.map((m) => (
+                    <span
+                      key={m}
+                      className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[11px] text-emerald-300/90"
+                    >
+                      {m}
+                    </span>
+                  ))}
                 </div>
               ) : null}
               {g.blockedModels?.length ? (
-                <div className="mt-1 font-mono text-[11px] text-rose-400/80">
-                  block: {g.blockedModels.join(", ")}
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {g.blockedModels.map((m) => (
+                    <span
+                      key={m}
+                      className="rounded border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 font-mono text-[11px] text-rose-300/90"
+                    >
+                      {m}
+                    </span>
+                  ))}
                 </div>
               ) : null}
             </div>

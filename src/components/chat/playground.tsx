@@ -59,6 +59,12 @@ export function Playground({
   const [system, setSystem] = useState("");
   const [temperature, setTemperature] = useState(0.7);
   const [online, setOnline] = useState(false);
+  const [jsonMode, setJsonMode] = useState(false);
+  const [sort, setSort] = useState<"default" | "price" | "throughput" | "latency">("default");
+  const [allowFallbacks, setAllowFallbacks] = useState(true);
+  const [zdrOnly, setZdrOnly] = useState(false);
+  const [onlyRaw, setOnlyRaw] = useState("");
+  const [ignoreRaw, setIgnoreRaw] = useState("");
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -70,6 +76,29 @@ export function Playground({
   const echoRisk = platformLabs === 0 && !hasByok;
   const sawLocal = lanes.some((l) => l.stats?.provider === "local");
 
+  function parseCsv(raw: string) {
+    return raw
+      .split(/[,\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  function providerPrefs() {
+    const only = parseCsv(onlyRaw);
+    const ignore = parseCsv(ignoreRaw);
+    const provider: Record<string, unknown> = {
+      allow_fallbacks: allowFallbacks,
+    };
+    if (only.length) provider.only = only;
+    if (ignore.length) provider.ignore = ignore;
+    if (sort !== "default") provider.sort = sort;
+    if (zdrOnly) {
+      provider.zdr = true;
+      provider.data_collection = "deny";
+    }
+    return provider;
+  }
+
   async function previewRoute(model: string) {
     try {
       const res = await fetch("/api/v1/routing/preview", {
@@ -78,6 +107,7 @@ export function Playground({
         body: JSON.stringify({
           model: applyOnline(model, online),
           messages: [{ role: "user", content: input || "preview" }],
+          provider: providerPrefs(),
         }),
       });
       const json = await res.json();
@@ -93,8 +123,8 @@ export function Playground({
       void previewRoute(model);
     }, 0);
     return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + online toggle
-  }, [online, defaultModel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + routing prefs
+  }, [online, defaultModel, sort, allowFallbacks, zdrOnly, onlyRaw, ignoreRaw]);
 
   async function uploadInline(file: File) {
     const fd = new FormData();
@@ -131,6 +161,8 @@ export function Playground({
         stream: true,
         temperature,
         stream_options: { include_usage: true },
+        provider: providerPrefs(),
+        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
         ...(online ? { tools: [{ type: "nexus:web_search" }] } : {}),
         ...(fileIds.length ? { file_ids: fileIds } : {}),
       }),
@@ -336,6 +368,10 @@ export function Playground({
           :online
         </label>
         <label className="flex items-center gap-2">
+          <input type="checkbox" checked={jsonMode} onChange={(e) => setJsonMode(e.target.checked)} />
+          JSON
+        </label>
+        <label className="flex items-center gap-2">
           temp
           <input
             type="range"
@@ -360,7 +396,62 @@ export function Playground({
             }}
           />
         </label>
+        <Link href="/docs/provider-routing" className="text-amber-400/80 hover:underline">
+          Docs routing
+        </Link>
       </div>
+      <details className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
+        <summary className="cursor-pointer text-sm text-zinc-300">
+          Provider prefs · sort / only / ignore / ZDR
+        </summary>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <label className="grid gap-1 text-xs text-zinc-500">
+            sort
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              className="h-9 rounded-md border border-white/15 bg-black/40 px-2 font-mono text-sm text-zinc-200"
+            >
+              <option value="default">default</option>
+              <option value="price">price</option>
+              <option value="throughput">throughput</option>
+              <option value="latency">latency</option>
+            </select>
+          </label>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={allowFallbacks}
+                onChange={(e) => setAllowFallbacks(e.target.checked)}
+              />
+              allow_fallbacks
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={zdrOnly} onChange={(e) => setZdrOnly(e.target.checked)} />
+              ZDR only
+            </label>
+          </div>
+          <label className="grid gap-1 text-xs text-zinc-500">
+            only (adapters)
+            <input
+              value={onlyRaw}
+              onChange={(e) => setOnlyRaw(e.target.value)}
+              placeholder="groq, together"
+              className="h-9 rounded-md border border-white/15 bg-black/40 px-2 font-mono text-sm text-zinc-200"
+            />
+          </label>
+          <label className="grid gap-1 text-xs text-zinc-500">
+            ignore
+            <input
+              value={ignoreRaw}
+              onChange={(e) => setIgnoreRaw(e.target.value)}
+              placeholder="deepseek"
+              className="h-9 rounded-md border border-white/15 bg-black/40 px-2 font-mono text-sm text-zinc-200"
+            />
+          </label>
+        </div>
+      </details>
       {files.length ? (
         <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
           {files.map((f) => {
