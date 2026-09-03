@@ -21,13 +21,23 @@ export async function assertCredits(
     throw err;
   }
   if (auth.workspaceId) {
-    const [budget] = await db
-      .select()
-      .from(schema.workspaceBudgets)
-      .where(eq(schema.workspaceBudgets.workspaceId, auth.workspaceId))
+    const [ws] = await db
+      .select({
+        includeByokInBudgets: schema.workspaces.includeByokInBudgets,
+      })
+      .from(schema.workspaces)
+      .where(eq(schema.workspaces.id, auth.workspaceId))
       .limit(1);
-    if (budget && budget.spentMicros + need > budget.limitMicros) {
-      throw Object.assign(new Error("Workspace budget exceeded"), { status: 402 });
+    const skipByokBudget = Boolean(opts.byokFeeOnly) && !ws?.includeByokInBudgets;
+    if (!skipByokBudget) {
+      const [budget] = await db
+        .select()
+        .from(schema.workspaceBudgets)
+        .where(eq(schema.workspaceBudgets.workspaceId, auth.workspaceId))
+        .limit(1);
+      if (budget && budget.spentMicros + need > budget.limitMicros) {
+        throw Object.assign(new Error("Workspace budget exceeded"), { status: 402 });
+      }
     }
   }
 }
@@ -95,10 +105,21 @@ export async function settleUsage(opts: {
       .where(eq(schema.apiKeys.id, opts.auth.apiKeyId));
   }
   if (opts.auth.workspaceId && micros > 0) {
-    await db
-      .update(schema.workspaceBudgets)
-      .set({ spentMicros: sql`${schema.workspaceBudgets.spentMicros} + ${micros}` })
-      .where(eq(schema.workspaceBudgets.workspaceId, opts.auth.workspaceId));
+    let chargeBudget = true;
+    if (opts.isByok) {
+      const [ws] = await db
+        .select({ includeByokInBudgets: schema.workspaces.includeByokInBudgets })
+        .from(schema.workspaces)
+        .where(eq(schema.workspaces.id, opts.auth.workspaceId))
+        .limit(1);
+      chargeBudget = Boolean(ws?.includeByokInBudgets);
+    }
+    if (chargeBudget) {
+      await db
+        .update(schema.workspaceBudgets)
+        .set({ spentMicros: sql`${schema.workspaceBudgets.spentMicros} + ${micros}` })
+        .where(eq(schema.workspaceBudgets.workspaceId, opts.auth.workspaceId));
+    }
   }
   return { usd: opts.isByok ? usd * BYOK_FEE : usd, micros };
 }

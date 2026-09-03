@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { MarketingShell } from "@/components/layout/marketing-shell";
-import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/money";
 

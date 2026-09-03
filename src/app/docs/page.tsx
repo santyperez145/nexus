@@ -139,6 +139,40 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
           <code className="text-zinc-800">nexus/preset/mi-preset</code> mezcla el config guardado en
           Settings → Presets.
         </p>
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Enterprise / ZDR</h2>
+        <p className="mb-3 text-sm text-zinc-600">
+          Paridad con el control de privacidad de OpenRouter, sin enterprise marketing vacío:
+        </p>
+        <ul className="mb-4 list-disc space-y-2 pl-5 text-sm text-zinc-600">
+          <li>
+            <strong className="font-medium text-zinc-800">ZDR</strong> — Settings → Privacy o{" "}
+            <code className="text-zinc-800">provider.data_collection: &quot;deny&quot;</code>. El
+            router prefiere endpoints <code className="text-zinc-800">zdr: true</code> del
+            catálogo.
+          </li>
+          <li>
+            <strong className="font-medium text-zinc-800">allow_training</strong> — si está en false,
+            se filtran hosts que entrenan; si el plan queda vacío, el chat reintenta en modo laxo
+            para no romper tip-to-tip (eco / BYOK).
+          </li>
+          <li>
+            <strong className="font-medium text-zinc-800">Route Trace</strong> —{" "}
+            <code className="text-zinc-800">POST /api/v1/routing/preview</code> y el panel del
+            playground muestran hops (adapter, wired, zdr) antes de gastar.
+          </li>
+          <li>
+            <strong className="font-medium text-zinc-800">Guardrails</strong> — allow/block de labs en
+            Settings; budgets por workspace con toggle BYOK-in-budget.
+          </li>
+          <li>
+            <strong className="font-medium text-zinc-800">Webhooks</strong> — firmados HMAC para
+            eventos de generación / billing (Settings → Observability).
+          </li>
+        </ul>
+        <p className="mb-8 text-sm text-zinc-600">
+          No hay “Enterprise plan” inventado ni rieles live de bancos. Sponsors/cámaras solo cuando
+          la ley lo exija.
+        </p>
         <h2 className="mb-3 text-lg font-medium text-zinc-900">Cablear</h2>
         <ol className="mb-8 list-decimal space-y-2 pl-5 text-sm text-zinc-600">
           <li>

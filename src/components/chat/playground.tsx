@@ -86,7 +86,11 @@ export function Playground({
   }
 
   useEffect(() => {
-    void previewRoute(lanes[0]?.model ?? defaultModel);
+    const model = lanes[0]?.model ?? defaultModel;
+    const t = window.setTimeout(() => {
+      void previewRoute(model);
+    }, 0);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + online toggle
   }, [online, defaultModel]);
 

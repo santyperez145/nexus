@@ -21,6 +21,7 @@ async function withBudgets(rows: (typeof schema.workspaces.$inferSelect)[]) {
     const budget = byWs.get(r.id);
     return {
       ...r,
+      includeByokInBudgets: r.includeByokInBudgets,
       budget: budget
         ? {
             interval: budget.interval,
@@ -82,6 +83,12 @@ export async function PATCH(req: Request) {
     }
     if (typeof body.name === "string") {
       await db.update(schema.workspaces).set({ name: body.name }).where(eq(schema.workspaces.id, workspaceId));
+    }
+    if (typeof body.include_byok_in_budgets === "boolean") {
+      await db
+        .update(schema.workspaces)
+        .set({ includeByokInBudgets: body.include_byok_in_budgets })
+        .where(eq(schema.workspaces.id, workspaceId));
     }
     if (body.limit != null) {
       const [existing] = await db
