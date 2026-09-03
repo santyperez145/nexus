@@ -4,10 +4,12 @@ import { chargeAndRecordMedia, holdMediaCredits } from "@/lib/gateway/media-bill
 import { releaseReserve } from "@/lib/gateway/billing";
 import { embedTexts } from "@/lib/gateway/providers";
 import { findModel } from "@/lib/catalog";
+import { assertRateLimit } from "@/lib/gateway/rate-limit";
 
 export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
+    await assertRateLimit(auth);
     const body = await req.json();
     const input = Array.isArray(body.input) ? body.input : [body.input];
     const requested = String(body.model ?? "openai/text-embedding-3-small");

@@ -39,8 +39,12 @@ export async function dispatchGenerationWebhook(
           body: envelope,
           signal: AbortSignal.timeout(4000),
         });
-      } catch {
-        /* drop: private URL or timeout */
+      } catch (error) {
+        console.warn("Nexus observability delivery failed", {
+          destinationId: row.id,
+          userId,
+          message: error instanceof Error ? error.message : "unknown delivery error",
+        });
       }
     }),
   );

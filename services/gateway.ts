@@ -11,7 +11,10 @@ import { handleChat } from "../src/lib/gateway/handle-chat";
 import type { ChatRequest } from "../src/lib/gateway/types";
 import { allModels } from "../src/lib/catalog";
 import { providerSnapshot } from "../src/lib/gateway/health";
-import { embedTexts } from "../src/lib/gateway/providers";
+import { POST as embeddingsPost } from "../src/app/api/v1/embeddings/route";
+import { POST as responsesPost } from "../src/app/api/v1/responses/route";
+import { POST as messagesPost } from "../src/app/api/v1/messages/route";
+import { DATA_PLANE_PROTOCOL_ROUTES } from "../src/lib/gateway/data-plane";
 
 const app = new Hono();
 const port = Number(process.env.GATEWAY_PORT ?? 4001);
@@ -43,24 +46,13 @@ app.get("/healthz", async (c) => {
 
 app.get("/v1/models", (c) => c.json({ data: allModels() }));
 
-app.post("/v1/embeddings", async (c) => {
-  try {
-    await ensureDb();
-    await authenticateRequest(c.req.raw);
-    const body = (await c.req.json()) as { input?: string | string[]; model?: string };
-    const texts = Array.isArray(body.input) ? body.input : [String(body.input ?? "")];
-    const vectors = await embedTexts(texts, body.model ?? "openai/text-embedding-3-small");
-    return c.json({
-      object: "list",
-      data: vectors.map((embedding, i) => ({ object: "embedding", index: i, embedding })),
-      model: body.model ?? "openai/text-embedding-3-small",
-    });
-  } catch (error) {
-    return jsonError(error);
-  }
-});
+// Keep the independently-scaled data plane on the exact same auth, rate-limit,
+// billing and protocol code paths as the Next.js control plane.
+app.post(DATA_PLANE_PROTOCOL_ROUTES.embeddings, (c) => embeddingsPost(c.req.raw));
+app.post(DATA_PLANE_PROTOCOL_ROUTES.responses, (c) => responsesPost(c.req.raw));
+app.post(DATA_PLANE_PROTOCOL_ROUTES.messages, (c) => messagesPost(c.req.raw));
 
-app.post("/v1/chat/completions", async (c) => {
+app.post(DATA_PLANE_PROTOCOL_ROUTES.chat, async (c) => {
   try {
     await ensureDb();
     const auth = await authenticateRequest(c.req.raw);
@@ -72,7 +64,7 @@ app.post("/v1/chat/completions", async (c) => {
   }
 });
 
-app.post("/v1/completions", async (c) => {
+app.post(DATA_PLANE_PROTOCOL_ROUTES.completions, async (c) => {
   try {
     await ensureDb();
     const auth = await authenticateRequest(c.req.raw);

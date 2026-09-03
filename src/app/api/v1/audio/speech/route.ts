@@ -3,10 +3,12 @@ import { resolveByokKey } from "@/lib/gateway/byok";
 import { chargeAndRecordMedia, holdMediaCredits, MEDIA_DEFAULT_USD } from "@/lib/gateway/media-billing";
 import { releaseReserve } from "@/lib/gateway/billing";
 import { synthesizeSpeech } from "@/lib/media/upstream";
+import { assertRateLimit } from "@/lib/gateway/rate-limit";
 
 export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
+    await assertRateLimit(auth);
     const body = await req.json();
     const text = String(body.input ?? body.text ?? "");
     if (!text) return jsonError(Object.assign(new Error("input required"), { status: 400 }));

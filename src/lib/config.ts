@@ -76,6 +76,15 @@ export function stripePriceForPlan(planId: SubscriptionPlanId) {
     : process.env.STRIPE_PRICE_TEAM_MONTHLY;
 }
 
+/**
+ * Stripe Tax must be explicitly enabled only after registrations and Tax
+ * settings exist in the active Stripe environment. Otherwise Checkout can
+ * succeed while silently collecting zero tax.
+ */
+export function stripeAutomaticTaxEnabled() {
+  return process.env.STRIPE_AUTOMATIC_TAX_ENABLED === "true";
+}
+
 export const PLAN_LIMITS = {
   guest: { rpm: 8, apiKeys: 0, workspaces: 0, historyDays: 0 },
   free: { rpm: 60, apiKeys: 3, workspaces: 1, historyDays: 7 },

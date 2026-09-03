@@ -4,6 +4,7 @@ import {
   APP_URL,
   SUBSCRIPTION_PLANS,
   stripePriceForPlan,
+  stripeAutomaticTaxEnabled,
   type SubscriptionPlanId,
 } from "@/lib/config";
 import { getSession } from "@/lib/auth";
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
       success_url: `${APP_URL}/settings/credits?subscription=ok`,
       cancel_url: `${APP_URL}/settings/credits?subscription=canceled`,
       billing_address_collection: "auto",
-      automatic_tax: { enabled: true },
+      automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
       ...(user?.stripeCustomerId ? { customer_update: { address: "auto" as const } } : {}),
       allow_promotion_codes: true,
     });
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
     success_url: `${APP_URL}/settings/credits?ok=1`,
     cancel_url: `${APP_URL}/settings/credits?canceled=1`,
     billing_address_collection: "auto",
-    automatic_tax: { enabled: true },
+    automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
     ...(user?.stripeCustomerId ? { customer_update: { address: "auto" as const } } : {}),
     allow_promotion_codes: true,
     payment_intent_data: {

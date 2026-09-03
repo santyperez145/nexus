@@ -39,6 +39,20 @@ describe("API path policy", () => {
     assert.throws(() => enforcePathPolicy(keys, guest), (err: Error & { status?: number }) => err.status === 401);
   });
 
+  it("applies the same inference policy on the standalone /v1 data plane", () => {
+    assert.doesNotThrow(() =>
+      enforcePathPolicy(new Request("https://gateway.example/v1/chat/completions", { method: "POST" }), guest),
+    );
+    assert.throws(() =>
+      enforcePathPolicy(new Request("https://gateway.example/v1/embeddings", { method: "POST" }), guest),
+    );
+
+    assert.throws(() =>
+      enforcePathPolicy(new Request("https://gateway.example/v1/responses", { method: "POST" }), mgmtKey),
+      /Management keys cannot run inference/,
+    );
+  });
+
   it("blocks inference keys from management routes", () => {
     const keys = new Request("http://localhost/api/v1/keys");
     assert.throws(() => enforcePathPolicy(keys, inferenceKey), (err: Error & { status?: number }) => err.status === 403);

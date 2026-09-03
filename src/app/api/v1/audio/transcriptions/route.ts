@@ -3,10 +3,12 @@ import { resolveByokKey } from "@/lib/gateway/byok";
 import { chargeAndRecordMedia, holdMediaCredits, MEDIA_DEFAULT_USD } from "@/lib/gateway/media-billing";
 import { releaseReserve } from "@/lib/gateway/billing";
 import { transcribeAudio } from "@/lib/media/upstream";
+import { assertRateLimit } from "@/lib/gateway/rate-limit";
 
 export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
+    await assertRateLimit(auth);
     const apiKey = await resolveByokKey(auth.userId, "openai", auth);
     const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
     const isByok = Boolean(apiKey) && !platform;

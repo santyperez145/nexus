@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { DATA_PLANE_PROTOCOL_ROUTES } from "./src/lib/gateway/data-plane";
 
 const gateway = process.env.GATEWAY_URL;
 
@@ -29,8 +30,14 @@ const nextConfig: NextConfig = {
   async rewrites() {
     if (!gateway) return [];
     return [
-      { source: "/api/v1/chat/:path*", destination: `${gateway}/v1/chat/:path*` },
-      { source: "/api/v1/completions", destination: `${gateway}/v1/completions` },
+      {
+        source: `/api${DATA_PLANE_PROTOCOL_ROUTES.chat}`,
+        destination: `${gateway}${DATA_PLANE_PROTOCOL_ROUTES.chat}`,
+      },
+      ...(["completions", "embeddings", "responses", "messages"] as const).map((protocol) => ({
+        source: `/api${DATA_PLANE_PROTOCOL_ROUTES[protocol]}`,
+        destination: `${gateway}${DATA_PLANE_PROTOCOL_ROUTES[protocol]}`,
+      })),
     ];
   },
 };

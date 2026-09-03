@@ -7,10 +7,12 @@ import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { pollVideoJob, startVideoJob } from "@/lib/media/upstream";
 import { canAccess } from "@/lib/gateway/tenant";
+import { assertRateLimit } from "@/lib/gateway/rate-limit";
 
 export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
+    await assertRateLimit(auth);
     const body = await req.json();
     const prompt = String(body.prompt ?? "");
     const model = body.model ?? "nexus/video";
@@ -115,6 +117,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const auth = await authenticateRequest(req);
+    await assertRateLimit(auth);
     const jobId = new URL(req.url).searchParams.get("id");
     if (!jobId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.videoJobs).where(eq(schema.videoJobs.id, jobId)).limit(1);

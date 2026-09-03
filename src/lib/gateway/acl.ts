@@ -97,7 +97,10 @@ export function scopeAllows(granted: string[] | undefined, required: string) {
 
 function pathnameOf(req: Request) {
   try {
-    return new URL(req.url).pathname.replace(/\/$/, "") || "/";
+    const raw = new URL(req.url).pathname.replace(/\/$/, "") || "/";
+    // The standalone Hono data plane is mounted at /v1 while Next.js exposes
+    // the same handlers at /api/v1. Normalize before applying one ACL policy.
+    return raw === "/v1" || raw.startsWith("/v1/") ? `/api${raw}` : raw;
   } catch {
     return "";
   }

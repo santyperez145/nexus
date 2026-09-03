@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { BYOK_FEE } from "../src/lib/config";
+import { BYOK_FEE, stripeAutomaticTaxEnabled } from "../src/lib/config";
 import { usdToMicros, tokenCostUsd } from "../src/lib/money";
 import { estimateReservationMicros } from "../src/lib/gateway/billing";
 
@@ -48,5 +48,19 @@ describe("stripe session idempotency shape", () => {
     assert.equal(once("cs_test_1"), true);
     assert.equal(once("cs_test_1"), false);
     assert.equal(once("cs_test_2"), true);
+  });
+});
+
+describe("Stripe Tax launch safety", () => {
+  it("stays disabled until the deployment explicitly confirms tax readiness", () => {
+    const previous = process.env.STRIPE_AUTOMATIC_TAX_ENABLED;
+    delete process.env.STRIPE_AUTOMATIC_TAX_ENABLED;
+    assert.equal(stripeAutomaticTaxEnabled(), false);
+    process.env.STRIPE_AUTOMATIC_TAX_ENABLED = "false";
+    assert.equal(stripeAutomaticTaxEnabled(), false);
+    process.env.STRIPE_AUTOMATIC_TAX_ENABLED = "true";
+    assert.equal(stripeAutomaticTaxEnabled(), true);
+    if (previous == null) delete process.env.STRIPE_AUTOMATIC_TAX_ENABLED;
+    else process.env.STRIPE_AUTOMATIC_TAX_ENABLED = previous;
   });
 });

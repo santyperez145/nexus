@@ -25,6 +25,7 @@ npm run dev
 |---|---|
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / … | Pool de inferencia de la plataforma |
 | `STRIPE_SECRET_KEY` + webhook + Price IDs | Créditos, planes Pro/Team y portal de suscripción |
+| `STRIPE_AUTOMATIC_TAX_ENABLED=true` | Opt-in después de configurar Tax Settings y registros fiscales en el entorno activo |
 | `CREDENTIALS_SECRET` | Cifrado BYOK (obligatorio en prod) |
 | `BETTER_AUTH_SECRET` | Secreto de sesión de al menos 32 caracteres (obligatorio en prod) |
 | `ADMIN_EMAILS` | Allowlist, separada por comas, para tareas globales de conexiones/catálogo |
@@ -39,12 +40,19 @@ En producción, inferencia requiere sesión o Bearer y al menos un proveedor de 
 Sin Stripe no hay carga de wallet ni suscripción; `ENABLE_MANUAL_CREDITS=true` funciona solo fuera de
 producción.
 
+Cuando `GATEWAY_URL` está configurado, Chat Completions, Completions, Embeddings, Responses y
+Anthropic Messages se enrutan al data plane independiente. Ambos mounts (`/api/v1` y `/v1`) comparten
+la misma ACL, scopes, rate limiting y ledger; no existe una ruta rápida que evite el control plane.
+
 Antes del primer despliegue sobre una base nueva, ejecutá `npm run db:migrate` usando la URL directa.
+En producción `DATABASE_URL_UNPOOLED` es obligatoria y el migrador rechaza endpoints Neon `-pooler`.
 Las instancias existentes siguen recibiendo las adiciones idempotentes de `ensureDb`; adoptá las
 migraciones en una ventana controlada antes de quitar ese bootstrap. Para Stripe, configurá
 el webhook `{APP_URL}/api/webhooks/stripe` con `checkout.session.completed`,
 `checkout.session.async_payment_succeeded`, `customer.subscription.created|updated|deleted`,
 `invoice.paid`, `invoice.payment_failed` y `payment_intent.succeeded`.
+CI aplica todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build; una
+migración inválida bloquea el merge.
 
 Producción: [https://web-production-ef6b3.up.railway.app](https://web-production-ef6b3.up.railway.app) (Railway + Neon + Stripe Checkout/Link).
 
@@ -83,8 +91,9 @@ npm audit
 ```
 
 En producción usá HTTPS en `NEXT_PUBLIC_APP_URL`, Postgres/Neon, Redis distribuido, secretos reales y
-el webhook firmado de Stripe. El checkout calcula impuestos automáticamente con Stripe Tax cuando la
-cuenta de Stripe está configurada para ello.
+el webhook firmado de Stripe. Stripe Tax queda fail-closed por defecto: habilitá
+`STRIPE_AUTOMATIC_TAX_ENABLED=true` únicamente después de configurar Tax Settings y los registros
+fiscales aplicables en el entorno activo; el sandbox y live mode mantienen registros separados.
 
 ## API
 
