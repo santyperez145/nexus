@@ -33,7 +33,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
     if (!terms) {
-      setError("Aceptá Terms y Privacy para continuar.");
+      setError("Aceptá los Términos y la Política de privacidad para continuar.");
       return;
     }
     const { error: err } = await authClient.signUp.email({ name, email, password });
@@ -46,7 +46,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthShell title="Crear cuenta" subtitle="Tu gateway, keys y wallet en un solo lugar.">
+    <AuthShell title="Crear cuenta" subtitle="Empezá a explorar y usar modelos desde un solo lugar.">
       <form onSubmit={onSubmit} className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="name" className="text-zinc-700">
@@ -64,7 +64,7 @@ export default function RegisterPage() {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="email" className="text-zinc-700">
-            Email
+            Correo electrónico
           </Label>
           <Input
             id="email"
@@ -80,7 +80,7 @@ export default function RegisterPage() {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="password" className="text-zinc-700">
-            Password
+            Contraseña
           </Label>
           <Input
             id="password"
@@ -126,11 +126,11 @@ export default function RegisterPage() {
           <span>
             Acepto{" "}
             <Link href="/terms" className="text-violet-700 hover:underline">
-              Terms
+              Términos
             </Link>{" "}
             y{" "}
             <Link href="/privacy" className="text-violet-700 hover:underline">
-              Privacy
+              Política de privacidad
             </Link>
             .
           </span>
@@ -147,7 +147,7 @@ export default function RegisterPage() {
         </Link>
         {" · "}
         <Link href="/chat" className="text-violet-700 hover:underline">
-          Ver playground
+          Ver el chat
         </Link>
       </p>
     </AuthShell>

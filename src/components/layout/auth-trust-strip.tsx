@@ -24,15 +24,20 @@ export function AuthTrustStrip() {
   }, []);
 
   const models = status?.models ?? "…";
-  const mode = status?.mode === "live" ? "live hops" : status?.mode === "unconfigured" ? "unconfigured" : "…";
+  const mode =
+    status?.mode === "live"
+      ? "Disponible"
+      : status?.mode === "unconfigured"
+        ? "Pendiente"
+        : "…";
   const labs = status?.wired_labs ?? "…";
 
   return (
     <div className="mt-8 grid grid-cols-3 gap-2">
       {[
-        { k: "Models", v: String(models), href: "/models" },
-        { k: "Labs wired", v: String(labs), href: "/providers" },
-        { k: "Mode", v: mode, href: "/status" },
+        { k: "Modelos", v: String(models), href: "/models" },
+        { k: "Proveedores", v: String(labs), href: "/providers" },
+        { k: "Servicio", v: mode, href: "/status" },
       ].map((s) => (
         <Link
           key={s.k}

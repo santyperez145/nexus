@@ -7,15 +7,14 @@ export default function StudioPage() {
   return (
     <div>
       <AppPageHeader
-        title="Studio"
+        title="Estudio multimedia"
         actions={
           <Button asChild size="sm" variant="outline">
-            <Link href="/chat">Chat texto</Link>
+            <Link href="/chat">Abrir chat</Link>
           </Button>
         }
       >
-        Imagen, audio, video y embeddings en una superficie — misma wallet y ledger que el chat. Sin keys de
-        lab responde en local (SVG / WAV / eco).
+        Creá imágenes, voz, audio y video desde el mismo espacio, con tu saldo y tus límites de uso.
       </AppPageHeader>
       <MediaStudio />
     </div>

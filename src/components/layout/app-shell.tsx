@@ -25,7 +25,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           href="/settings/credits"
           className="mb-6 block rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 transition-colors hover:border-violet-300"
         >
-          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500">Credits</div>
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500">Saldo disponible</div>
           <div className="text-lg font-semibold tabular-nums text-zinc-950">{balance}</div>
         </Link>
         <AppNav />

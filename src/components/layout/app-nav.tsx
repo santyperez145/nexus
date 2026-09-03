@@ -7,59 +7,59 @@ import { SignOutButton } from "@/components/layout/sign-out";
 
 const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string }> }> = [
   {
-    title: "Gateway",
+    title: "Producto",
     items: [
-      { href: "/overview", label: "Overview" },
+      { href: "/overview", label: "Inicio" },
       { href: "/chat", label: "Chat" },
-      { href: "/studio", label: "Studio" },
-      { href: "/models", label: "Models" },
+      { href: "/studio", label: "Estudio multimedia" },
+      { href: "/models", label: "Modelos" },
     ],
   },
   {
-    title: "Operación",
+    title: "Uso y facturación",
     items: [
-      { href: "/activity", label: "Activity" },
-      { href: "/analytics", label: "Analytics" },
-      { href: "/settings/credits", label: "Credits" },
-      { href: "/settings/keys", label: "API Keys" },
-      { href: "/settings/byok", label: "BYOK" },
+      { href: "/activity", label: "Actividad" },
+      { href: "/analytics", label: "Métricas" },
+      { href: "/settings/credits", label: "Saldo y plan" },
+      { href: "/settings/keys", label: "Claves API" },
+      { href: "/settings/byok", label: "Proveedores propios" },
       { href: "/settings/connections", label: "Conexiones" },
     ],
   },
   {
-    title: "Política",
+    title: "Seguridad y equipo",
     items: [
-      { href: "/settings/privacy", label: "Privacy" },
-      { href: "/settings/guardrails", label: "Guardrails" },
-      { href: "/settings/observability", label: "Observability" },
-      { href: "/settings/workspaces", label: "Workspaces" },
-      { href: "/settings/organizations", label: "Organizations" },
-      { href: "/settings/files", label: "Files" },
+      { href: "/settings/privacy", label: "Privacidad" },
+      { href: "/settings/guardrails", label: "Reglas de uso" },
+      { href: "/settings/observability", label: "Monitoreo" },
+      { href: "/settings/workspaces", label: "Espacios de trabajo" },
+      { href: "/settings/organizations", label: "Organizaciones" },
+      { href: "/settings/files", label: "Archivos" },
     ],
   },
   {
-    title: "Explorar",
+    title: "Más",
     items: [
-      { href: "/compare", label: "Compare" },
-      { href: "/rankings", label: "Rankings" },
+      { href: "/compare", label: "Comparar" },
+      { href: "/rankings", label: "Ranking" },
       { href: "/arena", label: "Arena" },
       { href: "/apps", label: "Apps" },
-      { href: "/settings/presets", label: "Presets" },
-      { href: "/settings/shares", label: "Shares" },
-      { href: "/welcome", label: "Welcome" },
-      { href: "/settings/notifications", label: "Notifications" },
-      { href: "/settings/preferences", label: "Preferences" },
-      { href: "/settings/oauth", label: "OAuth" },
+      { href: "/settings/presets", label: "Configuraciones" },
+      { href: "/settings/shares", label: "Compartidos" },
+      { href: "/welcome", label: "Primeros pasos" },
+      { href: "/settings/notifications", label: "Avisos" },
+      { href: "/settings/preferences", label: "Preferencias" },
+      { href: "/settings/oauth", label: "Integraciones" },
     ],
   },
 ];
 
 const MOBILE_PRIMARY = [
-  { href: "/overview", label: "Overview" },
+  { href: "/overview", label: "Inicio" },
   { href: "/chat", label: "Chat" },
-  { href: "/studio", label: "Studio" },
-  { href: "/activity", label: "Activity" },
-  { href: "/settings/keys", label: "Keys" },
+  { href: "/studio", label: "Estudio" },
+  { href: "/activity", label: "Actividad" },
+  { href: "/settings/keys", label: "Claves" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -127,10 +127,10 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
             ))}
             <div className="grid grid-cols-2 gap-1 border-t border-zinc-200 pt-3">
               <Link href="/status" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-600">
-                Status
+                Estado
               </Link>
               <Link href="/docs" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-600">
-                Docs
+                Documentación
               </Link>
             </div>
           </div>
@@ -164,18 +164,18 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
           </div>
         ))}
         <div>
-          <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">Docs</div>
+          <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">Ayuda</div>
           <Link
             href="/status"
             className={`block rounded-md px-2 py-1.5 ${pathname.startsWith("/status") ? activeCls : idleCls}`}
           >
-            Status
+            Estado del servicio
           </Link>
           <Link
             href="/docs"
             className={`block rounded-md px-2 py-1.5 ${pathname.startsWith("/docs") ? activeCls : idleCls}`}
           >
-            API reference
+            Documentación API
           </Link>
         </div>
       </nav>

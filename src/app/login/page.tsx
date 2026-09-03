@@ -28,11 +28,11 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell title="Entrar" subtitle="Accedé al dashboard, keys sk-nx- y el playground.">
+    <AuthShell title="Ingresar" subtitle="Accedé a tus modelos, consumo y configuración.">
       <form onSubmit={onSubmit} className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="email" className="text-zinc-700">
-            Email
+            Correo electrónico
           </Label>
           <Input
             id="email"
@@ -49,10 +49,10 @@ export default function LoginPage() {
         <div className="grid gap-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password" className="text-zinc-700">
-              Password
+              Contraseña
             </Label>
             <Link href="/forgot-password" className="text-xs text-violet-700 hover:underline">
-              Olvidé mi password
+              Olvidé mi contraseña
             </Link>
           </div>
           <Input
@@ -68,13 +68,13 @@ export default function LoginPage() {
         </div>
         {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
         <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
-          Entrar
+          Ingresar
         </Button>
       </form>
       <p className="mt-4 text-sm text-zinc-500">
-        ¿No tienes cuenta?{" "}
+        ¿Todavía no tenés una cuenta?{" "}
         <Link href="/register" className="text-violet-700 hover:underline">
-          Crear una
+          Crear cuenta
         </Link>
       </p>
     </AuthShell>

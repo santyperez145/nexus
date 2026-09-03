@@ -89,98 +89,98 @@ export default async function OverviewPage() {
   return (
     <div>
       <AppPageHeader
-        title="Overview"
+        title="Inicio"
         actions={
           <>
             <Button asChild size="sm" variant="outline">
-              <Link href="/welcome">Welcome</Link>
+              <Link href="/welcome">Primeros pasos</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/studio">Studio</Link>
+              <Link href="/studio">Estudio</Link>
             </Button>
             <Button asChild size="sm">
-              <Link href="/chat">Playground</Link>
+              <Link href="/chat">Abrir chat</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/settings/credits">Cargar</Link>
+              <Link href="/settings/credits">Agregar saldo</Link>
             </Button>
           </>
         }
       >
-        Saldo, keys y generaciones reales de esta cuenta. El pool de labs depende de Conexiones.
+        Controlá el consumo, la actividad y el estado de tu cuenta desde un solo lugar.
       </AppPageHeader>
 
       {labs === 0 ? (
         <p className="mb-6 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-zinc-800">
-          No hay providers cableados: la inferencia está bloqueada hasta configurar uno.{" "}
+          Todavía no hay proveedores disponibles. Agregá una conexión para empezar a usar modelos.{" "}
           <Link href="/settings/connections" className="text-violet-700 hover:underline">
             Conexiones
           </Link>
           {" · "}
           <Link href="/settings/byok" className="text-violet-700 hover:underline">
-            BYOK
+            Proveedores propios
           </Link>
         </p>
       ) : null}
       {unusedKeys.length ? (
         <p className="mb-6 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
-          Hay {unusedKeys.length} key(s) sin usar.{" "}
+          Tenés {unusedKeys.length} {unusedKeys.length === 1 ? "clave nueva" : "claves nuevas"} sin usar.{" "}
           <Link href="/settings/keys?welcome=1" className="text-violet-700 hover:underline">
-            Revelar bienvenida
+            Ver primeros pasos
           </Link>
         </p>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.9fr)_minmax(0,1.2fr)]">
         <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Wallet</div>
+          <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Saldo disponible</div>
           <div className="mt-2 text-4xl font-semibold tracking-tight text-zinc-950">
             {balance}
           </div>
           <p className="mt-1 text-xs text-zinc-500">
             {runwayDays == null
-              ? "Sin burn 7d — runway n/d"
+              ? "Sin consumo registrado en los últimos 7 días"
               : runwayDays === Infinity
-                ? "Burn ~$0 · runway ilimitado a este ritmo"
-                : `~${runwayDays}d de runway (burn 7d)`}
+                ? "El consumo reciente fue menor a un centavo"
+                : `Al ritmo actual, alcanza para aproximadamente ${runwayDays} días`}
           </p>
           <div className="mt-6 grid grid-cols-3 gap-3 border-t border-zinc-200 pt-4">
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Keys</div>
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Claves</div>
               <div className="mt-1 text-xl font-semibold tabular-nums">{keys.length}</div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Labs</div>
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Proveedores</div>
               <div className="mt-1 text-xl font-semibold tabular-nums">{labs}</div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Models</div>
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Modelos</div>
               <div className="mt-1 text-xl font-semibold tabular-nums">{models}</div>
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href="/settings/keys">API keys</Link>
+              <Link href="/settings/keys">Claves API</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link href="/settings/connections">Conexiones</Link>
             </Button>
             <Button asChild size="sm" variant="ghost">
-              <Link href="/docs">Docs</Link>
+              <Link href="/docs">Documentación</Link>
             </Button>
           </div>
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Últimos 7d</div>
+            <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Últimos 7 días</div>
             <Link href="/analytics" className="text-[11px] text-violet-700 hover:underline">
-              Analytics →
+              Ver métricas →
             </Link>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
-              <div className="text-xs text-zinc-600">Requests</div>
+              <div className="text-xs text-zinc-600">Solicitudes</div>
               <div className="text-xl font-semibold tabular-nums">{week.length}</div>
             </div>
             <div>
@@ -195,7 +195,7 @@ export default async function OverviewPage() {
           <Sparkline values={spark} className="mt-4 h-12 w-full" />
           {topModels.length ? (
             <div className="mt-4 border-t border-zinc-200 pt-3">
-              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Top modelos</div>
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Modelos más usados</div>
               <ul className="mt-2 space-y-1">
                 {topModels.map(([id, n]) => (
                   <li key={id} className="flex justify-between gap-2 font-mono text-[11px] text-zinc-400">
@@ -208,7 +208,7 @@ export default async function OverviewPage() {
           ) : null}
           {topProviders.length ? (
             <div className="mt-3">
-              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Top providers</div>
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Proveedores más usados</div>
               <ul className="mt-2 space-y-1">
                 {topProviders.map(([id, n]) => (
                   <li key={id} className="flex justify-between gap-2 font-mono text-[11px] text-zinc-400">
@@ -225,7 +225,7 @@ export default async function OverviewPage() {
           <div className="mb-3 flex items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold text-zinc-900">Reciente</h2>
             <Link href="/activity" className="text-xs text-violet-700 hover:underline">
-              Ver activity →
+              Ver toda la actividad →
             </Link>
           </div>
           {recent.length === 0 ? (
@@ -235,34 +235,31 @@ export default async function OverviewPage() {
                 <li>
                   1.{" "}
                   <Link href="/settings/keys" className="text-violet-700 hover:underline">
-                    Revelá tu API key
+                    Guardá tu clave API
                   </Link>{" "}
                   Default
                 </li>
                 <li>
                   2.{" "}
                   <Link href="/welcome" className="text-violet-700 hover:underline">
-                    Ping en Welcome
+                    Completá la primera prueba
                   </Link>{" "}
                   o abrí{" "}
                   <Link href="/chat" className="text-violet-700 hover:underline">
                     Chat
                   </Link>
                 </li>
-                <li>
-                  3. Apps:{" "}
-                  <code className="text-zinc-400">POST /api/v1/chat/completions</code>
-                </li>
+                <li>3. Revisá aquí el costo y el resultado de cada solicitud.</li>
               </ol>
               <div className="mt-5 flex flex-wrap justify-center gap-2">
                 <Button asChild size="sm">
                   <Link href="/chat">Abrir Chat</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/studio">Studio</Link>
+                  <Link href="/studio">Estudio</Link>
                 </Button>
                 <Button asChild size="sm" variant="ghost">
-                  <Link href="/docs">Docs</Link>
+                  <Link href="/docs">Documentación</Link>
                 </Button>
               </div>
             </div>
@@ -303,20 +300,20 @@ export default async function OverviewPage() {
           <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Atajos</div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href="/analytics">Analytics</Link>
+              <Link href="/analytics">Métricas</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/activity">Activity</Link>
+              <Link href="/activity">Actividad</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/settings/notifications">Notifications</Link>
+              <Link href="/settings/notifications">Avisos</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href="/enterprise">Enterprise</Link>
+              <Link href="/enterprise">Planes para equipos</Link>
             </Button>
           </div>
           <p className="mt-3 text-xs leading-5 text-zinc-600">
-            60 rpm por cuenta · free models con RPD según saldo. Keys tienen límite de gasto aparte.
+            Hasta 60 solicitudes por minuto por cuenta. Cada clave puede tener su propio límite de gasto.
           </p>
         </section>
       </div>

@@ -20,25 +20,25 @@ export function AuthShell({
           </Link>
           <div className="max-w-md">
             <p className="text-4xl font-semibold tracking-tight text-zinc-950 lg:text-5xl">
-              The unified interface for every model.
+              Todos los modelos. Una sola plataforma.
             </p>
             <p className="mt-4 text-sm leading-relaxed text-zinc-500">
-              Una API, una política, una factura. BYOK, ZDR fail-closed y routing con fallbacks.
+              Elegí, compará y usá los mejores modelos de IA con control de costos y privacidad.
             </p>
             <ul className="mt-8 space-y-2 text-sm text-zinc-600">
-              <li>OpenAI-compatible · keys sk-nx- / sk-nx-mgmt-</li>
-              <li>Créditos vía Stripe. Sin grants anónimos.</li>
-              <li>ZDR fail-closed. Sin eco en producción.</li>
+              <li>Una integración para texto, imágenes, audio y video</li>
+              <li>Saldo y consumo visibles en tiempo real</li>
+              <li>Privacidad y límites administrables por equipo</li>
             </ul>
             <AuthTrustStrip />
           </div>
           <p className="text-xs text-zinc-400">
             <Link href="/status" className="hover:text-zinc-600">
-              Status
+              Estado del servicio
             </Link>
             {" · "}
             <Link href="/docs" className="hover:text-zinc-600">
-              Docs
+              Documentación
             </Link>
           </p>
         </aside>

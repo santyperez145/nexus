@@ -12,10 +12,10 @@ type KeyRow = { id: string; prefix: string };
 type Status = { ok?: boolean; providers?: Record<string, boolean> };
 
 const STEPS = [
-  { id: 1, title: "Wallet", body: "Activá un plan o cargá créditos con Stripe." },
-  { id: 2, title: "API key", body: "Revelá la key Default una sola vez." },
-  { id: 3, title: "Primer request", body: "Probá Chat o Studio con un provider o BYOK cableado." },
-  { id: 4, title: "Cables", body: "Conectá labs o BYOK cuando quieras live." },
+  { id: 1, title: "Saldo", body: "Elegí un plan o cargá créditos para empezar." },
+  { id: 2, title: "Clave API", body: "Guardá la clave inicial que creamos para tu cuenta." },
+  { id: 3, title: "Primera respuesta", body: "Hacé una prueba y comprobá que todo esté listo." },
+  { id: 4, title: "Proveedores", body: "Usá las conexiones de Nexus o agregá las tuyas." },
 ];
 
 export default function WelcomePage() {
@@ -108,7 +108,7 @@ export default function WelcomePage() {
   return (
     <div className="max-w-3xl">
       <AppPageHeader title="Bienvenido a Nexus">
-        Setup en 4 pasos · {completedCount}/4 listos. Saldo real, key real, request real.
+        Prepará tu cuenta en cuatro pasos · {completedCount}/4 completados.
       </AppPageHeader>
 
       <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-white/5">
@@ -160,13 +160,13 @@ export default function WelcomePage() {
       <section className="mb-6 rounded-2xl border border-zinc-200 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="font-medium text-zinc-800">API key</div>
+            <div className="font-medium text-zinc-800">Clave API</div>
             <div className="text-xs text-zinc-500">
-              {(keys ?? []).length} key(s) · revelación one-time
+              {(keys ?? []).length} {(keys ?? []).length === 1 ? "clave creada" : "claves creadas"} · se muestra una sola vez
             </div>
           </div>
           <Button size="sm" disabled={busy} onClick={() => void reveal()}>
-            Revelar bienvenida
+            Mostrar clave inicial
           </Button>
         </div>
         {plain ? (
@@ -180,27 +180,27 @@ export default function WelcomePage() {
       <section className="mb-8 rounded-2xl border border-zinc-200 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="font-medium text-zinc-800">Primer request</div>
-            <div className="text-xs text-zinc-500">POST /api/v1/chat/completions · nexus/auto</div>
+            <div className="font-medium text-zinc-800">Primera prueba</div>
+            <div className="text-xs text-zinc-500">Nexus elegirá automáticamente el modelo disponible más conveniente.</div>
           </div>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void firstPing()}>
-            Enviar ping
+            Probar conexión
           </Button>
         </div>
         {ping ? <p className="font-mono text-xs text-zinc-400">{ping}</p> : null}
         {pingGen ? (
           <p className="mt-2 text-xs text-zinc-500">
             <Link href={`/activity/${pingGen}`} className="text-violet-700 hover:underline">
-              Ver generation →
+              Ver detalle →
             </Link>
           </p>
         ) : null}
       </section>
 
       <section className="mb-8 rounded-2xl border border-zinc-200 p-4">
-        <div className="font-medium text-zinc-800">Recipes & SDK</div>
+        <div className="font-medium text-zinc-800">Integrá Nexus en tu aplicación</div>
         <p className="mt-1 text-sm text-zinc-500">
-          Starters curados (routing, ZDR, JSON) sin inventar marketplace.
+          Empezá con nuestro SDK o copiá una plantilla preparada para los casos más comunes.
         </p>
         <pre className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-[11px] text-zinc-400">
 {`import { Nexus } from "nexus-sdk";
@@ -212,33 +212,33 @@ await nexus.chat.send({
         </pre>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">
-            <Link href="/apps/auto-router">Recipe auto-router</Link>
+            <Link href="/apps/auto-router">Plantilla de selección automática</Link>
           </Button>
           <Button asChild size="sm" variant="outline">
             <Link href="/apps">Apps</Link>
           </Button>
           <Button asChild size="sm" variant="ghost">
-            <Link href="/docs">Docs</Link>
+            <Link href="/docs">Documentación</Link>
           </Button>
         </div>
       </section>
 
       <section className="mb-8 rounded-2xl border border-zinc-200 p-4">
-        <div className="font-medium text-zinc-800">Cables</div>
+        <div className="font-medium text-zinc-800">Proveedores</div>
         <p className="mt-1 text-sm text-zinc-500">
           {wiredLabs > 0
-            ? `${wiredLabs} lab(s) cableados en esta instancia.`
-            : "Sin providers de plataforma: agregá BYOK o cableá Conexiones antes del primer request."}
+            ? `${wiredLabs} ${wiredLabs === 1 ? "proveedor disponible" : "proveedores disponibles"}.`
+            : "Todavía no hay proveedores disponibles. Agregá una conexión propia antes de hacer la primera prueba."}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">
             <Link href="/settings/connections">Conexiones</Link>
           </Button>
           <Button asChild size="sm" variant="outline">
-            <Link href="/settings/byok">BYOK</Link>
+            <Link href="/settings/byok">Proveedores propios</Link>
           </Button>
           <Button asChild size="sm" variant="ghost">
-            <Link href="/status">Status</Link>
+            <Link href="/status">Estado del servicio</Link>
           </Button>
         </div>
       </section>
@@ -248,10 +248,10 @@ await nexus.chat.send({
           <Link href="/chat">Abrir Chat</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/studio">Studio</Link>
+          <Link href="/studio">Estudio multimedia</Link>
         </Button>
         <Button asChild variant="ghost">
-          <Link href="/overview">Overview</Link>
+          <Link href="/overview">Ir al inicio</Link>
         </Button>
       </div>
     </div>
