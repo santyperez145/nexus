@@ -1,38 +1,61 @@
+"use client";
+
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
-import { db, schema } from "@/lib/db";
-import { formatUsd, microsToUsd } from "@/lib/money";
+import { useMemo, useState } from "react";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { formatUsd } from "@/lib/money";
+import { useRemoteData } from "@/lib/use-remote-data";
+
+type Row = {
+  id: string;
+  model: string;
+  provider_name: string;
+  generation_time: number | null;
+  tokens_prompt: number;
+  tokens_completion: number;
+  total_cost: number;
+  created_at: number;
+  is_byok: boolean;
+  error: string | null;
+};
 
 function shortId(id: string) {
   if (id.length <= 14) return id;
   return `${id.slice(0, 8)}…${id.slice(-4)}`;
 }
 
-function fmtWhen(d: Date) {
+function fmtWhen(ts: number) {
   return new Intl.DateTimeFormat("es-AR", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(d);
+  }).format(new Date(ts * 1000));
 }
 
-export default async function ActivityPage() {
-  const session = await getSession();
-  const rows = session
-    ? await db
-        .select()
-        .from(schema.generations)
-        .where(eq(schema.generations.userId, session.user.id))
-        .orderBy(desc(schema.generations.createdAt))
-        .limit(100)
-    : [];
+export default function ActivityPage() {
+  const [model, setModel] = useState("");
+  const [provider, setProvider] = useState("");
+  const [byok, setByok] = useState<"all" | "1" | "0">("all");
+  const [errors, setErrors] = useState(false);
+  const [days, setDays] = useState<"0" | "7" | "30">("0");
 
-  const tokens = rows.reduce((s, r) => s + r.promptTokens + r.completionTokens, 0);
-  const cost = rows.reduce((s, r) => s + r.costMicros, 0);
+  const qs = useMemo(() => {
+    const p = new URLSearchParams({ limit: "100" });
+    if (model.trim()) p.set("model", model.trim());
+    if (provider.trim()) p.set("provider", provider.trim());
+    if (byok !== "all") p.set("byok", byok);
+    if (errors) p.set("errors", "1");
+    if (days !== "0") p.set("days", days);
+    return p.toString();
+  }, [model, provider, byok, errors, days]);
+
+  const [rows] = useRemoteData<Row[]>(`/api/v1/generations?${qs}`);
+  const list = rows ?? [];
+  const tokens = list.reduce((s, r) => s + r.tokens_prompt + r.tokens_completion, 0);
+  const cost = list.reduce((s, r) => s + r.total_cost, 0);
 
   return (
     <div>
@@ -44,13 +67,52 @@ export default async function ActivityPage() {
           </Button>
         }
       >
-        {rows.length} requests · {tokens.toLocaleString()} tokens · {formatUsd(microsToUsd(cost))} en las
-        últimas 100.
+        {list.length} requests · {tokens.toLocaleString()} tokens · {formatUsd(cost)}
+        {rows == null ? " · cargando…" : ""}
       </AppPageHeader>
+
+      <div className="mb-4 grid gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-3 md:grid-cols-[1fr_1fr_auto_auto_auto]">
+        <Input
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          placeholder="Filtrar modelo…"
+          className="h-9"
+        />
+        <Input
+          value={provider}
+          onChange={(e) => setProvider(e.target.value)}
+          placeholder="Provider…"
+          className="h-9"
+        />
+        <select
+          value={byok}
+          onChange={(e) => setByok(e.target.value as typeof byok)}
+          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-300"
+          aria-label="BYOK"
+        >
+          <option value="all">BYOK: todos</option>
+          <option value="1">Solo BYOK</option>
+          <option value="0">Sin BYOK</option>
+        </select>
+        <select
+          value={days}
+          onChange={(e) => setDays(e.target.value as typeof days)}
+          className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm text-zinc-300"
+          aria-label="Ventana"
+        >
+          <option value="0">Todo</option>
+          <option value="7">7d</option>
+          <option value="30">30d</option>
+        </select>
+        <label className="flex h-9 items-center gap-2 text-xs text-zinc-400">
+          <input type="checkbox" checked={errors} onChange={(e) => setErrors(e.target.checked)} />
+          Solo errores
+        </label>
+      </div>
 
       <div className="overflow-hidden rounded-2xl border border-white/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 text-[11px] uppercase tracking-[0.08em] text-zinc-500 backdrop-blur">
               <tr>
                 <th className="px-3 py-2.5 font-medium">Cuando</th>
@@ -63,38 +125,41 @@ export default async function ActivityPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {rows != null && list.length === 0 ? (
                 <tr>
                   <td className="px-4 py-12 text-center text-zinc-500" colSpan={7}>
-                    Todavía no hay generaciones. Probá el playground o{" "}
-                    <code className="text-zinc-400">POST /api/v1/chat/completions</code>.
+                    Sin generaciones con estos filtros.
                   </td>
                 </tr>
               ) : (
-                rows.map((r, i) => (
+                list.map((r, i) => (
                   <tr
                     key={r.id}
                     className={`border-t border-white/5 hover:bg-white/[0.03] ${i % 2 === 1 ? "bg-white/[0.015]" : ""}`}
                   >
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs text-zinc-500">
-                      {fmtWhen(new Date(r.createdAt))}
+                      {fmtWhen(r.created_at)}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs">
                       <Link href={`/activity/${r.id}`} className="text-amber-400/90 hover:underline" title={r.id}>
                         {shortId(r.id)}
                       </Link>
+                      {r.error ? <span className="ml-1 text-rose-400">err</span> : null}
+                      {r.is_byok ? <span className="ml-1 text-zinc-600">byok</span> : null}
                     </td>
                     <td className="max-w-[220px] truncate px-3 py-2.5 font-mono text-[13px] text-amber-300/80">
-                      {r.routedModel}
+                      {r.model}
                     </td>
-                    <td className="px-3 py-2.5 text-zinc-400">{r.provider}</td>
+                    <td className="px-3 py-2.5 text-zinc-400">{r.provider_name}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
-                      {r.promptTokens + r.completionTokens}
+                      {r.tokens_prompt + r.tokens_completion}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
-                      {formatUsd(microsToUsd(r.costMicros))}
+                      {formatUsd(r.total_cost)}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-500">{r.latencyMs ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-500">
+                      {r.generation_time ?? "—"}
+                    </td>
                   </tr>
                 ))
               )}

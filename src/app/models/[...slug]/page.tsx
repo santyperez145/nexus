@@ -30,6 +30,11 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
               Comparar con auto
             </Link>
           </Button>
+          <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100">
+            <Link href={`/compare?a=${encodeURIComponent(model.id)}`}>
+              Ficha compare
+            </Link>
+          </Button>
         </div>
 
         <div className="mt-10 grid gap-3 sm:grid-cols-3">

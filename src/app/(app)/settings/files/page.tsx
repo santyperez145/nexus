@@ -1,7 +1,8 @@
 "use client";
 
 import { AppPageHeader } from "@/components/layout/app-page-header";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useRemoteData } from "@/lib/use-remote-data";
 
@@ -10,51 +11,128 @@ type FileRow = { id: string; filename: string; bytes: number; mime?: string };
 export default function FilesPage() {
   const [rows, reload] = useRemoteData<FileRow[]>("/api/v1/files");
   const [msg, setMsg] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ id: string; text: string; filename: string } | null>(null);
+  const [drag, setDrag] = useState(false);
   const list = rows ?? [];
+
+  const upload = useCallback(
+    async (file: File) => {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/v1/files", { method: "POST", body });
+      const json = await res.json();
+      setMsg(json.data ? `OK ${json.data.filename}` : json.error?.message ?? "error");
+      reload();
+    },
+    [reload],
+  );
+
+  async function showPreview(id: string, filename: string) {
+    const res = await fetch(`/api/v1/files?id=${id}`);
+    const json = await res.json();
+    setPreview({
+      id,
+      filename,
+      text: json.data?.preview ?? "(sin preview)",
+    });
+  }
 
   return (
     <div>
-      <AppPageHeader title="Files">
-        Subí texto, código o PDF. En el playground marcá el file y el gateway lo inyecta en el prompt (<code>file_ids</code>).
+      <AppPageHeader
+        title="Files"
+        actions={
+          <Button asChild size="sm" variant="outline">
+            <Link href="/chat">Usar en chat</Link>
+          </Button>
+        }
+      >
+        Subí texto, código o PDF. En el playground marcá el file (<code>file_ids</code>) y el gateway lo
+        inyecta.
       </AppPageHeader>
-      <input
-        type="file"
-        aria-label="Subir archivo"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const body = new FormData();
-          body.append("file", file);
-          const res = await fetch("/api/v1/files", { method: "POST", body });
-          const json = await res.json();
-          setMsg(json.data ? `OK ${json.data.filename}` : json.error?.message ?? "error");
-          reload();
-          e.target.value = "";
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDrag(true);
         }}
-      />
-      {msg ? <p className="mt-2 text-sm text-amber-300">{msg}</p> : null}
-      <div className="mt-6 grid gap-2">
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDrag(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) void upload(file);
+        }}
+        className={`mb-4 rounded-2xl border border-dashed px-4 py-10 text-center transition-colors ${
+          drag ? "border-amber-400/50 bg-amber-400/5" : "border-white/15 bg-white/[0.02]"
+        }`}
+      >
+        <p className="text-sm text-zinc-400">Arrastrá un archivo acá (máx 4 MB)</p>
+        <label className="mt-3 inline-block cursor-pointer text-sm text-amber-400 hover:underline">
+          o elegí desde el disco
+          <input
+            type="file"
+            className="hidden"
+            aria-label="Subir archivo"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void upload(file);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+
+      {msg ? <p className="mb-4 text-sm text-amber-300">{msg}</p> : null}
+
+      <div className="grid gap-2">
         {list.map((f) => (
-          <div key={f.id} className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
-            <span>
-              {f.filename}{" "}
-              <span className="font-mono text-xs text-zinc-500">
-                {f.id} · {f.bytes} B
-              </span>
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                await fetch(`/api/v1/files?id=${f.id}`, { method: "DELETE" });
-                reload();
-              }}
-            >
-              Borrar
-            </Button>
+          <div
+            key={f.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
+          >
+            <div className="min-w-0">
+              <div className="truncate font-medium text-zinc-200">{f.filename}</div>
+              <div className="font-mono text-[11px] text-zinc-600">
+                {f.id} · {f.bytes} B · {f.mime ?? "—"}
+              </div>
+            </div>
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" onClick={() => void showPreview(f.id, f.filename)}>
+                Preview
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  await fetch(`/api/v1/files?id=${f.id}`, { method: "DELETE" });
+                  if (preview?.id === f.id) setPreview(null);
+                  reload();
+                }}
+              >
+                Borrar
+              </Button>
+            </div>
           </div>
         ))}
+        {list.length === 0 ? (
+          <p className="text-sm text-zinc-600">Todavía no hay archivos.</p>
+        ) : null}
       </div>
+
+      {preview ? (
+        <section className="mt-6 rounded-xl border border-white/10 bg-black/30 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="text-xs text-zinc-500">Preview · {preview.filename}</div>
+            <button type="button" className="text-xs text-zinc-500 hover:text-zinc-300" onClick={() => setPreview(null)}>
+              Cerrar
+            </button>
+          </div>
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-zinc-400">
+            {preview.text}
+          </pre>
+        </section>
+      ) : null}
     </div>
   );
 }

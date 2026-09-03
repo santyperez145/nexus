@@ -19,6 +19,8 @@ export async function GET(req: Request) {
           bytes: row.size,
           mime: row.mime,
           created_at: row.createdAt,
+          content: row.content,
+          preview: previewText(row.content, row.mime),
         },
       });
     }
@@ -83,5 +85,20 @@ export async function DELETE(req: Request) {
     return Response.json({ data: { success: true } });
   } catch (error) {
     return jsonError(error);
+  }
+}
+
+function previewText(b64: string | null, mime: string | null) {
+  if (!b64) return null;
+  try {
+    const raw = Buffer.from(b64, "base64");
+    if (mime?.startsWith("text/") || mime?.includes("json") || mime?.includes("javascript") || !mime) {
+      return raw.toString("utf8").slice(0, 4000);
+    }
+    const sample = raw.toString("utf8", 0, Math.min(raw.length, 8000));
+    const printable = sample.replace(/[^\x09\x0a\x0d\x20-\x7e]/g, " ").replace(/\s+/g, " ").trim();
+    return printable.slice(0, 2000) || "[binario — se inyecta extract al chat]";
+  } catch {
+    return null;
   }
 }

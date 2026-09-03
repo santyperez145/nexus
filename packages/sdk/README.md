@@ -59,6 +59,7 @@ await nexus.chat.completions.create({
 | Método | API |
 |---|---|
 | `nexus.chat.send` / `nexus.chat.completions.create` | `POST /chat/completions` |
+| `nexus.completions.create` | `POST /completions` (legacy prompt) |
 | `nexus.responses.create` | `POST /responses` |
 | `nexus.messages.create` | `POST /messages` |
 | `nexus.models.list` / `.get` / `.endpoints` / `.count` | `/models` |

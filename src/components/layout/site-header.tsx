@@ -36,6 +36,9 @@ export async function SiteHeader({ tone = "dark" }: { tone?: "dark" | "light" })
           <Link href="/rankings" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
             Rankings
           </Link>
+          <Link href="/compare" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
+            Compare
+          </Link>
           <Link href="/apps" className={light ? "hover:text-zinc-900" : "hover:text-white"}>
             Apps
           </Link>
