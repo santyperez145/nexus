@@ -19,7 +19,13 @@ export async function writeAudit(
       ip: opts.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ?? opts.headers?.get("x-real-ip") ?? null,
       meta: opts.meta ?? null,
     });
-  } catch {
-    /* audit must never break the request */
+  } catch (error) {
+    // Availability stays fail-open, but the loss of an audit event must be visible to operators.
+    console.error("Nexus audit event could not be persisted", {
+      action,
+      userId: auth.userId,
+      workspaceId: auth.workspaceId ?? null,
+      message: error instanceof Error ? error.message : "unknown audit persistence error",
+    });
   }
 }
