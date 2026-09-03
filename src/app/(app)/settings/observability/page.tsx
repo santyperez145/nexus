@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +15,9 @@ export default function ObservabilityPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Observability</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <AppPageHeader title="Observability">
         Webhook por generación completada. POST JSON <code>generation.completed</code>.
-      </p>
+      </AppPageHeader>
       <div className="mb-4 flex gap-2">
         <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
         <Button

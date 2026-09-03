@@ -35,6 +35,12 @@ const ENDPOINTS = [
   ["GET", "/api/v1/status", "Estado de cables"],
 ];
 
+const SURFACES = [
+  ["Studio", "/studio", "Imagen · TTS · STT · Video · Embeddings"],
+  ["Chat", "/chat", "Playground texto + route trace"],
+  ["Status", "/status", "Cables de la instancia"],
+];
+
 export default function DocsPage() {
   return (
     <MarketingShell>
@@ -47,6 +53,18 @@ export default function DocsPage() {
           <code className="text-zinc-800">:online</code>. Routers{" "}
           <code className="text-zinc-800">nexus/auto</code> / <code className="text-zinc-800">nexus/free</code>.
         </MarketingPageHeader>
+        <div className="mb-8 grid gap-2 sm:grid-cols-3">
+          {SURFACES.map(([label, href, note]) => (
+            <a
+              key={href}
+              href={href}
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
+            >
+              <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">{label}</div>
+              <div className="mt-1 text-xs text-zinc-500">{note}</div>
+            </a>
+          ))}
+        </div>
         <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`import { Nexus } from "nexus-sdk";
 
@@ -56,11 +74,17 @@ const nexus = new Nexus({
   title: "Tu App",
 });
 
-const res = await nexus.chat.send({
+const chat = await nexus.chat.send({
   model: "openai/gpt-5",
   messages: [{ role: "user", content: "Hola" }],
-  provider: { sort: "throughput", allow_fallbacks: true },
-});`}
+});
+
+const response = await nexus.responses.create({
+  model: "nexus/auto",
+  input: "Resumí el routing de Nexus",
+});
+
+const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
         </pre>
         <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`curl $NEXUS_URL/api/v1/chat/completions \\

@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,10 +33,9 @@ export default function GuardrailsPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Guardrails</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <AppPageHeader title="Guardrails">
         Techo de costo, allow/block de modelos, prompt injection y secretos. El gateway corta antes del lab.
-      </p>
+      </AppPageHeader>
       <div className="mb-4 grid gap-2 md:grid-cols-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
         <Input

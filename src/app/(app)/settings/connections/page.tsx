@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRemoteData } from "@/lib/use-remote-data";
@@ -36,11 +37,9 @@ export default function ConnectionsPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Conexiones</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        Cableá cada integración en <code>.env.local</code>. Nada se inventa: si está verde, el
-        env existe. Los secretos no se muestran.
-      </p>
+      <AppPageHeader title="Conexiones">
+        Cableá cada integración en <code>.env.local</code>. Nada se inventa: si está verde, el env existe. Los secretos no se muestran.
+      </AppPageHeader>
 
       <div className="mb-8 grid gap-3">
         {blocks.map((b) => (

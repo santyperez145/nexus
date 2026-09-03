@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRemoteData } from "@/lib/use-remote-data";
@@ -13,11 +14,9 @@ export default function FilesPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Files</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        Subí texto, código o PDF. En el playground marcá el file y el gateway lo inyecta en el prompt
-        (<code>file_ids</code>).
-      </p>
+      <AppPageHeader title="Files">
+        Subí texto, código o PDF. En el playground marcá el file y el gateway lo inyecta en el prompt (<code>file_ids</code>).
+      </AppPageHeader>
       <input
         type="file"
         aria-label="Subir archivo"

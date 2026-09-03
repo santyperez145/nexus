@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -105,11 +106,9 @@ function KeysInner() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">API Keys</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        El plaintext solo se muestra al crear, rotar o al revelar la de bienvenida. Anclá la key a un
-        workspace para que el budget corte.
-      </p>
+      <AppPageHeader title="API Keys">
+        El plaintext solo se muestra al crear, rotar o al revelar la de bienvenida. Anclá la key a un workspace para que el budget corte.
+      </AppPageHeader>
       {welcomeNote ? <p className="mb-3 text-sm text-amber-300">{welcomeNote}</p> : null}
       <div className="mb-6 flex flex-wrap gap-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
@@ -196,8 +195,7 @@ export default function KeysPage() {
     <Suspense
       fallback={
         <div>
-          <h1 className="mb-2 text-2xl font-semibold">API Keys</h1>
-          <p className="text-sm text-zinc-500">Cargando…</p>
+          <AppPageHeader title="API Keys">Cargando…</AppPageHeader>
         </div>
       }
     >

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { CREDIT_PACKS } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,10 +85,9 @@ function CreditsInner() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Credits</h1>
-      <p className="mb-2 text-sm text-zinc-500">
+      <AppPageHeader title="Credits">
         Pass-through del precio del laboratorio. Fee 4.9% al cargar con Stripe.
-      </p>
+      </AppPageHeader>
       {credits ? (
         <p className="mb-6 text-sm text-amber-300">
           Saldo {formatUsd(credits.remaining, 2)} · cargado {formatUsd(credits.total_credits, 2)} · usado{" "}
@@ -167,8 +167,7 @@ export default function CreditsPage() {
     <Suspense
       fallback={
         <div>
-          <h1 className="mb-2 text-2xl font-semibold">Credits</h1>
-          <p className="text-sm text-zinc-500">Cargando…</p>
+          <AppPageHeader title="Credits">Cargando…</AppPageHeader>
         </div>
       }
     >

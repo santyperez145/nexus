@@ -18,6 +18,9 @@ export class Nexus {
     embeddings;
     images;
     audio;
+    responses;
+    messages;
+    videos;
     keys;
     providers;
     files;
@@ -38,6 +41,9 @@ export class Nexus {
         this.embeddings = new EmbeddingsResource(this);
         this.images = new ImagesResource(this);
         this.audio = new AudioResource(this);
+        this.responses = new ResponsesResource(this);
+        this.messages = new MessagesResource(this);
+        this.videos = new VideosResource(this);
         this.keys = new KeysResource(this);
         this.providers = new ProvidersResource(this);
         this.files = new FilesResource(this);
@@ -180,7 +186,53 @@ class AudioResource {
         return res.arrayBuffer();
     }
     transcriptions(body) {
-        return this.client.request("/audio/transcriptions", { method: "POST", body });
+        if ("file" in body && body.file instanceof Blob) {
+            const file = body.file;
+            const filename = typeof body.filename === "string" ? body.filename : "audio.webm";
+            const model = typeof body.model === "string" ? body.model : undefined;
+            const form = new FormData();
+            form.append("file", file, filename);
+            if (model)
+                form.append("model", model);
+            return this.client.request("/audio/transcriptions", {
+                method: "POST",
+                form,
+            });
+        }
+        return this.client.request("/audio/transcriptions", {
+            method: "POST",
+            body,
+        });
+    }
+}
+class ResponsesResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    create(body) {
+        return this.client.request("/responses", { method: "POST", body });
+    }
+}
+class MessagesResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    create(body) {
+        return this.client.request("/messages", { method: "POST", body });
+    }
+}
+class VideosResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    create(body) {
+        return this.client.request("/videos", { method: "POST", body });
+    }
+    get(id) {
+        return this.client.request("/videos", { query: { id } });
     }
 }
 class KeysResource {

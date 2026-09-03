@@ -12,6 +12,9 @@ export declare class Nexus {
     readonly embeddings: EmbeddingsResource;
     readonly images: ImagesResource;
     readonly audio: AudioResource;
+    readonly responses: ResponsesResource;
+    readonly messages: MessagesResource;
+    readonly videos: VideosResource;
     readonly keys: KeysResource;
     readonly providers: ProvidersResource;
     readonly files: FilesResource;
@@ -121,8 +124,51 @@ declare class AudioResource {
         voice?: string;
         response_format?: string;
     }): Promise<ArrayBuffer>;
-    transcriptions(body: Record<string, unknown>): Promise<{
+    transcriptions(body: {
+        file: Blob;
+        filename?: string;
+        model?: string;
+    } | Record<string, unknown>): Promise<{
         text: string;
+        id?: string;
+    }>;
+}
+declare class ResponsesResource {
+    private readonly client;
+    constructor(client: Nexus);
+    create(body: Record<string, unknown>): Promise<{
+        id: string;
+        object: "response";
+        status: string;
+        output: unknown[];
+        usage?: unknown;
+    }>;
+}
+declare class MessagesResource {
+    private readonly client;
+    constructor(client: Nexus);
+    create(body: Record<string, unknown>): Promise<{
+        id: string;
+        type: "message";
+        role: string;
+        content: unknown[];
+        stop_reason?: string;
+    }>;
+}
+declare class VideosResource {
+    private readonly client;
+    constructor(client: Nexus);
+    create(body: {
+        prompt: string;
+        model?: string;
+    }): Promise<{
+        id: string;
+        status: string;
+        generation_id?: string;
+        polling_url?: string;
+    }>;
+    get(id: string): Promise<{
+        data: unknown;
     }>;
 }
 declare class KeysResource {

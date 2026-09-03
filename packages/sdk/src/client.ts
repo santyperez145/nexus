@@ -26,6 +26,9 @@ export class Nexus {
   readonly embeddings: EmbeddingsResource;
   readonly images: ImagesResource;
   readonly audio: AudioResource;
+  readonly responses: ResponsesResource;
+  readonly messages: MessagesResource;
+  readonly videos: VideosResource;
   readonly keys: KeysResource;
   readonly providers: ProvidersResource;
   readonly files: FilesResource;
@@ -47,6 +50,9 @@ export class Nexus {
     this.embeddings = new EmbeddingsResource(this);
     this.images = new ImagesResource(this);
     this.audio = new AudioResource(this);
+    this.responses = new ResponsesResource(this);
+    this.messages = new MessagesResource(this);
+    this.videos = new VideosResource(this);
     this.keys = new KeysResource(this);
     this.providers = new ProvidersResource(this);
     this.files = new FilesResource(this);
@@ -194,8 +200,64 @@ class AudioResource {
     }
     return res.arrayBuffer();
   }
-  transcriptions(body: Record<string, unknown>) {
-    return this.client.request<{ text: string }>("/audio/transcriptions", { method: "POST", body });
+  transcriptions(body: { file: Blob; filename?: string; model?: string } | Record<string, unknown>) {
+    if ("file" in body && body.file instanceof Blob) {
+      const file = body.file;
+      const filename = typeof body.filename === "string" ? body.filename : "audio.webm";
+      const model = typeof body.model === "string" ? body.model : undefined;
+      const form = new FormData();
+      form.append("file", file, filename);
+      if (model) form.append("model", model);
+      return this.client.request<{ text: string; id?: string }>("/audio/transcriptions", {
+        method: "POST",
+        form,
+      });
+    }
+    return this.client.request<{ text: string; id?: string }>("/audio/transcriptions", {
+      method: "POST",
+      body,
+    });
+  }
+}
+
+class ResponsesResource {
+  constructor(private readonly client: Nexus) {}
+  create(body: Record<string, unknown>) {
+    return this.client.request<{
+      id: string;
+      object: "response";
+      status: string;
+      output: unknown[];
+      usage?: unknown;
+    }>("/responses", { method: "POST", body });
+  }
+}
+
+class MessagesResource {
+  constructor(private readonly client: Nexus) {}
+  create(body: Record<string, unknown>) {
+    return this.client.request<{
+      id: string;
+      type: "message";
+      role: string;
+      content: unknown[];
+      stop_reason?: string;
+    }>("/messages", { method: "POST", body });
+  }
+}
+
+class VideosResource {
+  constructor(private readonly client: Nexus) {}
+  create(body: { prompt: string; model?: string }) {
+    return this.client.request<{
+      id: string;
+      status: string;
+      generation_id?: string;
+      polling_url?: string;
+    }>("/videos", { method: "POST", body });
+  }
+  get(id: string) {
+    return this.client.request<{ data: unknown }>("/videos", { query: { id } });
   }
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,11 +60,9 @@ export default function OauthPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">OAuth PKCE</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        Emití un <code>code</code> con challenge SHA-256 y canjealo por una key <code>sk-nx-</code>.
-        El verifier queda en este dispositivo.
-      </p>
+      <AppPageHeader title="OAuth PKCE">
+        Emití un <code>code</code> con challenge SHA-256 y canjealo por una key <code>sk-nx-</code>. El verifier queda en este dispositivo.
+      </AppPageHeader>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => void issue()}>Emitir code</Button>
         <Button variant="outline" onClick={() => void exchange()} disabled={!verifier}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,10 +26,9 @@ export default function PreferencesPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Preferences</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <AppPageHeader title="Preferences">
         Modelo por defecto del playground. Variantes <code>:fast :cheap :quality :free :online</code>.
-      </p>
+      </AppPageHeader>
       <div className="flex max-w-xl gap-2">
         <Input value={value} onChange={(e) => setDefaultModel(e.target.value)} />
         <Button onClick={() => void save()}>Guardar</Button>

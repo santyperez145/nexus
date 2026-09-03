@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,10 +16,9 @@ export default function PresetsPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Presets</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <AppPageHeader title="Presets">
         Llamá un preset con <code>@slug</code> o <code>nexus/preset/slug</code>. El resto de campos del request pisan el preset.
-      </p>
+      </AppPageHeader>
       <div className="mb-4 flex flex-wrap gap-2">
         <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug" className="w-40" />
         <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="modelo" />

@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,12 +57,9 @@ export default function ByokPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">BYOK</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        Traé tus keys de cualquier lab cableado. Se cifran en reposo. El router las usa cuando el
-        pool de la plataforma no tiene ese adapter. Fee BYOK: 5% sobre el precio de lista después
-        del allowance mensual.
-      </p>
+      <AppPageHeader title="BYOK">
+        Traé tus keys de cualquier lab cableado. Se cifran en reposo. El router las usa cuando el pool de la plataforma no tiene ese adapter. Fee BYOK: 5% sobre el precio de lista después del allowance mensual.
+      </AppPageHeader>
       <div className="mb-6 grid gap-2 md:grid-cols-3">
         <select
           value={provider}

@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,10 +43,9 @@ export default function OrgsPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Organizations</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <AppPageHeader title="Organizations">
         Equipos, miembros e invites pendientes (email aunque aún no tenga cuenta).
-      </p>
+      </AppPageHeader>
       <div className="mb-4 flex gap-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
         <Button

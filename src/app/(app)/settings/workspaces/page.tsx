@@ -1,5 +1,6 @@
 "use client";
 
+import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +23,9 @@ export default function WorkspacesPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold">Workspaces</h1>
-      <p className="mb-6 text-sm text-zinc-500">
+      <AppPageHeader title="Workspaces">
         Separa proyectos y budgets mensuales. Las keys pueden anclarse a un workspace; el gateway corta al superar el límite.
-      </p>
+      </AppPageHeader>
       <div className="mb-4 flex flex-wrap gap-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
         <Input

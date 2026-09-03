@@ -83,6 +83,41 @@ describe("nexus-sdk", () => {
     assert.equal(res.choices[0]?.message.content, "ok");
   });
 
+  it("calls responses and messages envelopes", async () => {
+    const urls: string[] = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url) => {
+        urls.push(String(url));
+        if (String(url).includes("/responses")) {
+          return Response.json({
+            id: "resp_1",
+            object: "response",
+            status: "completed",
+            output: [{ type: "message", content: [{ type: "output_text", text: "hi" }] }],
+          });
+        }
+        return Response.json({
+          id: "msg_1",
+          type: "message",
+          role: "assistant",
+          content: [{ type: "text", text: "hola" }],
+          stop_reason: "end_turn",
+        });
+      },
+    });
+    const r = await nexus.responses.create({ model: "nexus/auto", input: "hi" });
+    const m = await nexus.messages.create({
+      model: "nexus/auto",
+      messages: [{ role: "user", content: "hola" }],
+    });
+    assert.equal(r.object, "response");
+    assert.equal(m.type, "message");
+    assert.ok(urls.some((u) => u.endsWith("/responses")));
+    assert.ok(urls.some((u) => u.endsWith("/messages")));
+  });
+
   it("uploads files as multipart and lists analytics", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const nexus = new Nexus({

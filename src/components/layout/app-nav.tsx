@@ -10,6 +10,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
     items: [
       { href: "/overview", label: "Overview" },
       { href: "/chat", label: "Chat" },
+      { href: "/studio", label: "Studio" },
       { href: "/models", label: "Models" },
       { href: "/rankings", label: "Rankings" },
     ],

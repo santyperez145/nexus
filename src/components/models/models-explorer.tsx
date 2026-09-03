@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatUsd } from "@/lib/money";
 
 function usdPerMillion(perToken: number) {
@@ -37,12 +38,19 @@ const MODALITIES = [
   { id: "embeddings", label: "Embeddings" },
 ] as const;
 
-export function ModelsExplorer({ models }: { models: Row[] }) {
+export function ModelsExplorer({
+  models,
+  initialMod = "all",
+}: {
+  models: Row[];
+  initialMod?: (typeof MODALITIES)[number]["id"];
+}) {
   const [q, setQ] = useState("");
   const [lab, setLab] = useState("all");
-  const [mod, setMod] = useState<(typeof MODALITIES)[number]["id"]>("all");
+  const [mod, setMod] = useState<(typeof MODALITIES)[number]["id"]>(initialMod);
   const [sort, setSort] = useState<"new" | "price" | "context">("new");
   const [table, setTable] = useState(true);
+  const router = useRouter();
   const labs = useMemo(() => {
     const set = new Set<string>();
     for (const m of models) for (const e of m.endpoints) set.add(e.adapter);
@@ -86,7 +94,11 @@ export function ModelsExplorer({ models }: { models: Row[] }) {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setMod(item.id)}
+                onClick={() => {
+                  setMod(item.id);
+                  const url = item.id === "all" ? "/models" : `/models?mod=${item.id}`;
+                  router.replace(url, { scroll: false });
+                }}
                 className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                   active
                     ? "border-amber-600/40 bg-amber-50 text-amber-800"

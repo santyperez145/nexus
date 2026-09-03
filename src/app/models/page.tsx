@@ -3,7 +3,17 @@ import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { ModelsExplorer } from "@/components/models/models-explorer";
 import { allModels } from "@/lib/catalog";
 
-export default function ModelsPage() {
+const MODS = new Set(["all", "text", "image", "video", "audio", "embeddings"]);
+
+export default async function ModelsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mod?: string }>;
+}) {
+  const q = await searchParams;
+  const initialMod = MODS.has(q.mod ?? "")
+    ? (q.mod as "all" | "text" | "image" | "video" | "audio" | "embeddings")
+    : "all";
   const models = allModels().map((m) => ({
     id: m.id,
     name: m.name,
@@ -21,9 +31,13 @@ export default function ModelsPage() {
       <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
         <MarketingPageHeader title="Models">
           Un slug, varios labs. Filtrá por modalidad; el gateway elige host por precio, latencia o{" "}
-          <code className="text-zinc-700">provider.only</code>.
+          <code className="text-zinc-700">provider.only</code>. Media en{" "}
+          <a href="/studio" className="text-amber-700 hover:underline">
+            Studio
+          </a>
+          .
         </MarketingPageHeader>
-        <ModelsExplorer models={models} />
+        <ModelsExplorer models={models} initialMod={initialMod} />
       </div>
     </MarketingShell>
   );
