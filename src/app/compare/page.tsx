@@ -44,9 +44,9 @@ export default async function ComparePage({
   return (
     <MarketingShell>
       <div className="mx-auto max-w-5xl px-4 py-12 md:py-16">
-        <MarketingPageHeader title="Compare">
-          Precio, contexto, labs y latencia lado a lado — datos del catálogo Nexus, sin métricas
-          inventadas. Para correr prompts en paralelo: Chat.
+        <MarketingPageHeader title="Comparar modelos">
+          Elegí dos modelos y compará precio, capacidad, velocidad y privacidad antes de usarlos en
+          tu aplicación.
         </MarketingPageHeader>
         <CompareClient models={ordered} initialA={q.a} initialB={q.b} />
       </div>

@@ -80,17 +80,16 @@ export default async function RankingsPage({
           aria-hidden
           className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
-        <MarketingPageHeader title="Rankings">
-          Popular = tokens reales de esta instancia
-          {windowKey !== "all" ? ` (${windowKey})` : ""}. Latencia prioriza avg medido; si no hay
-          samples, cae al catálogo. Guest playground excluido · sin tracción inventada.
+        <MarketingPageHeader title="Ranking de modelos">
+          Descubrí qué modelos eligen los equipos, cuáles cuestan menos y cuáles responden más rápido
+          con datos del uso real de Nexus.
         </MarketingPageHeader>
 
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           {[
             { k: "Modelos", v: String(rows.length) },
-            { k: "Con tráfico", v: String(withTraffic) },
-            { k: "Latencia medida", v: String(measuredCount) },
+            { k: "Con uso registrado", v: String(withTraffic) },
+            { k: "Con velocidad medida", v: String(measuredCount) },
           ].map((s) => (
             <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
@@ -104,7 +103,7 @@ export default async function RankingsPage({
         <div className="mb-6 flex flex-wrap gap-2 text-sm">
           {(
             [
-              ["all", "All time"],
+              ["all", "Histórico"],
               ["7d", "7 días"],
               ["30d", "30 días"],
             ] as const

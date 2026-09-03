@@ -77,7 +77,7 @@ export function ArenaClient({
   const [a, setA] = useState(defaultA);
   const [b, setB] = useState(defaultB);
   const [prompt, setPrompt] = useState(
-    "Explicá en 3 bullets por qué un gateway unificado de modelos es útil.",
+    "Explicá en tres puntos cómo elegir el mejor modelo de IA para una aplicación.",
   );
   const [outA, setOutA] = useState("");
   const [outB, setOutB] = useState("");
@@ -199,8 +199,8 @@ export function ArenaClient({
     setReveal(true);
     setMsg(
       mapped === "tie"
-        ? "Empate guardado (solo en este dispositivo)."
-        : `Voto ${mapped.toUpperCase()} → ${mapped === "a" ? a : b} (local).`,
+        ? "Empate guardado en este dispositivo."
+        : `Elección guardada: ${mapped === "a" ? a : b}.`,
     );
   }
 
@@ -233,12 +233,12 @@ export function ArenaClient({
   return (
     <div>
       <div className="mb-4 grid gap-3 md:grid-cols-2">
-        <label className="grid gap-1 text-sm">
+        <label className="grid min-w-0 gap-1 text-sm">
           <span className="text-xs uppercase tracking-wide text-zinc-500">Modelo A</span>
           <select
             value={a}
             onChange={(e) => setA(e.target.value)}
-            className="h-10 rounded-md border border-zinc-300 bg-white px-3 font-mono text-sm"
+            className="h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-3 font-mono text-sm"
           >
             {models.map((id) => (
               <option key={id} value={id}>
@@ -247,12 +247,12 @@ export function ArenaClient({
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="grid min-w-0 gap-1 text-sm">
           <span className="text-xs uppercase tracking-wide text-zinc-500">Modelo B</span>
           <select
             value={b}
             onChange={(e) => setB(e.target.value)}
-            className="h-10 rounded-md border border-zinc-300 bg-white px-3 font-mono text-sm"
+            className="h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-3 font-mono text-sm"
           >
             {models.map((id) => (
               <option key={id} value={id}>
@@ -275,11 +275,11 @@ export function ArenaClient({
           disabled={busy || a === b}
           onClick={() => void run()}
         >
-          {busy ? "Corriendo…" : "Correr A vs B"}
+          {busy ? "Comparando…" : "Comparar respuestas"}
         </Button>
         <label className="flex items-center gap-2 text-sm text-zinc-600">
           <input type="checkbox" checked={blind} onChange={(e) => setBlind(e.target.checked)} />
-          Blind (oculta slugs hasta votar)
+          Modo ciego: oculta los nombres hasta votar
         </label>
         <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
           <Link href={`/chat?model=${encodeURIComponent(a)}&compare=${encodeURIComponent(b)}`}>
@@ -298,11 +298,11 @@ export function ArenaClient({
 
       <div className="grid gap-4 md:grid-cols-2">
         {[left, right].map((lane) => (
-          <div key={lane.ui + lane.model} className="rounded-xl border border-zinc-200 bg-white p-4">
+          <div key={lane.ui + lane.model} className="min-w-0 rounded-xl border border-zinc-200 bg-white p-4">
             <div className="mb-2 font-mono text-xs text-violet-700">
               {blind && !reveal ? `Modelo ${lane.ui.toUpperCase()}` : lane.model}
             </div>
-            <pre className="min-h-[160px] whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
+            <pre className="min-h-[160px] whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-700">
               {lane.text || (busy ? "…" : "—")}
             </pre>
             <Button
@@ -327,10 +327,10 @@ export function ArenaClient({
 
       <section className="mt-10 border-t border-zinc-200 pt-8">
         <h2 className="text-xl font-semibold text-zinc-900">
-          Tus votos (este browser)
+          Tus resultados
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          No hay leaderboard global inventado — solo el historial local de este dispositivo.
+          Este resumen se guarda únicamente en este dispositivo.
         </p>
         {tallies.length === 0 ? (
           <p className="mt-4 text-sm text-zinc-500">Todavía no votaste.</p>
@@ -345,7 +345,7 @@ export function ArenaClient({
                   #{i + 1} {t.id}
                 </span>
                 <span className="tabular-nums text-zinc-500">
-                  {t.wins}W · {t.losses}L · {t.ties}T
+                  {t.wins} ganadas · {t.losses} perdidas · {t.ties} empates
                 </span>
               </li>
             ))}

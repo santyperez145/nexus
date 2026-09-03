@@ -74,13 +74,13 @@ export function RankingsClient({
     {
       id: "popular",
       label: "Popular",
-      blurb: `Tokens reales${windowKey !== "all" ? ` · ventana ${windowKey}` : ""}`,
+      blurb: `Actividad registrada${windowKey !== "all" ? ` · últimos ${windowKey}` : " · histórico"}`,
     },
-    { id: "price", label: "Precio", blurb: "Prompt / 1M del catálogo" },
+    { id: "price", label: "Precio", blurb: "Precio de entrada por cada millón de tokens" },
     {
       id: "latency",
       label: "Latencia",
-      blurb: "Avg medido de generations; fallback a catálogo",
+      blurb: "Tiempo promedio de respuesta medido en Nexus",
     },
   ];
 
@@ -97,11 +97,11 @@ export function RankingsClient({
           setModality={setModality}
         />
         <p className="rounded-xl border border-dashed border-zinc-200 bg-white px-4 py-10 text-center text-sm text-zinc-500">
-          Sin filas para este criterio.{" "}
+          No encontramos modelos para este criterio.{" "}
           <Link href="/chat" className="text-violet-700 hover:underline">
-            Generá uso en el chat
+            Probá otro filtro
           </Link>{" "}
-          — no inventamos leaderboards.
+          .
         </p>
       </div>
     );
@@ -122,7 +122,7 @@ export function RankingsClient({
 
       {sort === "popular" && ranked.every((r) => r.tokens === 0) ? (
         <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-          Todavía no hay tokens en esta ventana — el orden Popular cae a precio.{" "}
+          Todavía no hay actividad en este período. Mientras tanto, ordenamos por precio.{" "}
           <Link href="/chat" className="font-medium underline">
             Abrí el chat
           </Link>
@@ -134,12 +134,12 @@ export function RankingsClient({
         <div className="grid grid-cols-[2.5rem_1fr_7rem_7rem] gap-3 border-b border-zinc-200 bg-zinc-50/80 px-4 py-2.5 text-[11px] uppercase tracking-[0.06em] text-zinc-500 md:grid-cols-[2.5rem_1fr_8rem_7rem_7rem_6rem]">
           <span>#</span>
           <span>Modelo</span>
-          <span className="hidden md:block">Prompt / 1M</span>
+          <span className="hidden md:block">Entrada / 1 M</span>
           <span className="text-right">
-            {sort === "latency" ? "Latency" : sort === "price" ? "Score" : "Tokens"}
+            {sort === "latency" ? "Respuesta" : sort === "price" ? "Precio" : "Tokens"}
           </span>
-          <span className="text-right">{sort === "popular" ? "Requests" : "Tokens"}</span>
-          <span className="hidden text-right md:block">Labs</span>
+          <span className="text-right">{sort === "popular" ? "Solicitudes" : "Tokens"}</span>
+          <span className="hidden text-right md:block">Proveedores</span>
         </div>
         <ol>
           {ranked.map((m, i) => {
@@ -167,12 +167,12 @@ export function RankingsClient({
                     </Link>
                     {m.vision ? (
                       <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-violet-800">
-                        vision
+                        imágenes
                       </span>
                     ) : null}
                     {m.free ? (
                       <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-800">
-                        free
+                        gratis
                       </span>
                     ) : null}
                   </div>
@@ -209,7 +209,9 @@ export function RankingsClient({
         </ol>
       </div>
       {sort === "latency" ? (
-        <p className="mt-2 text-xs text-zinc-500">* = latencia de catálogo (sin samples medidos aún).</p>
+        <p className="mt-2 text-xs text-zinc-500">
+          * Estimación del catálogo hasta contar con suficientes mediciones propias.
+        </p>
       ) : null}
     </div>
   );
@@ -233,9 +235,9 @@ function Toolbar({
   setModality: (m: Modality) => void;
 }) {
   const modes: Array<{ id: Modality; label: string }> = [
-    { id: "all", label: "All" },
-    { id: "text", label: "Text" },
-    { id: "vision", label: "Vision" },
+    { id: "all", label: "Todos" },
+    { id: "text", label: "Texto" },
+    { id: "vision", label: "Imágenes" },
   ];
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -270,7 +272,7 @@ function Toolbar({
         </div>
         <label className="flex items-center gap-2 text-sm text-zinc-600">
           <input type="checkbox" checked={freeOnly} onChange={(e) => setFreeOnly(e.target.checked)} />
-          Solo free
+          Solo gratuitos
         </label>
       </div>
     </div>

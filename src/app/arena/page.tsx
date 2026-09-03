@@ -29,9 +29,9 @@ export default async function ArenaPage({
           aria-hidden
           className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
-        <MarketingPageHeader title="Arena">
-          Un prompt, dos modelos, un voto. Sesión = hops live/BYOK; la demo guest aislada existe solo
-          en desarrollo. Los votos viven en tu browser — sin leaderboard inventado.
+        <MarketingPageHeader title="Arena de modelos">
+          Enviá la misma consigna a dos modelos, compará sus respuestas sin sesgos y elegí cuál
+          resuelve mejor tu necesidad.
         </MarketingPageHeader>
         <ArenaClient
           defaultA={defaultA}

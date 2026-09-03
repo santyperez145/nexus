@@ -42,9 +42,9 @@ export default async function ModelsPage({
           aria-hidden
           className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
-        <MarketingPageHeader title="Models">
-          Un slug, varios labs. Filtros por modalidad / free / autor / host · badges vision / ZDR /
-          curated vs discovered. Latencia de catálogo no es telemetría live.
+        <MarketingPageHeader title="Catálogo de modelos">
+          Encontrá el modelo ideal por capacidad, creador, precio y velocidad. Compará alternativas
+          y empezá a usarlas desde una sola cuenta.
         </MarketingPageHeader>
         <ModelsExplorer
           models={models}

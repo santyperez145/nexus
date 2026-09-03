@@ -9,6 +9,15 @@ function usdPerMillion(perToken: number) {
   return perToken * 1_000_000;
 }
 
+function formatContext(tokens: number) {
+  if (tokens >= 1_000_000) {
+    const millions = tokens / 1_000_000;
+    return `${Number.isInteger(millions) ? millions : millions.toFixed(1)} M tokens`;
+  }
+  if (tokens >= 1_000) return `${Math.round(tokens / 1_000)} mil tokens`;
+  return `${tokens.toLocaleString()} tokens`;
+}
+
 type Row = {
   id: string;
   name: string;
@@ -36,8 +45,17 @@ const MODALITIES = [
   { id: "image", label: "Imagen" },
   { id: "video", label: "Video" },
   { id: "audio", label: "Audio" },
-  { id: "embeddings", label: "Embeddings" },
+  { id: "embeddings", label: "Vectores" },
 ] as const;
+
+const OUTPUT_LABELS: Record<string, string> = {
+  text: "Texto",
+  image: "Imagen",
+  video: "Video",
+  audio: "Audio",
+  speech: "Voz",
+  embeddings: "Vectores",
+};
 
 export function ModelsExplorer({
   models,
@@ -180,7 +198,7 @@ export function ModelsExplorer({
       {trending.length ? (
         <div className="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
           <div className="border-b border-zinc-100 bg-zinc-50/80 px-4 py-2 text-[11px] uppercase tracking-[0.06em] text-zinc-500">
-            Trending 30d · tokens reales de esta instancia
+            Más usados en los últimos 30 días
           </div>
           <div className="flex gap-2 overflow-x-auto px-3 py-3">
             {trending.map((t, i) => (
@@ -192,7 +210,7 @@ export function ModelsExplorer({
                 <div className="font-mono text-[10px] text-zinc-400">#{i + 1}</div>
                 <div className="mt-0.5 truncate font-mono text-xs text-violet-700">{t.id}</div>
                 <div className="mt-1 tabular-nums text-[11px] text-zinc-500">
-                  {t.tokens.toLocaleString()} tok
+                  {t.tokens.toLocaleString()} tokens
                 </div>
               </Link>
             ))}
@@ -238,14 +256,14 @@ export function ModelsExplorer({
                 : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-800"
             }`}
           >
-            Free
+            Gratis
           </button>
         </div>
-        <div className="grid gap-2 md:grid-cols-[1fr_140px_140px_140px_auto]">
+        <div className="grid gap-2 md:grid-cols-[1fr_160px_170px_140px_auto]">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar modelo, autor, lab…"
+            placeholder="Buscar por modelo o creador…"
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 shadow-sm"
             aria-label="Buscar modelos"
           />
@@ -256,9 +274,9 @@ export function ModelsExplorer({
               syncUrl({ author: e.target.value });
             }}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
-            aria-label="Filtrar por autor"
+            aria-label="Filtrar por creador"
           >
-            <option value="all">Todos los autores</option>
+            <option value="all">Todos los creadores</option>
             {authors.map((a) => (
               <option key={a} value={a}>
                 {a}
@@ -272,9 +290,9 @@ export function ModelsExplorer({
               syncUrl({ lab: e.target.value });
             }}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
-            aria-label="Filtrar por lab"
+            aria-label="Filtrar por proveedor"
           >
-            <option value="all">Todos los labs</option>
+            <option value="all">Todos los proveedores</option>
             {labs.map((l) => (
               <option key={l} value={l}>
                 {l}
@@ -294,20 +312,20 @@ export function ModelsExplorer({
             <option value="new">Más nuevos</option>
             <option value="price">Más baratos</option>
             <option value="context">Más contexto</option>
-            <option value="latency">Latencia medida</option>
+            <option value="latency">Más rápidos</option>
           </select>
           <button
             type="button"
             onClick={() => setTable((v) => !v)}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-600 hover:text-zinc-900"
           >
-            {table ? "Vista cards" : "Vista tabla"}
+            {table ? "Ver tarjetas" : "Ver tabla"}
           </button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
           <p>
-            <span className="font-medium text-zinc-700">{filtered.length}</span> modelos · catálogo vivo
-            {sort === "latency" ? " · latencia de generations 30d" : ""}
+            <span className="font-medium text-zinc-700">{filtered.length}</span> modelos disponibles
+            {sort === "latency" ? " · según datos de los últimos 30 días" : ""}
           </p>
           {selected.length ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -317,17 +335,17 @@ export function ModelsExplorer({
                   href={`/compare?a=${encodeURIComponent(selected[0])}&b=${encodeURIComponent(selected[1])}`}
                   className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-violet-900 hover:underline"
                 >
-                  Compare
+                  Comparar
                 </Link>
               ) : (
-                <span className="text-zinc-400">Elegí 2 para compare</span>
+                <span className="text-zinc-400">Elegí un modelo más</span>
               )}
               <button type="button" className="text-zinc-500 hover:text-zinc-800" onClick={() => setSelected([])}>
                 Limpiar
               </button>
             </div>
           ) : (
-            <span className="text-zinc-400">Marcá 2 modelos para compare</span>
+            <span className="text-zinc-400">Seleccioná dos modelos para compararlos</span>
           )}
         </div>
       </div>
@@ -340,12 +358,12 @@ export function ModelsExplorer({
                 <tr>
                   <th className="w-8 px-2 py-2.5" />
                   <th className="px-3 py-2.5 font-medium">Modelo</th>
-                  <th className="px-3 py-2.5 font-medium">Mod</th>
+                  <th className="px-3 py-2.5 font-medium">Salida</th>
                   <th className="px-3 py-2.5 font-medium">Contexto</th>
-                  <th className="px-3 py-2.5 font-medium">Prompt / 1M</th>
-                  <th className="px-3 py-2.5 font-medium">Comp / 1M</th>
-                  <th className="px-3 py-2.5 font-medium">Lat 30d</th>
-                  <th className="px-3 py-2.5 font-medium">Labs</th>
+                  <th className="px-3 py-2.5 font-medium">Entrada / 1 M</th>
+                  <th className="px-3 py-2.5 font-medium">Salida / 1 M</th>
+                  <th className="px-3 py-2.5 font-medium">Velocidad</th>
+                  <th className="px-3 py-2.5 font-medium">Proveedores</th>
                   <th className="px-3 py-2.5 font-medium" />
                 </tr>
               </thead>
@@ -377,26 +395,26 @@ export function ModelsExplorer({
                           <span>{m.name}</span>
                           {vision ? (
                             <span className="rounded border border-violet-200 bg-violet-50 px-1 text-[10px] text-violet-800">
-                              vision
+                              imágenes
                             </span>
                           ) : null}
                           {zdr ? (
                             <span className="rounded border border-sky-200 bg-sky-50 px-1 text-[10px] text-sky-800">
-                              zdr
+                              privacidad
                             </span>
                           ) : null}
                           {verified ? (
                             <span className="rounded border border-zinc-200 bg-zinc-50 px-1 text-[10px] text-zinc-700">
-                              curated
+                              verificado
                             </span>
                           ) : (
                             <span className="rounded border border-zinc-200 bg-zinc-50 px-1 text-[10px] text-zinc-500">
-                              discovered
+                              comunidad
                             </span>
                           )}
                           {m.free ? (
                             <span className="rounded border border-emerald-200 bg-emerald-50 px-1 text-[10px] text-emerald-800">
-                              free
+                              gratis
                             </span>
                           ) : null}
                         </div>
@@ -408,13 +426,13 @@ export function ModelsExplorer({
                               key={o}
                               className="rounded border border-zinc-200 px-1 py-0.5 font-mono text-[10px] text-zinc-500"
                             >
-                              {o}
+                              {OUTPUT_LABELS[o] ?? o}
                             </span>
                           ))}
                         </div>
                       </td>
                       <td className="px-3 py-2.5 tabular-nums text-zinc-600">
-                        {(m.contextLength / 1000).toFixed(0)}k
+                        {formatContext(m.contextLength)}
                       </td>
                       <td className="px-3 py-2.5 tabular-nums text-zinc-600">
                         {m.free ? "Gratis" : formatUsd(usdPerMillion(m.pricing.prompt), 2)}
@@ -447,7 +465,7 @@ export function ModelsExplorer({
                           href={`/chat?model=${encodeURIComponent(m.id)}`}
                           className="text-xs text-violet-700 hover:underline"
                         >
-                          Try
+                          Probar
                         </Link>
                       </td>
                     </tr>
@@ -477,7 +495,7 @@ export function ModelsExplorer({
                     href={`/chat?model=${encodeURIComponent(m.id)}`}
                     className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-violet-800 opacity-0 transition-opacity group-hover:opacity-100"
                   >
-                    Try
+                    Probar
                   </Link>
                   <input
                     type="checkbox"
@@ -497,10 +515,10 @@ export function ModelsExplorer({
                     <span className="font-mono tabular-nums">
                       {m.free
                         ? "Gratis"
-                        : `${formatUsd(usdPerMillion(m.pricing.prompt), 2)} / ${formatUsd(usdPerMillion(m.pricing.completion), 2)}`}
+                        : `Entrada ${formatUsd(usdPerMillion(m.pricing.prompt), 2)} · salida ${formatUsd(usdPerMillion(m.pricing.completion), 2)}`}
                     </span>
                     <span>·</span>
-                    <span className="tabular-nums">{(m.contextLength / 1000).toFixed(0)}k ctx</span>
+                    <span className="tabular-nums">{formatContext(m.contextLength)} de contexto</span>
                     {lat != null ? (
                       <>
                         <span>·</span>
@@ -511,26 +529,26 @@ export function ModelsExplorer({
                   <div className="mt-3 flex flex-wrap gap-1">
                     {vision ? (
                       <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-violet-800">
-                        vision
+                        Imágenes
                       </span>
                     ) : null}
                     {zdr ? (
                       <span className="rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-sky-800">
-                        zdr
+                        Privacidad
                       </span>
                     ) : null}
                     {verified ? (
                       <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-700">
-                        curated
+                        Verificado
                       </span>
                     ) : (
                       <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
-                        discovered
+                        Comunidad
                       </span>
                     )}
                     {m.free ? (
                       <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-800">
-                        free
+                        Gratis
                       </span>
                     ) : null}
                     {m.output.slice(0, 3).map((o) => (
@@ -538,10 +556,10 @@ export function ModelsExplorer({
                         key={o}
                         className="rounded border border-zinc-200 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500"
                       >
-                        {o}
+                        {OUTPUT_LABELS[o] ?? o}
                       </span>
                     ))}
-                    {(m.endpoints.length ? m.endpoints.map((e) => e.adapter) : ["router"])
+                    {(m.endpoints.length ? m.endpoints.map((e) => e.adapter) : ["Nexus"])
                       .slice(0, 3)
                       .map((a) => (
                         <span

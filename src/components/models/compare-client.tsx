@@ -98,35 +98,35 @@ export function CompareClient({
       win: biggerCtx,
     },
     {
-      label: "Prompt / 1M",
+      label: "Entrada / 1 M",
       av: left.free ? "Gratis" : formatUsd(leftPrompt, 2),
       bv: right.free ? "Gratis" : formatUsd(rightPrompt, 2),
       win: cheaper,
     },
     {
-      label: "Completion / 1M",
+      label: "Salida / 1 M",
       av: left.free ? "—" : formatUsd(leftComp, 2),
       bv: right.free ? "—" : formatUsd(rightComp, 2),
     },
     {
-      label: "Labs",
+      label: "Proveedores",
       av: left.endpoints.map((e) => e.adapter).join(", ") || "router",
       bv: right.endpoints.map((e) => e.adapter).join(", ") || "router",
     },
     {
-      label: "Latencia min",
+      label: "Mejor respuesta",
       av: leftLat != null ? `${leftLat} ms` : "—",
       bv: rightLat != null ? `${rightLat} ms` : "—",
       win: faster,
     },
     {
-      label: "Throughput max",
+      label: "Mayor velocidad",
       av: leftTps != null ? `${leftTps} tps` : "—",
       bv: rightTps != null ? `${rightTps} tps` : "—",
       win: higherTps,
     },
     {
-      label: "ZDR host",
+      label: "Privacidad reforzada",
       av: left.endpoints.some((e) => e.zdr) ? "sí" : "no",
       bv: right.endpoints.some((e) => e.zdr) ? "sí" : "no",
     },
@@ -225,10 +225,10 @@ export function CompareClient({
           Costo estimado
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Split prompt/completion ajustable. Lista — 0% markup en tokens.
+          Ajustá la proporción entre entrada y salida para estimar el gasto de tu caso de uso.
         </p>
         <label className="mt-3 flex max-w-md flex-wrap items-center gap-3 text-sm text-zinc-600">
-          Prompt share
+          Entrada / salida
           <input
             type="range"
             min={10}
@@ -237,7 +237,7 @@ export function CompareClient({
             value={Math.round(promptShare * 100)}
             onChange={(e) => setPromptShare(Number(e.target.value) / 100)}
             className="flex-1"
-            aria-label="Prompt share percent"
+            aria-label="Porcentaje de tokens de entrada"
           />
           <span className="w-24 font-mono text-xs">
             {Math.round(promptShare * 100)}% / {Math.round((1 - promptShare) * 100)}%
@@ -278,19 +278,19 @@ export function CompareClient({
           <Link
             href={`/chat?model=${encodeURIComponent(left.id)}&compare=${encodeURIComponent(right.id)}`}
           >
-            Probar en chat (A vs B)
+            Probar ambos en el chat
           </Link>
         </Button>
         <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
           <Link href={`/arena?a=${encodeURIComponent(left.id)}&b=${encodeURIComponent(right.id)}`}>
-            Arena
+            Abrir en la Arena
           </Link>
         </Button>
         <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
-          <Link href={`/models/${left.id}`}>Detalle A</Link>
+          <Link href={`/models/${left.id}`}>Ver modelo A</Link>
         </Button>
         <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
-          <Link href={`/models/${right.id}`}>Detalle B</Link>
+          <Link href={`/models/${right.id}`}>Ver modelo B</Link>
         </Button>
       </div>
     </div>
