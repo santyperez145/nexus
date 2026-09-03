@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { NexusMark } from "@/components/brand/nexus-logo";
 import { HeroMesh } from "@/components/brand/hero-mesh";
 import { RoutingViz } from "@/components/brand/routing-viz";
+import { JumpToModel } from "@/components/models/jump-to-model";
 import { allModels, featuredModels, usdPerMillion } from "@/lib/catalog";
 import { CREDIT_PURCHASE_FEE } from "@/lib/config";
 import { NEXUS_PROVIDERS } from "@/lib/providers/registry";
@@ -61,26 +62,41 @@ export default async function HomePage() {
       </section>
 
       <section className="border-y border-zinc-200/80 bg-white/60">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-4 py-5 text-sm text-zinc-500">
-          <Link href="/models?mod=text" className="hover:text-zinc-900">
-            Texto
-          </Link>
-          <span className="text-zinc-300">·</span>
-          <Link href="/models?mod=image" className="hover:text-zinc-900">
-            Imagen
-          </Link>
-          <span className="text-zinc-300">·</span>
-          <Link href="/models?mod=video" className="hover:text-zinc-900">
-            Video
-          </Link>
-          <span className="text-zinc-300">·</span>
-          <Link href="/models?mod=audio" className="hover:text-zinc-900">
-            Audio
-          </Link>
-          <span className="text-zinc-300">·</span>
-          <span className="font-mono text-xs text-zinc-400">
-            {models.length} modelos · {labs} labs
-          </span>
+        <div className="mx-auto max-w-5xl px-4 py-6">
+          <JumpToModel models={models.map((m) => ({ id: m.id, name: m.name }))} />
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm text-zinc-500">
+            <Link href="/models?mod=text" className="hover:text-zinc-900">
+              Texto
+            </Link>
+            <span className="text-zinc-300">·</span>
+            <Link href="/models?mod=image" className="hover:text-zinc-900">
+              Imagen
+            </Link>
+            <span className="text-zinc-300">·</span>
+            <Link href="/models?mod=video" className="hover:text-zinc-900">
+              Video
+            </Link>
+            <span className="text-zinc-300">·</span>
+            <Link href="/models?mod=audio" className="hover:text-zinc-900">
+              Audio
+            </Link>
+            <span className="text-zinc-300">·</span>
+            <Link href="/rankings" className="hover:text-zinc-900">
+              Rankings
+            </Link>
+            <span className="text-zinc-300">·</span>
+            <Link href="/compare" className="hover:text-zinc-900">
+              Compare
+            </Link>
+            <span className="text-zinc-300">·</span>
+            <Link href="/arena" className="hover:text-zinc-900">
+              Arena
+            </Link>
+            <span className="text-zinc-300">·</span>
+            <span className="font-mono text-xs text-zinc-400">
+              {models.length} modelos · {labs} labs
+            </span>
+          </div>
         </div>
       </section>
 

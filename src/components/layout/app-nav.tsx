@@ -17,6 +17,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
       { href: "/rankings", label: "Rankings" },
       { href: "/apps", label: "Apps" },
       { href: "/compare", label: "Compare" },
+      { href: "/arena", label: "Arena" },
     ],
   },
   {
@@ -64,6 +65,7 @@ function isActive(pathname: string, href: string) {
   if (href === "/overview") return pathname === "/overview";
   if (href === "/models") return pathname.startsWith("/models");
   if (href === "/compare") return pathname.startsWith("/compare");
+  if (href === "/arena") return pathname.startsWith("/arena");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

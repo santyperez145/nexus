@@ -13,15 +13,25 @@ export default function FilesPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ id: string; text: string; filename: string } | null>(null);
   const [drag, setDrag] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const list = rows ?? [];
 
-  const upload = useCallback(
-    async (file: File) => {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/v1/files", { method: "POST", body });
-      const json = await res.json();
-      setMsg(json.data ? `OK ${json.data.filename}` : json.error?.message ?? "error");
+  const uploadMany = useCallback(
+    async (files: FileList | File[]) => {
+      const batch = [...files];
+      if (!batch.length) return;
+      let ok = 0;
+      for (let i = 0; i < batch.length; i++) {
+        setProgress(`${i + 1}/${batch.length}`);
+        const body = new FormData();
+        body.append("file", batch[i]);
+        const res = await fetch("/api/v1/files", { method: "POST", body });
+        const json = await res.json();
+        if (json.data) ok += 1;
+        else setMsg(json.error?.message ?? "error");
+      }
+      setProgress(null);
+      setMsg(`Subidos ${ok}/${batch.length}`);
       reload();
     },
     [reload],
@@ -47,8 +57,8 @@ export default function FilesPage() {
           </Button>
         }
       >
-        Subí texto, código o PDF. En el playground marcá el file (<code>file_ids</code>) y el gateway lo
-        inyecta.
+        Subí texto, código o PDF (multi). En el playground marcá el file (<code>file_ids</code>) y el
+        gateway lo inyecta. Máx 4 MB c/u.
       </AppPageHeader>
 
       <div
@@ -60,27 +70,27 @@ export default function FilesPage() {
         onDrop={(e) => {
           e.preventDefault();
           setDrag(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file) void upload(file);
+          if (e.dataTransfer.files?.length) void uploadMany(e.dataTransfer.files);
         }}
         className={`mb-4 rounded-2xl border border-dashed px-4 py-10 text-center transition-colors ${
           drag ? "border-amber-400/50 bg-amber-400/5" : "border-white/15 bg-white/[0.02]"
         }`}
       >
-        <p className="text-sm text-zinc-400">Arrastrá un archivo acá (máx 4 MB)</p>
+        <p className="text-sm text-zinc-400">Arrastrá uno o varios archivos acá</p>
         <label className="mt-3 inline-block cursor-pointer text-sm text-amber-400 hover:underline">
           o elegí desde el disco
           <input
             type="file"
+            multiple
             className="hidden"
-            aria-label="Subir archivo"
+            aria-label="Subir archivos"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void upload(file);
+              if (e.target.files?.length) void uploadMany(e.target.files);
               e.target.value = "";
             }}
           />
         </label>
+        {progress ? <p className="mt-2 font-mono text-xs text-zinc-500">Subiendo {progress}</p> : null}
       </div>
 
       {msg ? <p className="mb-4 text-sm text-amber-300">{msg}</p> : null}
@@ -124,7 +134,11 @@ export default function FilesPage() {
         <section className="mt-6 rounded-xl border border-white/10 bg-black/30 p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="text-xs text-zinc-500">Preview · {preview.filename}</div>
-            <button type="button" className="text-xs text-zinc-500 hover:text-zinc-300" onClick={() => setPreview(null)}>
+            <button
+              type="button"
+              className="text-xs text-zinc-500 hover:text-zinc-300"
+              onClick={() => setPreview(null)}
+            >
               Cerrar
             </button>
           </div>

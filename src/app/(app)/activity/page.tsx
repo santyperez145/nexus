@@ -71,9 +71,55 @@ export default function ActivityPage() {
       <AppPageHeader
         title="Activity"
         actions={
-          <Button asChild size="sm" variant="outline">
-            <Link href="/chat">Nuevo chat</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!list.length}
+              onClick={() => {
+                const header = [
+                  "id",
+                  "model",
+                  "provider",
+                  "tokens_prompt",
+                  "tokens_completion",
+                  "cost",
+                  "latency_ms",
+                  "created_at",
+                  "is_byok",
+                  "error",
+                ];
+                const lines = list.map((r) =>
+                  [
+                    r.id,
+                    r.model,
+                    r.provider_name,
+                    r.tokens_prompt,
+                    r.tokens_completion,
+                    r.total_cost,
+                    r.generation_time ?? "",
+                    new Date(r.created_at * 1000).toISOString(),
+                    r.is_byok ? "1" : "0",
+                    JSON.stringify(r.error ?? ""),
+                  ].join(","),
+                );
+                const blob = new Blob([[header.join(","), ...lines].join("\n")], {
+                  type: "text/csv;charset=utf-8",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `nexus-activity-${days === "0" ? "all" : days + "d"}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Export CSV
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/chat">Nuevo chat</Link>
+            </Button>
+          </div>
         }
       >
         {list.length} requests · {tokens.toLocaleString()} tokens · {formatUsd(cost)}
