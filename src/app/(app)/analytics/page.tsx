@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
   const series = useMemo(() => (data?.by_day ?? []).map((d) => d[metric]), [data, metric]);
   const maxDay = Math.max(1, ...series);
 
-  if (!data) return <p className="text-sm text-zinc-500">Cargando analytics…</p>;
+  if (!data) return <p className="text-sm text-zinc-500">Cargando métricas…</p>;
 
   const t = data.totals;
 
@@ -61,10 +61,10 @@ export default function AnalyticsPage() {
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 md:text-[2rem]">
-            Analytics
+            Métricas
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
-            Uso real de generaciones (chat + media). Ventana {data.window_days}d · sin tracción inventada.
+            Entendé cuánto usa y cuesta cada modelo, proveedor, aplicación y clave en los últimos {data.window_days} días.
           </p>
         </div>
         <div className="flex gap-1 rounded-lg border border-zinc-200 p-1">
@@ -85,16 +85,16 @@ export default function AnalyticsPage() {
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-violet-500/[0.07] to-transparent p-5">
-          <div className="text-[10px] uppercase tracking-[0.14em] text-violet-700">Insight {days}d</div>
+          <div className="text-[10px] uppercase tracking-[0.14em] text-violet-700">Resumen de {days} días</div>
           <div className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950 md:text-4xl">
             {t.requests.toLocaleString()}{" "}
-            <span className="text-lg font-medium text-zinc-500">requests</span>
+            <span className="text-lg font-medium text-zinc-500">solicitudes</span>
           </div>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-400">
             {formatUsd(t.cost)} · {t.tokens.toLocaleString()} tokens
-            {t.avg_latency_ms != null ? ` · ${t.avg_latency_ms} ms avg` : ""}
+            {t.avg_latency_ms != null ? ` · ${t.avg_latency_ms} ms de respuesta promedio` : ""}
             {t.requests === 0
-              ? " — todavía vacío. Corré Chat o Studio para poblar el ledger."
+              ? " — todavía no hay actividad. Abrí el chat o el estudio para hacer la primera prueba."
               : "."}
           </p>
           {t.requests === 0 ? (
@@ -106,7 +106,7 @@ export default function AnalyticsPage() {
                 Abrir Chat
               </Link>
               <Link href="/studio" className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-900">
-                Studio
+                Estudio multimedia
               </Link>
             </div>
           ) : null}
@@ -114,24 +114,24 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-2 gap-3">
           {[
             {
-              k: "Error rate",
+              k: "Tasa de error",
               v: `${Math.round((t.error_rate ?? 0) * 100)}%`,
-              hint: `${t.errors ?? 0} errs`,
+              hint: `${t.errors ?? 0} ${(t.errors ?? 0) === 1 ? "error" : "errores"}`,
             },
             {
-              k: "Local echo",
-              v: `${Math.round((t.local_pct ?? 0) * 100)}%`,
-              hint: "sin lab key",
+              k: "Completadas",
+              v: `${t.requests ? Math.max(0, 100 - Math.round((t.error_rate ?? 0) * 100)) : 0}%`,
+              hint: "sin errores",
             },
             {
-              k: "BYOK",
+              k: "Proveedor propio",
               v: `${Math.round((t.byok_pct ?? 0) * 100)}%`,
-              hint: "fee 5% lista",
+              hint: "del consumo",
             },
             {
               k: "Latencia",
               v: t.avg_latency_ms != null ? `${t.avg_latency_ms}` : "—",
-              hint: "ms avg",
+              hint: "ms en promedio",
             },
           ].map((c) => (
             <div key={c.k} className="rounded-xl border border-zinc-200 bg-white px-3 py-3">
@@ -145,7 +145,7 @@ export default function AnalyticsPage() {
 
       <div className="mb-8 grid gap-3 sm:grid-cols-3">
         {[
-          { k: "Requests", v: String(t.requests) },
+          { k: "Solicitudes", v: String(t.requests) },
           { k: "Tokens", v: t.tokens.toLocaleString() },
           { k: "Costo", v: formatUsd(t.cost) },
         ].map((c) => (
@@ -173,7 +173,7 @@ export default function AnalyticsPage() {
                   metric === m ? "bg-violet-50 text-zinc-700" : "text-zinc-600 hover:text-zinc-400"
                 }`}
               >
-                {m}
+                {m === "requests" ? "Solicitudes" : m === "cost" ? "Costo" : "Tokens"}
               </button>
             ))}
           </div>
@@ -196,7 +196,7 @@ export default function AnalyticsPage() {
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por provider</h2>
+          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por proveedor</h2>
           <div className="grid gap-2">
             {(data.by_provider ?? [])
               .slice()
@@ -218,7 +218,7 @@ export default function AnalyticsPage() {
           </div>
         </section>
         <section>
-          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por app (X-Title)</h2>
+          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por aplicación</h2>
           <div className="grid gap-2">
             {(data.by_app ?? []).map((row) => (
               <div
@@ -265,7 +265,7 @@ export default function AnalyticsPage() {
 
       {data.by_key?.length ? (
         <>
-          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por API key</h2>
+          <h2 className="mb-3 text-sm font-medium text-zinc-600">Por clave API</h2>
           <div className="mb-8 grid gap-2">
             {data.by_key.map((row) => (
               <div
@@ -287,7 +287,7 @@ export default function AnalyticsPage() {
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="text-sm font-medium text-zinc-600">Reciente</h2>
             <Link href="/activity" className="text-xs text-violet-700 hover:underline">
-              Activity →
+              Ver actividad →
             </Link>
           </div>
           <div className="overflow-hidden rounded-xl border border-zinc-200">

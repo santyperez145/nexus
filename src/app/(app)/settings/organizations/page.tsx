@@ -3,6 +3,7 @@
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Input } from "@/components/ui/input";
 import { useRemoteData } from "@/lib/use-remote-data";
 
@@ -198,16 +199,16 @@ export default function OrgsPage() {
                   </div>
                 </div>
                 {o.role === "owner" ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={async () => {
+                  <ConfirmAction
+                    triggerLabel="Borrar"
+                    title={`Borrar ${o.name}`}
+                    description="Se eliminará la organización y sus accesos compartidos. Esta acción no se puede deshacer."
+                    confirmLabel="Borrar organización"
+                    onConfirm={async () => {
                       await fetch(`/api/v1/organization?id=${o.id}`, { method: "DELETE" });
                       reload();
                     }}
-                  >
-                    Borrar
-                  </Button>
+                  />
                 ) : null}
               </div>
 
@@ -228,13 +229,13 @@ export default function OrgsPage() {
                           <option value="member">member</option>
                           <option value="admin">admin</option>
                         </select>
-                        <button
-                          type="button"
-                          className="text-rose-600 hover:underline"
-                          onClick={() => void removeMember(o.id, m.id)}
-                        >
-                          remover
-                        </button>
+                        <ConfirmAction
+                          triggerLabel="Quitar"
+                          title={`Quitar a ${m.email || m.name}`}
+                          description="La persona perderá el acceso a esta organización y sus espacios compartidos."
+                          confirmLabel="Quitar miembro"
+                          onConfirm={() => removeMember(o.id, m.id)}
+                        />
                       </span>
                     ) : null}
                   </div>

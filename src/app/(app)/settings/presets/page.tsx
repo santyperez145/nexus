@@ -4,6 +4,7 @@ import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useRemoteData } from "@/lib/use-remote-data";
@@ -119,16 +120,16 @@ export default function PresetsPage() {
                   >
                     {copied === `curl-${p.id}` ? "Curl ok" : "Curl"}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={async () => {
+                  <ConfirmAction
+                    triggerLabel="Borrar"
+                    title={`Borrar @${p.slug}`}
+                    description="Las aplicaciones que usen esta configuración dejarán de encontrarla."
+                    confirmLabel="Borrar configuración"
+                    onConfirm={async () => {
                       await fetch(`/api/v1/presets?id=${p.id}`, { method: "DELETE" });
                       reload();
                     }}
-                  >
-                    Borrar
-                  </Button>
+                  />
                 </div>
               </div>
               {typeof cfg.system === "string" && cfg.system ? (

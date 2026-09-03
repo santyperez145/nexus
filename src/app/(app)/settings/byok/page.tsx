@@ -4,6 +4,7 @@ import { AppPageHeader } from "@/components/layout/app-page-header";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Input } from "@/components/ui/input";
 import { BYOK_FEE } from "@/lib/config";
 
@@ -142,16 +143,16 @@ export default function ByokPage() {
                 {r.created_at ? ` · ${new Date(r.created_at).toISOString().slice(0, 10)}` : ""}
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
+            <ConfirmAction
+              triggerLabel="Quitar"
+              title={`Quitar credencial de ${r.provider}`}
+              description="Nexus dejará de usar esta credencial. Las solicitudes que dependan de ella podrían dejar de funcionar."
+              confirmLabel="Quitar credencial"
+              onConfirm={async () => {
                 await fetch(`/api/v1/byok?id=${r.id}`, { method: "DELETE" });
                 reload();
               }}
-            >
-              Quitar
-            </Button>
+            />
           </div>
         ))}
         {!rows.length ? (

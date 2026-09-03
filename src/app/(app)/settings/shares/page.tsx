@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { useRemoteData } from "@/lib/use-remote-data";
 
 type ShareRow = {
@@ -18,23 +19,17 @@ type ShareRow = {
 
 export default function SharesSettingsPage() {
   const [rows, reload] = useRemoteData<ShareRow[]>("/api/v1/shares");
-  const [busy, setBusy] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   async function remove(id: string) {
-    setBusy(id);
     setLocalError(null);
-    try {
-      const res = await fetch(`/api/v1/shares?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setLocalError(json.error?.message ?? "No se pudo borrar");
-        return;
-      }
-      reload();
-    } finally {
-      setBusy(null);
+    const res = await fetch(`/api/v1/shares?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setLocalError(json.error?.message ?? "No se pudo borrar");
+      return;
     }
+    reload();
   }
 
   async function copyUrl(url: string) {
@@ -86,14 +81,13 @@ export default function SharesSettingsPage() {
               <Button size="sm" variant="ghost" onClick={() => void copyUrl(row.url)}>
                 Copiar URL
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy === row.id}
-                onClick={() => void remove(row.id)}
-              >
-                {busy === row.id ? "…" : "Revocar"}
-              </Button>
+              <ConfirmAction
+                triggerLabel="Revocar"
+                title="Revocar enlace compartido"
+                description="Quienes tengan este enlace dejarán de poder abrir la conversación."
+                confirmLabel="Revocar enlace"
+                onConfirm={() => remove(row.id)}
+              />
             </li>
           ))}
         </ul>

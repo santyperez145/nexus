@@ -94,7 +94,7 @@ export default function ActivityPage() {
   return (
     <div>
       <AppPageHeader
-        title="Activity"
+        title="Actividad"
         actions={
           <div className="flex gap-2">
             <Button
@@ -147,7 +147,7 @@ export default function ActivityPage() {
                 URL.revokeObjectURL(url);
               }}
             >
-              Export CSV
+              Exportar CSV
             </Button>
             <Button
               size="sm"
@@ -165,7 +165,7 @@ export default function ActivityPage() {
                 URL.revokeObjectURL(url);
               }}
             >
-              Export JSON
+              Exportar JSON
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link href="/chat">Nuevo chat</Link>
@@ -173,15 +173,15 @@ export default function ActivityPage() {
           </div>
         }
       >
-        Ledger de generaciones — filtros por key, workspace y app (como OpenRouter Activity).
+        Revisá cada solicitud, su costo, rendimiento y resultado. Filtrá por aplicación, clave o espacio de trabajo.
       </AppPageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-4">
         {[
-          { k: "Requests", v: String(list.length) },
+          { k: "Solicitudes", v: String(list.length) },
           { k: "Tokens", v: tokens.toLocaleString() },
           { k: "Costo", v: formatUsd(cost) },
-          { k: "Avg ms", v: avgMs != null ? String(avgMs) : "—" },
+          { k: "Promedio", v: avgMs != null ? `${avgMs} ms` : "—" },
         ].map((s) => (
           <div key={s.k} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
             <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">{s.k}</div>
@@ -205,13 +205,13 @@ export default function ActivityPage() {
         <Input
           value={provider}
           onChange={(e) => setProvider(e.target.value)}
-          placeholder="Provider…"
+          placeholder="Proveedor…"
           className="h-9"
         />
         <Input
           value={app}
           onChange={(e) => setApp(e.target.value)}
-          placeholder="App / referer…"
+          placeholder="Aplicación…"
           className="h-9"
         />
         <select
@@ -220,7 +220,7 @@ export default function ActivityPage() {
           className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-600"
           aria-label="API key"
         >
-          <option value="">Key: todas</option>
+          <option value="">Todas las claves</option>
           {(keys ?? []).map((k) => (
             <option key={k.id} value={k.id}>
               {k.name || k.prefix || k.id}
@@ -231,9 +231,9 @@ export default function ActivityPage() {
           value={workspace}
           onChange={(e) => setWorkspace(e.target.value)}
           className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-600"
-          aria-label="Workspace"
+          aria-label="Espacio de trabajo"
         >
-          <option value="">Workspace: todos</option>
+          <option value="">Todos los espacios</option>
           {(workspaces ?? []).map((w) => (
             <option key={w.id} value={w.id}>
               {w.name}
@@ -246,9 +246,9 @@ export default function ActivityPage() {
           className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm text-zinc-600"
           aria-label="BYOK"
         >
-          <option value="all">BYOK: todos</option>
-          <option value="1">Solo BYOK</option>
-          <option value="0">Sin BYOK</option>
+          <option value="all">Todos los proveedores</option>
+          <option value="1">Solo proveedores propios</option>
+          <option value="0">Solo proveedores de Nexus</option>
         </select>
         <select
           value={days}
@@ -271,16 +271,16 @@ export default function ActivityPage() {
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-white text-[11px] uppercase tracking-[0.08em] text-zinc-500 backdrop-blur">
               <tr>
-                <th className="px-3 py-2.5 font-medium">Cuando</th>
-                <th className="px-3 py-2.5 font-medium">Status</th>
+                <th className="px-3 py-2.5 font-medium">Cuándo</th>
+                <th className="px-3 py-2.5 font-medium">Estado</th>
                 <th className="px-3 py-2.5 font-medium">ID</th>
                 <th className="px-3 py-2.5 font-medium">Modelo</th>
-                <th className="px-3 py-2.5 font-medium">Provider</th>
-                <th className="px-3 py-2.5 font-medium">Finish</th>
+                <th className="px-3 py-2.5 font-medium">Proveedor</th>
+                <th className="px-3 py-2.5 font-medium">Resultado</th>
                 <th className="px-3 py-2.5 font-medium">App</th>
-                <th className="px-3 py-2.5 font-medium">Key</th>
-                <th className="px-3 py-2.5 font-medium text-right">Prompt</th>
-                <th className="px-3 py-2.5 font-medium text-right">Out</th>
+                <th className="px-3 py-2.5 font-medium">Clave</th>
+                <th className="px-3 py-2.5 font-medium text-right">Entrada</th>
+                <th className="px-3 py-2.5 font-medium text-right">Salida</th>
                 <th className="px-3 py-2.5 font-medium text-right">Costo</th>
                 <th className="px-3 py-2.5 font-medium text-right">ms</th>
               </tr>
@@ -293,7 +293,7 @@ export default function ActivityPage() {
                     <Link href="/chat" className="text-violet-700 hover:underline">
                       Abrí el chat
                     </Link>{" "}
-                    — no inventamos activity.
+                    para crear la primera solicitud.
                   </td>
                 </tr>
               ) : (

@@ -4,6 +4,7 @@ import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Input } from "@/components/ui/input";
 import { formatUsd } from "@/lib/money";
 import { useRemoteData } from "@/lib/use-remote-data";
@@ -220,9 +221,13 @@ function KeysInner() {
                   >
                     {k.disabled ? "Activar" : "Pausar"}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => void remove(k.id)}>
-                    Revocar
-                  </Button>
+                  <ConfirmAction
+                    triggerLabel="Revocar"
+                    title={`Revocar ${k.name}`}
+                    description="Esta clave dejará de funcionar de inmediato. Las aplicaciones que la usen perderán acceso."
+                    confirmLabel="Revocar clave"
+                    onConfirm={() => remove(k.id)}
+                  />
                 </div>
               </div>
 

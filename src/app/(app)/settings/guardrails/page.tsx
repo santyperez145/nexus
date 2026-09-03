@@ -3,6 +3,7 @@
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Input } from "@/components/ui/input";
 import { useRemoteData } from "@/lib/use-remote-data";
 
@@ -205,16 +206,16 @@ export default function GuardrailsPage() {
                 </div>
               ) : null}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
+            <ConfirmAction
+              triggerLabel="Quitar"
+              title={`Quitar ${g.name}`}
+              description="Esta regla dejará de proteger las solicitudes asociadas."
+              confirmLabel="Quitar regla"
+              onConfirm={async () => {
                 await fetch(`/api/v1/guardrails?id=${g.id}`, { method: "DELETE" });
                 reload();
               }}
-            >
-              Quitar
-            </Button>
+            />
           </div>
         ))}
       </div>

@@ -3,6 +3,7 @@
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Input } from "@/components/ui/input";
 import { formatUsd } from "@/lib/money";
 import { useRemoteData } from "@/lib/use-remote-data";
@@ -132,16 +133,16 @@ export default function WorkspacesPage() {
                     BYOK {w.includeByokInBudgets ? "en budget" : "fuera"}
                   </Button>
                   {!w.isDefault ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={async () => {
+                    <ConfirmAction
+                      triggerLabel="Borrar"
+                      title={`Borrar ${w.name}`}
+                      description="Este espacio de trabajo se eliminará y ya no podrá asignarse a nuevas claves."
+                      confirmLabel="Borrar espacio"
+                      onConfirm={async () => {
                         await fetch(`/api/v1/workspaces?id=${w.id}`, { method: "DELETE" });
                         reload();
                       }}
-                    >
-                      Borrar
-                    </Button>
+                    />
                   ) : null}
                 </div> : <span className="text-xs text-zinc-500">acceso member</span>}
               </div>

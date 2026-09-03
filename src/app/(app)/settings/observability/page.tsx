@@ -3,6 +3,7 @@
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Input } from "@/components/ui/input";
 import { useRemoteData } from "@/lib/use-remote-data";
 
@@ -114,17 +115,17 @@ export default function ObservabilityPage() {
               >
                 Probar
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
+              <ConfirmAction
+                triggerLabel="Quitar"
+                title={`Quitar ${d.name}`}
+                description="Nexus dejará de enviar eventos a este destino. El historial existente se conservará."
+                confirmLabel="Quitar destino"
+                onConfirm={async () => {
                   await fetch(`/api/v1/observability?id=${d.id}`, { method: "DELETE" });
                   reload();
                   reloadDeliveries();
                 }}
-              >
-                Quitar
-              </Button>
+              />
             </div>
           </div>
         ))}

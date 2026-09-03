@@ -4,6 +4,7 @@ import { AppPageHeader } from "@/components/layout/app-page-header";
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { useRemoteData } from "@/lib/use-remote-data";
 
 type FileRow = { id: string; filename: string; bytes: number; mime?: string };
@@ -163,17 +164,17 @@ export default function FilesPage() {
                   <Button asChild size="sm" variant="ghost">
                     <Link href="/chat">Chat</Link>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={async () => {
+                  <ConfirmAction
+                    triggerLabel="Borrar"
+                    title={`Borrar ${f.filename}`}
+                    description="El archivo dejará de estar disponible en el chat y no se podrá recuperar desde Nexus."
+                    confirmLabel="Borrar archivo"
+                    onConfirm={async () => {
                       await fetch(`/api/v1/files?id=${f.id}`, { method: "DELETE" });
                       if (preview?.id === f.id) setPreview(null);
                       reload();
                     }}
-                  >
-                    Borrar
-                  </Button>
+                  />
                 </div>
               </div>
             );
