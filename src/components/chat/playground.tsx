@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +19,8 @@ type Stats = {
 type FileRow = { id: string; filename: string; bytes: number };
 type PresetRow = { id: string; slug: string };
 type Lane = { model: string; query: string; messages: Msg[]; stats: Stats | null };
+type RouteHop = { model: string; adapter: string; wired: boolean; zdr: boolean };
+type RoutePreview = { requested: string; mode: string; hops: RouteHop[]; note: string };
 
 const STARTERS = [
   "Compará 9.9 y 9.11: cuál es más grande y por qué un modelo se confunde.",
@@ -58,12 +60,35 @@ export function Playground({
   const [fileIds, setFileIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const [route, setRoute] = useState<RoutePreview | null>(null);
   const [filesData, reloadFiles] = useRemoteData<FileRow[]>("/api/v1/files");
   const files = filesData ?? [];
   const presets = useRemoteData<PresetRow[]>("/api/v1/presets")[0] ?? [];
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const echoRisk = platformLabs === 0 && !hasByok;
   const sawLocal = lanes.some((l) => l.stats?.provider === "local");
+
+  async function previewRoute(model: string) {
+    try {
+      const res = await fetch("/api/v1/routing/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: applyOnline(model, online),
+          messages: [{ role: "user", content: input || "preview" }],
+        }),
+      });
+      const json = await res.json();
+      if (json.data) setRoute(json.data as RoutePreview);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  useEffect(() => {
+    void previewRoute(lanes[0]?.model ?? defaultModel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + online toggle
+  }, [online, defaultModel]);
 
   async function uploadInline(file: File) {
     const fd = new FormData();
@@ -175,6 +200,7 @@ export function Playground({
   async function send() {
     if (!input.trim() || busy) return;
     const prompt = input;
+    void previewRoute(lanes[0]?.model ?? defaultModel);
     setInput("");
     setBusy(true);
     const ac = new AbortController();
@@ -222,6 +248,38 @@ export function Playground({
           </Link>
         </p>
       ) : null}
+      {route ? (
+        <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-zinc-400">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <span className="font-medium text-zinc-200">
+              Route trace · <span className="font-mono text-amber-400/90">{route.requested}</span>
+            </span>
+            <span className="rounded border border-white/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-zinc-300">
+              {route.mode}
+            </span>
+          </div>
+          <p className="mb-2 text-zinc-500">{route.note}</p>
+          <ol className="flex flex-wrap gap-1.5">
+            {route.hops.slice(0, 12).map((hop, i) => (
+              <li
+                key={`${hop.model}-${hop.adapter}-${i}`}
+                className={`rounded border px-1.5 py-0.5 font-mono ${
+                  hop.wired
+                    ? "border-emerald-500/40 text-emerald-300/90"
+                    : "border-white/10 text-zinc-500"
+                }`}
+                title={hop.zdr ? "ZDR" : "standard"}
+              >
+                {hop.adapter}
+                {hop.wired ? " ●" : ""}
+              </li>
+            ))}
+            {route.hops.length > 12 ? (
+              <li className="px-1 text-zinc-600">+{route.hops.length - 12}</li>
+            ) : null}
+          </ol>
+        </div>
+      ) : null}
       <div className={`grid gap-4 ${comparing ? "md:grid-cols-2" : ""}`}>
         {lanes.map((lane, index) => (
           <LanePicker
@@ -230,9 +288,10 @@ export function Playground({
             presets={index === 0 ? presets : []}
             filtered={filtered(lane.query)}
             canRemove={comparing}
-            onChange={(patch) =>
-              setLanes((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
-            }
+            onChange={(patch) => {
+              setLanes((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+              if (patch.model && index === 0) void previewRoute(patch.model);
+            }}
             onRemove={() => setLanes((prev) => prev.filter((_, i) => i !== index))}
           />
         ))}

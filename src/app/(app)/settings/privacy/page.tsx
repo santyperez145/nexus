@@ -17,7 +17,7 @@ export default async function PrivacyPage() {
       <PrivacyForm
         zdr={user?.zdr ?? false}
         logPrompts={user?.logPrompts ?? false}
-        allowTraining={user?.allowTraining ?? false}
+        allowTraining={user?.allowTraining ?? true}
       />
     </div>
   );

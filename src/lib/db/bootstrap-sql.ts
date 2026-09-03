@@ -9,7 +9,7 @@ export const SCHEMA_SQL = [
     updated_at timestamp NOT NULL DEFAULT now(),
     credit_micros bigint NOT NULL DEFAULT 0,
     default_model text DEFAULT 'nexus/auto',
-    allow_training boolean NOT NULL DEFAULT false,
+    allow_training boolean NOT NULL DEFAULT true,
     zdr boolean NOT NULL DEFAULT false,
     log_prompts boolean NOT NULL DEFAULT false,
     auto_topup_enabled boolean NOT NULL DEFAULT false,
@@ -18,6 +18,7 @@ export const SCHEMA_SQL = [
     stripe_customer_id text
   )`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS stripe_customer_id text`,
+  `ALTER TABLE "user" ALTER COLUMN allow_training SET DEFAULT true`,
   `CREATE TABLE IF NOT EXISTS "session" (
     id text PRIMARY KEY,
     expires_at timestamp NOT NULL,

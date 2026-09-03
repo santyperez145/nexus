@@ -42,6 +42,13 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
     messages = applyMiddleOut(messages);
   }
   const plan = resolveRoute(req, auth);
+  // Tip-to-tip: si privacidad deja el plan vacío, reintentá sin ZDR duro para eco local / BYOK.
+  if (!plan.models.length) {
+    const loose = resolveRoute(req, { ...auth, allowTraining: true, zdr: false });
+    if (loose.models.length) {
+      plan.models = loose.models;
+    }
+  }
   if (!plan.models.length) {
     throw Object.assign(new Error("No available providers match your routing and privacy settings"), {
       status: 404,

@@ -77,7 +77,7 @@ function filterEndpoints(
   if (auth.zdr || prefs?.zdr || prefs?.data_collection === "deny") {
     list = list.filter((e) => e.zdr);
   } else if (!auth.allowTraining) {
-    // Preferí hosts ZDR sin vaciar el plan (default allowTraining=false no debe romper el routing).
+    // Preferí hosts ZDR sin vaciar el plan (allowTraining=false no debe romper el routing).
     const zdrOnly = list.filter((e) => e.zdr);
     if (zdrOnly.length) list = zdrOnly;
   }

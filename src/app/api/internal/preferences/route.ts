@@ -11,7 +11,7 @@ export async function GET() {
       defaultModel: user?.defaultModel ?? "nexus/auto",
       zdr: user?.zdr ?? false,
       logPrompts: user?.logPrompts ?? false,
-      allowTraining: user?.allowTraining ?? false,
+      allowTraining: user?.allowTraining ?? true,
       autoTopupEnabled: user?.autoTopupEnabled ?? false,
       autoTopupThresholdUsd: user?.autoTopupThresholdUsd,
       autoTopupAmountUsd: user?.autoTopupAmountUsd,

@@ -120,6 +120,22 @@ paths:
       summary: Inference hosts
       responses:
         "200": { description: Provider list }
+  /routing/preview:
+    post:
+      summary: Preview route hops before chat
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, messages]
+              properties:
+                model: { type: string }
+                messages: { type: array }
+      responses:
+        "200": { description: Route hops and live/local_echo mode }
   /credits:
     get:
       summary: Remaining credits

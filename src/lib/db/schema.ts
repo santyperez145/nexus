@@ -21,7 +21,7 @@ export const users = pgTable("user", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   creditMicros: bigint("credit_micros", { mode: "number" }).notNull().default(0),
   defaultModel: text("default_model").default("nexus/auto"),
-  allowTraining: boolean("allow_training").notNull().default(false),
+  allowTraining: boolean("allow_training").notNull().default(true),
   zdr: boolean("zdr").notNull().default(false),
   logPrompts: boolean("log_prompts").notNull().default(false),
   autoTopupEnabled: boolean("auto_topup_enabled").notNull().default(false),
