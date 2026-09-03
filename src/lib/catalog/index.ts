@@ -80,14 +80,53 @@ export function allModels(): CatalogModel[] {
   return [...routers, ...byId.values()];
 }
 
-export function findModel(slug: string): CatalogModel | undefined {
-  const base = slug.split(":")[0];
-  return allModels().find((m) => m.id === slug || m.id === base || m.canonicalSlug === base);
+export function parseVariant(slug: string) {
+  const trimmed = slug.startsWith("~") ? slug.slice(1) : slug;
+  const [id, ...rest] = trimmed.split(":");
+  return { id, variants: rest };
 }
 
-export function parseVariant(slug: string) {
-  const [id, ...rest] = slug.split(":");
-  return { id, variants: rest };
+/** `~openai/latest` / `openai/gpt-latest` → newest slug of that author in the catalog. */
+export function resolveModelSlug(slug: string): string {
+  const { id, variants } = parseVariant(slug);
+  const [author, name] = id.split("/");
+  if (author && (name === "latest" || name === "gpt-latest")) {
+    const newest = allModels()
+      .filter((m) => !m.id.startsWith("nexus/") && (m.author === author || m.id.startsWith(`${author}/`)))
+      .sort((a, b) => b.created - a.created)[0];
+    if (newest) return variants.length ? `${newest.id}:${variants.join(":")}` : newest.id;
+  }
+  return slug.startsWith("~") ? slug.slice(1) : slug;
+}
+
+export function findModel(slug: string): CatalogModel | undefined {
+  const resolved = resolveModelSlug(slug);
+  const base = resolved.split(":")[0];
+  return allModels().find((m) => m.id === resolved || m.id === base || m.canonicalSlug === base);
+}
+
+export function featuredModels(limit = 6): CatalogModel[] {
+  const prefer = [
+    "nexus/auto",
+    "openai/gpt-4o",
+    "anthropic/claude-sonnet-4.6",
+    "meta-llama/llama-3.3-70b-instruct",
+    "google/gemini-2.5-flash",
+    "openai/gpt-5",
+  ];
+  const all = allModels();
+  const picked: CatalogModel[] = [];
+  for (const id of prefer) {
+    const m = all.find((row) => row.id === id);
+    if (m) picked.push(m);
+    if (picked.length >= limit) return picked;
+  }
+  for (const m of all) {
+    if (picked.some((p) => p.id === m.id)) continue;
+    picked.push(m);
+    if (picked.length >= limit) break;
+  }
+  return picked;
 }
 
 export function usdPerMillion(perToken: number) {

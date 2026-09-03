@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,204 +18,228 @@ type Stats = {
 };
 type FileRow = { id: string; filename: string; bytes: number };
 type PresetRow = { id: string; slug: string };
+type Lane = { model: string; query: string; messages: Msg[]; stats: Stats | null };
+
+const STARTERS = [
+  "Compará 9.9 y 9.11: cuál es más grande y por qué un modelo se confunde.",
+  "Review de PR: explicá este enfoque como si fuera un comentario en GitHub.",
+  "Armá un agente que llame a Nexus con fallbacks :cheap y :fast.",
+];
+
+function applyOnline(model: string, online: boolean) {
+  if (!online || model.startsWith("@") || model.includes(":online")) return model;
+  return `${model}:online`;
+}
 
 export function Playground({
   models,
   defaultModel = "nexus/auto",
+  compareModel,
 }: {
   models: { id: string; name: string }[];
   defaultModel?: string;
+  compareModel?: string;
 }) {
-  const [model, setModel] = useState(defaultModel);
-  const [query, setQuery] = useState("");
+  const [lanes, setLanes] = useState<Lane[]>(() => {
+    const first: Lane = { model: defaultModel, query: "", messages: [], stats: null };
+    if (compareModel && compareModel !== defaultModel) {
+      return [first, { model: compareModel, query: "", messages: [], stats: null }];
+    }
+    return [first];
+  });
   const [input, setInput] = useState("");
   const [system, setSystem] = useState("");
   const [temperature, setTemperature] = useState(0.7);
   const [online, setOnline] = useState(false);
   const [fileIds, setFileIds] = useState<string[]>([]);
-  const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
-  const [stats, setStats] = useState<Stats | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const files = useRemoteData<FileRow[]>("/api/v1/files")[0] ?? [];
   const presets = useRemoteData<PresetRow[]>("/api/v1/presets")[0] ?? [];
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = q
-      ? models.filter((m) => `${m.id} ${m.name}`.toLowerCase().includes(q))
-      : models;
-    return list.slice(0, 40);
-  }, [models, query]);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const slug = online && !model.startsWith("@") && !model.includes(":online") ? `${model}:online` : model;
+
+  function filtered(query: string) {
+    const q = query.trim().toLowerCase();
+    const list = q ? models.filter((m) => `${m.id} ${m.name}`.toLowerCase().includes(q)) : models;
+    return list.slice(0, 24);
+  }
 
   function stop() {
     abortRef.current?.abort();
     setBusy(false);
   }
 
-  async function send() {
-    if (!input.trim() || busy) return;
-    const next: Msg[] = [
-      ...(system ? [{ role: "system" as const, content: system }] : []),
-      ...messages.filter((m) => m.role !== "system"),
-      { role: "user", content: input },
-    ];
-    setMessages(next.filter((m) => m.role !== "system"));
-    setInput("");
-    setBusy(true);
-    setStats(null);
-    const ac = new AbortController();
-    abortRef.current = ac;
-    try {
-      const res = await fetch("/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "HTTP-Referer": origin,
-          "X-Title": "Nexus Playground",
-        },
-        signal: ac.signal,
-        body: JSON.stringify({
-          model: slug,
-          messages: next,
-          stream: true,
-          temperature,
-          stream_options: { include_usage: true },
-          ...(online ? { tools: [{ type: "nexus:web_search" }] } : {}),
-          ...(fileIds.length ? { file_ids: fileIds } : {}),
-        }),
-      });
-      const visible = next.filter((m) => m.role !== "system");
-      if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
-        setMessages([...visible, { role: "assistant", content: err.error?.message ?? "Error de gateway" }]);
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let assistant = "";
-      let meta: Stats = {
-        id: res.headers.get("x-request-id") ?? "",
-        provider: "",
-        model: slug,
-      };
-      setMessages([...visible, { role: "assistant", content: "" }]);
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() ?? "";
-        for (const part of parts) {
-          const line = part.replace(/^data: /, "");
-          if (line === "[DONE]") continue;
-          try {
-            const json = JSON.parse(line) as {
-              id?: string;
-              provider?: string;
-              model?: string;
-              usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
-              choices?: Array<{ delta?: { content?: string } }>;
+  async function streamOne(laneIndex: number, model: string, thread: Msg[], signal: AbortSignal) {
+    const res = await fetch("/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "HTTP-Referer": origin,
+        "X-Title": "Nexus Playground",
+      },
+      signal,
+      body: JSON.stringify({
+        model: applyOnline(model, online),
+        messages: thread,
+        stream: true,
+        temperature,
+        stream_options: { include_usage: true },
+        ...(online ? { tools: [{ type: "nexus:web_search" }] } : {}),
+        ...(fileIds.length ? { file_ids: fileIds } : {}),
+      }),
+    });
+    const visible = thread.filter((m) => m.role !== "system");
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
+      setLanes((prev) =>
+        prev.map((lane, i) =>
+          i === laneIndex
+            ? {
+                ...lane,
+                messages: [...visible, { role: "assistant", content: err.error?.message ?? "Error de gateway" }],
+              }
+            : lane,
+        ),
+      );
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let assistant = "";
+    let meta: Stats = { id: res.headers.get("x-request-id") ?? "", provider: "", model };
+    setLanes((prev) =>
+      prev.map((lane, i) =>
+        i === laneIndex ? { ...lane, messages: [...visible, { role: "assistant", content: "" }] } : lane,
+      ),
+    );
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+      for (const part of parts) {
+        const line = part.replace(/^data: /, "");
+        if (line === "[DONE]") continue;
+        try {
+          const json = JSON.parse(line) as {
+            id?: string;
+            provider?: string;
+            model?: string;
+            usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
+            choices?: Array<{ delta?: { content?: string } }>;
+          };
+          if (json.id) meta = { ...meta, id: json.id };
+          if (json.provider) meta = { ...meta, provider: json.provider };
+          if (json.model) meta = { ...meta, model: json.model };
+          if (json.usage) {
+            meta = {
+              ...meta,
+              promptTokens: json.usage.prompt_tokens,
+              completionTokens: json.usage.completion_tokens,
+              cost: json.usage.cost,
             };
-            if (json.id) meta = { ...meta, id: json.id };
-            if (json.provider) meta = { ...meta, provider: json.provider };
-            if (json.model) meta = { ...meta, model: json.model };
-            if (json.usage) {
-              meta = {
-                ...meta,
-                promptTokens: json.usage.prompt_tokens,
-                completionTokens: json.usage.completion_tokens,
-                cost: json.usage.cost,
-              };
-            }
-            assistant += json.choices?.[0]?.delta?.content ?? "";
-            setMessages([...visible, { role: "assistant", content: assistant }]);
-          } catch {
-            /* ignore */
           }
+          assistant += json.choices?.[0]?.delta?.content ?? "";
+          const text = assistant;
+          setLanes((prev) =>
+            prev.map((lane, i) =>
+              i === laneIndex ? { ...lane, messages: [...visible, { role: "assistant", content: text }] } : lane,
+            ),
+          );
+        } catch {
+          /* ignore */
         }
       }
-      setStats(meta);
+    }
+    setLanes((prev) => prev.map((lane, i) => (i === laneIndex ? { ...lane, stats: meta } : lane)));
+  }
+
+  async function send() {
+    if (!input.trim() || busy) return;
+    const prompt = input;
+    setInput("");
+    setBusy(true);
+    const ac = new AbortController();
+    abortRef.current = ac;
+    const snapshot = lanes.map((lane) => {
+      const thread: Msg[] = [
+        ...(system ? [{ role: "system" as const, content: system }] : []),
+        ...lane.messages.filter((m) => m.role !== "system"),
+        { role: "user", content: prompt },
+      ];
+      return { model: lane.model, thread, visible: thread.filter((m) => m.role !== "system") };
+    });
+    setLanes((prev) => prev.map((lane, i) => ({ ...lane, messages: snapshot[i].visible, stats: null })));
+    try {
+      await Promise.all(snapshot.map((s, i) => streamOne(i, s.model, s.thread, ac.signal)));
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
-        setMessages((m) => [...m, { role: "assistant", content: "Error de red" }]);
+        setLanes((prev) =>
+          prev.map((lane) => ({
+            ...lane,
+            messages: [...lane.messages, { role: "assistant", content: "Error de red" }],
+          })),
+        );
       }
     } finally {
       setBusy(false);
     }
   }
 
+  const comparing = lanes.length > 1;
+
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3">
-        <input
-          value={query || model}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setModel(e.target.value);
-          }}
-          placeholder="Buscar modelo (425 slugs)…"
-          className="h-9 rounded-md border border-white/10 bg-transparent px-3 font-mono text-sm"
-          aria-label="Modelo"
-        />
-        <div className="flex max-h-36 flex-wrap gap-1 overflow-y-auto">
-          {filtered.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => {
-                setModel(m.id);
-                setQuery("");
-              }}
-              className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
-                model === m.id ? "border-amber-400/60 text-amber-300" : "border-white/10 text-zinc-500"
-              }`}
-            >
-              {m.id}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />
-            :online
-          </label>
-          <label className="flex items-center gap-2">
-            temp
-            <input
-              type="range"
-              min={0}
-              max={2}
-              step={0.1}
-              value={temperature}
-              onChange={(e) => setTemperature(Number(e.target.value))}
-              aria-label="Temperature"
-            />
-            <span className="w-8 font-mono text-xs">{temperature.toFixed(1)}</span>
-          </label>
-        </div>
+      <div className={`grid gap-4 ${comparing ? "md:grid-cols-2" : ""}`}>
+        {lanes.map((lane, index) => (
+          <LanePicker
+            key={index}
+            lane={lane}
+            presets={index === 0 ? presets : []}
+            filtered={filtered(lane.query)}
+            canRemove={comparing}
+            onChange={(patch) =>
+              setLanes((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+            }
+            onRemove={() => setLanes((prev) => prev.filter((_, i) => i !== index))}
+          />
+        ))}
       </div>
-      {presets.length ? (
-        <div className="flex flex-wrap gap-1">
-          {presets.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => {
-                setModel(`@${p.slug}`);
-                setQuery("");
-              }}
-              className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
-                model === `@${p.slug}` ? "border-amber-400/60 text-amber-300" : "border-white/10 text-zinc-500"
-              }`}
-            >
-              @{p.slug}
-            </button>
-          ))}
-        </div>
+      {!comparing ? (
+        <button
+          type="button"
+          className="text-left text-sm text-amber-400 hover:underline"
+          onClick={() =>
+            setLanes((prev) => [
+              ...prev,
+              { model: "nexus/free", query: "", messages: prev[0]?.messages ?? [], stats: null },
+            ])
+          }
+        >
+          Comparar con otro modelo
+        </button>
       ) : null}
+      <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />
+          :online
+        </label>
+        <label className="flex items-center gap-2">
+          temp
+          <input
+            type="range"
+            min={0}
+            max={2}
+            step={0.1}
+            value={temperature}
+            onChange={(e) => setTemperature(Number(e.target.value))}
+            aria-label="Temperature"
+          />
+          <span className="w-8 font-mono text-xs">{temperature.toFixed(1)}</span>
+        </label>
+      </div>
       {files.length ? (
         <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
           {files.map((f) => {
@@ -241,32 +265,52 @@ export function Playground({
         placeholder="System prompt (opcional)"
         className="min-h-16"
       />
-      <div className="min-h-[360px] space-y-3 rounded-xl border border-white/10 bg-black/30 p-4">
-        {messages.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            Chat con tu sesión. Key <code>sk-nx-</code> para apps. Activá <code>:online</code> o adjuntá
-            files de Settings.
-          </p>
-        ) : (
-          messages.map((m, i) => (
-            <div key={i} className={m.role === "user" ? "text-amber-100" : "text-zinc-200"}>
-              <div className="mb-1 text-xs uppercase tracking-wide text-zinc-500">{m.role}</div>
-              <div className="whitespace-pre-wrap text-sm">{m.content}</div>
-            </div>
-          ))
-        )}
+      <div className={`grid gap-4 ${comparing ? "md:grid-cols-2" : ""}`}>
+        {lanes.map((lane, index) => (
+          <div key={index} className="min-h-[320px] space-y-3 border-t border-white/10 pt-4">
+            <div className="font-mono text-[11px] text-amber-400/80">{applyOnline(lane.model, online)}</div>
+            {lane.messages.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                Un prompt, {comparing ? "dos modelos" : "un modelo"}. La key <code>sk-nx-</code> es para apps.
+              </p>
+            ) : (
+              lane.messages.map((m, i) => (
+                <div key={i} className={m.role === "user" ? "text-amber-100" : "text-zinc-200"}>
+                  <div className="mb-1 text-xs uppercase tracking-wide text-zinc-500">{m.role}</div>
+                  <div className="whitespace-pre-wrap text-sm">{m.content}</div>
+                </div>
+              ))
+            )}
+            {lane.stats ? (
+              <p className="font-mono text-xs text-zinc-500">
+                {lane.stats.id ? (
+                  <Link href={`/activity/${lane.stats.id}`} className="text-amber-400 hover:underline">
+                    {lane.stats.id}
+                  </Link>
+                ) : null}
+                {lane.stats.provider ? ` · ${lane.stats.provider}` : ""}
+                {lane.stats.promptTokens != null
+                  ? ` · ${lane.stats.promptTokens}+${lane.stats.completionTokens ?? 0} tok`
+                  : ""}
+                {lane.stats.cost != null ? ` · ${formatUsd(lane.stats.cost)}` : ""}
+              </p>
+            ) : null}
+          </div>
+        ))}
       </div>
-      {stats ? (
-        <p className="font-mono text-xs text-zinc-500">
-          {stats.id ? (
-            <Link href={`/activity/${stats.id}`} className="text-amber-400 hover:underline">
-              {stats.id}
-            </Link>
-          ) : null}
-          {stats.provider ? ` · ${stats.provider}` : ""}
-          {stats.promptTokens != null ? ` · ${stats.promptTokens}+${stats.completionTokens ?? 0} tok` : ""}
-          {stats.cost != null ? ` · ${formatUsd(stats.cost)}` : ""}
-        </p>
+      {lanes.every((l) => l.messages.length === 0) ? (
+        <div className="flex flex-wrap gap-2">
+          {STARTERS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setInput(s)}
+              className="text-left text-sm text-zinc-500 hover:text-amber-300"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       ) : null}
       <div className="grid gap-2">
         <Textarea
@@ -282,7 +326,7 @@ export function Playground({
         />
         <div className="flex gap-2">
           <Button onClick={() => void send()} disabled={busy}>
-            {busy ? "Generando…" : "Enviar"}
+            {busy ? "Generando…" : comparing ? "Enviar a ambos" : "Enviar"}
           </Button>
           {busy ? (
             <Button variant="outline" onClick={stop}>
@@ -291,6 +335,71 @@ export function Playground({
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function LanePicker({
+  lane,
+  presets,
+  filtered,
+  canRemove,
+  onChange,
+  onRemove,
+}: {
+  lane: Lane;
+  presets: PresetRow[];
+  filtered: { id: string; name: string }[];
+  canRemove: boolean;
+  onChange: (patch: Partial<Lane>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <div className="flex gap-2">
+        <input
+          value={lane.query || lane.model}
+          onChange={(e) => onChange({ query: e.target.value, model: e.target.value })}
+          placeholder="Buscar modelo…"
+          className="h-9 flex-1 rounded-md border border-white/10 bg-transparent px-3 font-mono text-sm"
+          aria-label="Modelo"
+        />
+        {canRemove ? (
+          <Button variant="ghost" size="sm" onClick={onRemove}>
+            Quitar
+          </Button>
+        ) : null}
+      </div>
+      <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
+        {filtered.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => onChange({ model: m.id, query: "" })}
+            className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
+              lane.model === m.id ? "border-amber-400/60 text-amber-300" : "border-white/10 text-zinc-500"
+            }`}
+          >
+            {m.id}
+          </button>
+        ))}
+      </div>
+      {presets.length ? (
+        <div className="flex flex-wrap gap-1">
+          {presets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onChange({ model: `@${p.slug}`, query: "" })}
+              className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
+                lane.model === `@${p.slug}` ? "border-amber-400/60 text-amber-300" : "border-white/10 text-zinc-500"
+              }`}
+            >
+              @{p.slug}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -4,8 +4,13 @@ import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
-export default async function ChatPage() {
+export default async function ChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ model?: string; compare?: string }>;
+}) {
   const session = await getSession();
+  const q = await searchParams;
   const [user] = session?.user
     ? await db.select().from(schema.users).where(eq(schema.users.id, session.user.id)).limit(1)
     : [];
@@ -14,9 +19,14 @@ export default async function ChatPage() {
     <div>
       <h1 className="mb-2 text-2xl font-semibold">Chat</h1>
       <p className="mb-6 text-sm text-zinc-500">
-        Playground de Nexus. Las conversaciones quedan en este dispositivo.
+        Playground. Mandá el mismo prompt a uno o dos modelos. Las conversaciones quedan en este
+        dispositivo.
       </p>
-      <Playground models={models} defaultModel={user?.defaultModel ?? "nexus/auto"} />
+      <Playground
+        models={models}
+        defaultModel={q.model ?? user?.defaultModel ?? "nexus/auto"}
+        compareModel={q.compare}
+      />
     </div>
   );
 }

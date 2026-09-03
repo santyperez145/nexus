@@ -1,4 +1,12 @@
-import { allModels, findModel, parseVariant, usdPerMillion, type CatalogModel, type ModelEndpoint } from "@/lib/catalog";
+import {
+  allModels,
+  findModel,
+  parseVariant,
+  resolveModelSlug,
+  usdPerMillion,
+  type CatalogModel,
+  type ModelEndpoint,
+} from "@/lib/catalog";
 import type { AuthContext, ChatRequest, ProviderPreferences } from "./types";
 
 export type RoutePlan = {
@@ -97,8 +105,8 @@ function pickAuto(prompt: string): CatalogModel[] {
 }
 
 export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
-  const requested = req.model ?? "nexus/auto";
-  const fallbacks = req.models ?? [];
+  const requested = resolveModelSlug(req.model ?? "nexus/auto");
+  const fallbacks = (req.models ?? []).map(resolveModelSlug);
   const slugs = [requested, ...fallbacks];
   const models: RoutePlan["models"] = [];
   const needed = requestParams(req);

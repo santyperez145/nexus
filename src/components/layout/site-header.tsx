@@ -15,6 +15,12 @@ export async function SiteHeader() {
           <Link href="/models" className="hover:text-white">
             Modelos
           </Link>
+          <Link href="/chat" className="hover:text-white">
+            Chat
+          </Link>
+          <Link href="/providers" className="hover:text-white">
+            Providers
+          </Link>
           <Link href="/rankings" className="hover:text-white">
             Rankings
           </Link>

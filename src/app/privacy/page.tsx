@@ -1,4 +1,5 @@
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 
 export default function PrivacyPublicPage() {
   return (
@@ -17,6 +18,7 @@ export default function PrivacyPublicPage() {
           retención cero.
         </p>
       </article>
+      <SiteFooter />
     </div>
   );
 }

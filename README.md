@@ -69,3 +69,4 @@ const client = new OpenAI({
 ```
 
 Routers: `nexus/auto`, `nexus/free`. Variantes: `:fast`, `:cheap`, `:quality`, `:free`.
+Alias: `~openai/latest`. Chat compara dos modelos con `?compare=`.

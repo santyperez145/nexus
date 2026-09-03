@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { allModels, usdPerMillion } from "@/lib/catalog";
 import { db, ensureDb, schema } from "@/lib/db";
 import { sql } from "drizzle-orm";
@@ -36,16 +38,17 @@ export default async function RankingsPage() {
           Tokens reales de esta plataforma; el precio desempata. {ranked.length} modelos en
           catálogo.
         </p>
-        <ol className="grid gap-2">
+        <ol className="grid gap-4">
           {ranked.slice(0, 80).map((m, i) => {
             const u = byUsage.get(m.id);
             return (
-              <li
-                key={m.id}
-                className="flex items-center justify-between rounded-lg border border-white/10 px-4 py-3"
-              >
+              <li key={m.id} className="flex items-baseline justify-between gap-4 border-t border-white/10 pt-3">
                 <span className="w-8 text-zinc-500">{i + 1}</span>
-                <span className="flex-1 px-4 font-mono text-sm">{m.id}</span>
+                <span className="flex-1 font-mono text-sm">
+                  <Link href={`/models/${m.id}`} className="hover:text-amber-400">
+                    {m.id}
+                  </Link>
+                </span>
                 <span className="text-sm text-zinc-400">
                   {Number(u?.tokens ?? 0).toLocaleString()} tok · {Number(u?.requests ?? 0)} req
                 </span>
@@ -54,6 +57,7 @@ export default async function RankingsPage() {
           })}
         </ol>
       </div>
+      <SiteFooter />
     </div>
   );
 }

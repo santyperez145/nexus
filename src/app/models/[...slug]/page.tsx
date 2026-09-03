@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { Button } from "@/components/ui/button";
 import { findModel, usdPerMillion } from "@/lib/catalog";
 import { formatUsd } from "@/lib/money";
 
@@ -19,6 +21,16 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
         <h1 className="mt-4 text-3xl font-semibold text-white">{model.name}</h1>
         <p className="mt-1 font-mono text-amber-400/80">{model.id}</p>
         <p className="mt-4 text-zinc-400">{model.description}</p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href={`/chat?model=${encodeURIComponent(model.id)}`}>Probar en chat</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/chat?model=${encodeURIComponent(model.id)}&compare=nexus/auto`}>
+              Comparar con auto
+            </Link>
+          </Button>
+        </div>
         <dl className="mt-8 grid gap-3 text-sm">
           <div className="flex justify-between border-b border-white/10 py-2">
             <dt className="text-zinc-500">Contexto</dt>
@@ -36,26 +48,36 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
             <dt className="text-zinc-500">Modalidad</dt>
             <dd>{model.architecture.modality}</dd>
           </div>
+          <div className="flex justify-between border-b border-white/10 py-2">
+            <dt className="text-zinc-500">Parámetros</dt>
+            <dd className="max-w-[60%] text-right font-mono text-xs text-zinc-400">
+              {model.supportedParameters.join(" · ")}
+            </dd>
+          </div>
         </dl>
         <h2 className="mt-10 text-lg font-medium">Labs</h2>
         <div className="mt-3 grid gap-2">
           {model.endpoints.length ? (
             model.endpoints.map((e) => (
-              <div key={`${e.adapter}-${e.providerModel}`} className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm">
+              <div key={`${e.adapter}-${e.providerModel}`} className="flex justify-between border-t border-white/10 py-2 text-sm">
                 <span className="font-mono text-amber-400/80">{e.adapter}</span>
-                <span className="text-zinc-500">{e.providerModel}</span>
+                <span className="text-zinc-500">
+                  {e.providerModel}
+                  {e.zdr ? " · ZDR" : ""}
+                </span>
               </div>
             ))
           ) : (
             <p className="text-sm text-zinc-500">Router Nexus — no llama a un lab directo.</p>
           )}
         </div>
-        <pre className="mt-10 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-xs text-zinc-400">
+        <pre className="mt-10 overflow-x-auto border border-white/10 bg-black/40 p-4 text-xs text-zinc-400">
 {`curl $NEXUS_URL/api/v1/chat/completions \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
   -d '{"model":"${model.id}","messages":[{"role":"user","content":"Hola"}]}'`}
         </pre>
       </div>
+      <SiteFooter />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 
 const ENDPOINTS = [
   ["POST", "/api/v1/chat/completions", "Chat Completions (OpenAI)"],
@@ -43,7 +44,8 @@ export default function DocsPage() {
           SDK propio <code>nexus-sdk</code> (425 modelos) o el SDK de OpenAI apuntando a{" "}
           <code>/api/v1</code>. Variantes <code>:fast</code> <code>:cheap</code>{" "}
           <code>:quality</code> <code>:free</code> <code>:online</code>. Routers{" "}
-          <code>nexus/auto</code> y <code>nexus/free</code>.
+          <code>nexus/auto</code> y <code>nexus/free</code>. Alias{" "}
+          <code>~openai/latest</code> / <code>anthropic/latest</code>.
         </p>
         <pre className="mb-8 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm">
 {`import { Nexus } from "nexus-sdk";
@@ -67,7 +69,7 @@ const res = await nexus.chat.send({
   -H "X-Title: Tu App" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "meta-llama/llama-3.3-70b-instruct:online",
+    "model": "~openai/latest",
     "models": ["openai/gpt-5-mini"],
     "transforms": ["middle-out"],
     "stream": true,
@@ -127,6 +129,7 @@ const res = await nexus.chat.send({
           Spec: <a className="text-amber-400 hover:underline" href="/openapi.yaml">/openapi.yaml</a>
         </p>
       </div>
+      <SiteFooter />
     </div>
   );
 }

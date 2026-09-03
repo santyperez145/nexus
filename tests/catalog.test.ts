@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { allModels, parseVariant } from "../src/lib/catalog";
+import { allModels, parseVariant, resolveModelSlug } from "../src/lib/catalog";
 
 describe("catalog", () => {
   it("ships 425 market models plus Nexus routers", () => {
@@ -22,5 +22,16 @@ describe("catalog", () => {
 
   it("still parses :online variants", () => {
     assert.deepEqual(parseVariant("openai/gpt-5:online"), { id: "openai/gpt-5", variants: ["online"] });
+  });
+
+  it("strips ~ alias prefix", () => {
+    assert.deepEqual(parseVariant("~openai/gpt-4o:cheap"), { id: "openai/gpt-4o", variants: ["cheap"] });
+  });
+
+  it("resolves ~author/latest to a real slug", () => {
+    const resolved = resolveModelSlug("~openai/latest");
+    assert.ok(resolved.startsWith("openai/"));
+    assert.notEqual(resolved, "openai/latest");
+    assert.ok(allModels().some((m) => m.id === resolved.split(":")[0]));
   });
 });
