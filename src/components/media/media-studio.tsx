@@ -17,13 +17,15 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "embeddings", label: "Embeddings" },
 ];
 
-const IMAGE_MODELS = ["dall-e-3", "dall-e-2", "gpt-image-1"];
+const IMAGE_MODELS = ["openai/gpt-image-1", "openai/dall-e-3", "dall-e-3", "dall-e-2", "gpt-image-1"];
 const TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
 const EMBED_MODELS = [
   "openai/text-embedding-3-small",
   "openai/text-embedding-3-large",
   "openai/text-embedding-ada-002",
 ];
+const TTS_MODELS = ["openai/tts-1", "tts-1", "tts-1-hd"];
+const STT_MODELS = ["openai/whisper-1", "whisper-1"];
 
 type Recent = {
   id: string;
@@ -41,6 +43,8 @@ export function MediaStudio() {
   const [imageSize, setImageSize] = useState("1024x1024");
   const [tts, setTts] = useState("Nexus: una API, todos los labs.");
   const [voice, setVoice] = useState("alloy");
+  const [ttsModel, setTtsModel] = useState(TTS_MODELS[0]);
+  const [sttModel, setSttModel] = useState(STT_MODELS[0]);
   const [embed, setEmbed] = useState("gateway de modelos OpenAI-compatible");
   const [embedModel, setEmbedModel] = useState(EMBED_MODELS[0]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -103,7 +107,7 @@ export function MediaStudio() {
       const res = await fetch("/api/v1/audio/speech", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: tts, voice }),
+        body: JSON.stringify({ input: tts, voice, model: ttsModel }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -126,7 +130,7 @@ export function MediaStudio() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("model", "whisper-1");
+      fd.append("model", sttModel);
       const res = await fetch("/api/v1/audio/transcriptions", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message ?? "Error STT");
@@ -256,18 +260,32 @@ export function MediaStudio() {
           onRun={() => void runSpeech()}
           busy={busy}
         >
-          <select
-            value={voice}
-            onChange={(e) => setVoice(e.target.value)}
-            className="mb-3 h-9 w-full max-w-xs rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
-            aria-label="Voz"
-          >
-            {TTS_VOICES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <div className="mb-3 grid gap-2 sm:grid-cols-2">
+            <select
+              value={ttsModel}
+              onChange={(e) => setTtsModel(e.target.value)}
+              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+              aria-label="Modelo TTS"
+            >
+              {TTS_MODELS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <select
+              value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+              className="h-9 rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+              aria-label="Voz"
+            >
+              {TTS_VOICES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
           <Textarea value={tts} onChange={(e) => setTts(e.target.value)} rows={3} />
           {audioUrl ? (
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -282,6 +300,18 @@ export function MediaStudio() {
 
       {tab === "transcribe" ? (
         <Panel title="Speech to text" hint="POST /api/v1/audio/transcriptions (multipart)." busy={busy}>
+          <select
+            value={sttModel}
+            onChange={(e) => setSttModel(e.target.value)}
+            className="mb-3 h-9 w-full max-w-md rounded-md border border-white/10 bg-zinc-950 px-2 text-sm"
+            aria-label="Modelo STT"
+          >
+            {STT_MODELS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
           <Input
             type="file"
             accept="audio/*,video/*"

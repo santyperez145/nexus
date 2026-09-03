@@ -168,14 +168,13 @@ paths:
         "200": { description: Route hops and live/local_echo mode }
   /shares:
     get:
-      summary: Read a public chat share
+      summary: List own shares (auth) or read one public share (?id=)
       parameters:
         - in: query
           name: id
-          required: true
           schema: { type: string }
       responses:
-        "200": { description: Share payload }
+        "200": { description: Share list or single payload }
     post:
       summary: Create a public read-only chat share
       requestBody:
@@ -189,8 +188,20 @@ paths:
                 model: { type: string }
                 messages: { type: array }
                 title: { type: string }
+                stats: { type: object }
+                comparing: { type: boolean }
       responses:
         "200": { description: Share id and url }
+    delete:
+      summary: Revoke own share
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: deleted }
   /status:
     get:
       summary: Instance wiring status

@@ -34,6 +34,7 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
               ["/apps", "Apps"],
               ["/status", "Status"],
               ["/chat", "Chat"],
+              ["/studio", "Studio"],
               ["/docs", "API"],
             ] as const
           ).map(([href, label]) => (

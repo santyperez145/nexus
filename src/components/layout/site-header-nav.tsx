@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 const PRODUCT = [
   { href: "/models", label: "Modelos", note: "Catálogo 425+" },
   { href: "/chat", label: "Chat", note: "Playground + route trace" },
+  { href: "/studio", label: "Studio", note: "Imagen · TTS · video · embed" },
   { href: "/providers", label: "Providers", note: "Hosts y circuitos" },
   { href: "/rankings", label: "Rankings", note: "Popular · precio · latencia" },
   { href: "/compare", label: "Compare", note: "Side-by-side" },
