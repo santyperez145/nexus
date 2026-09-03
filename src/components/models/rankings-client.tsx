@@ -98,7 +98,7 @@ export function RankingsClient({
         />
         <p className="rounded-xl border border-dashed border-zinc-200 bg-white px-4 py-10 text-center text-sm text-zinc-500">
           Sin filas para este criterio.{" "}
-          <Link href="/chat" className="text-amber-700 hover:underline">
+          <Link href="/chat" className="text-violet-700 hover:underline">
             Generá uso en el chat
           </Link>{" "}
           — no inventamos leaderboards.
@@ -121,7 +121,7 @@ export function RankingsClient({
       <p className="mb-4 text-sm text-zinc-500">{tabs.find((t) => t.id === sort)?.blurb}</p>
 
       {sort === "popular" && ranked.every((r) => r.tokens === 0) ? (
-        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-900/80">
+        <p className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
           Todavía no hay tokens en esta ventana — el orden Popular cae a precio.{" "}
           <Link href="/chat" className="font-medium underline">
             Abrí el chat
@@ -161,7 +161,7 @@ export function RankingsClient({
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/models/${m.id}`}
-                      className="font-mono text-sm text-amber-700 hover:underline"
+                      className="font-mono text-sm text-violet-700 hover:underline"
                     >
                       {m.id}
                     </Link>
@@ -178,7 +178,7 @@ export function RankingsClient({
                   </div>
                   <div className="mt-1.5 h-1 max-w-xs overflow-hidden rounded-full bg-zinc-100">
                     <div
-                      className="h-full rounded-full bg-amber-500/50"
+                      className="h-full rounded-full bg-violet-500/50"
                       style={{ width: `${Math.max(bar > 0 ? 4 : 0, bar * 100)}%` }}
                     />
                   </div>
@@ -246,7 +246,7 @@ function Toolbar({
             type="button"
             onClick={() => setSort(t.id)}
             className={`rounded-lg px-4 py-2 text-sm transition-colors ${
-              sort === t.id ? "bg-amber-50 text-amber-900" : "text-zinc-500 hover:text-zinc-900"
+              sort === t.id ? "bg-violet-50 text-zinc-900" : "text-zinc-500 hover:text-zinc-900"
             }`}
           >
             {t.label}

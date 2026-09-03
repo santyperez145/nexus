@@ -145,7 +145,7 @@ function KeysInner() {
         </Button>
       </div>
       {created ? (
-        <div className="mb-4 space-y-3 rounded-lg border border-violet-300 bg-amber-400/10 p-3">
+        <div className="mb-4 space-y-3 rounded-lg border border-violet-300 bg-violet-50 p-3">
           <p className="font-mono text-sm break-all">Cópiala ahora: {created}</p>
           {curl ? (
             <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[11px] text-zinc-600">
@@ -165,7 +165,7 @@ function KeysInner() {
                   <div className="text-lg font-semibold text-zinc-900">
                     {k.name}
                     {k.is_management ? (
-                      <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-500/80">
+                      <span className="ml-2 text-[10px] uppercase tracking-wide text-violet-700">
                         mgmt
                       </span>
                     ) : null}
@@ -241,7 +241,7 @@ function KeysInner() {
                 {k.limit != null ? (
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
                     <div
-                      className={`h-full rounded-full ${pct >= 90 ? "bg-rose-400/70" : "bg-amber-400/60"}`}
+                      className={`h-full rounded-full ${pct >= 90 ? "bg-rose-400/70" : "bg-violet-400"}`}
                       style={{ width: `${Math.max(pct ? 3 : 0, pct)}%` }}
                     />
                   </div>

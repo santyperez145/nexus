@@ -1,4 +1,20 @@
+import { fetchPublicUrl } from "@/lib/net/public-url";
+
 /** Upstream OpenAI-compatible media (images, TTS, STT). */
+
+function providerPollUrl(raw: string, provider: "replicate" | "fal") {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return null;
+    const allowed =
+      provider === "replicate"
+        ? url.hostname === "api.replicate.com"
+        : url.hostname === "fal.run" || url.hostname.endsWith(".fal.run");
+    return allowed ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
 
 function openaiKey(byok?: string) {
   return byok?.trim() || process.env.OPENAI_API_KEY?.trim();
@@ -113,12 +129,10 @@ export async function pollVideoJob(opts: {
   replicateToken?: string;
 }): Promise<{ url?: string; failed?: boolean; status?: string } | null> {
   const replicate = opts.replicateToken?.trim() || process.env.REPLICATE_API_TOKEN?.trim();
-  if (replicate && (opts.pollUrl?.includes("replicate.com") || opts.jobId)) {
-    const url =
-      opts.pollUrl?.startsWith("http")
-        ? opts.pollUrl
-        : `https://api.replicate.com/v1/predictions/${opts.jobId}`;
-    const res = await fetch(url, {
+  const replicatePollUrl = opts.pollUrl ? providerPollUrl(opts.pollUrl, "replicate") : null;
+  if (replicate && (replicatePollUrl || opts.jobId)) {
+    const url = replicatePollUrl ?? `https://api.replicate.com/v1/predictions/${opts.jobId}`;
+    const res = await fetchPublicUrl(url, {
       headers: { Authorization: `Bearer ${replicate}` },
       signal: AbortSignal.timeout(30000),
     });
@@ -137,8 +151,9 @@ export async function pollVideoJob(opts: {
     return { status: data.status };
   }
   const fal = opts.falKey?.trim() || process.env.FAL_KEY?.trim();
-  if (fal && opts.pollUrl?.includes("fal.")) {
-    const res = await fetch(opts.pollUrl, {
+  const falPollUrl = opts.pollUrl ? providerPollUrl(opts.pollUrl, "fal") : null;
+  if (fal && falPollUrl) {
+    const res = await fetchPublicUrl(falPollUrl, {
       headers: { Authorization: `Key ${fal}` },
       signal: AbortSignal.timeout(30000),
     });

@@ -24,17 +24,27 @@ npm run dev
 | Variable | Para qué |
 |---|---|
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / … | Pool de inferencia de la plataforma |
-| `STRIPE_SECRET_KEY` + webhook | Compra de créditos |
+| `STRIPE_SECRET_KEY` + webhook + Price IDs | Créditos, planes Pro/Team y portal de suscripción |
 | `CREDENTIALS_SECRET` | Cifrado BYOK (obligatorio en prod) |
-| `DATABASE_URL` | Postgres/Neon (obligatorio en prod; local: PGlite) |
-| `REDIS_URL` o Upstash | Rate limit y circuit breaker |
+| `BETTER_AUTH_SECRET` | Secreto de sesión de al menos 32 caracteres (obligatorio en prod) |
+| `ADMIN_EMAILS` | Allowlist, separada por comas, para tareas globales de conexiones/catálogo |
+| `DATABASE_URL` | Postgres/Neon pooled (obligatorio en prod; local: PGlite) |
+| `DATABASE_URL_UNPOOLED` | Conexión directa para `npm run db:migrate` |
+| `REDIS_URL` o Upstash | Rate limit y circuit breaker; obligatorio y fail-closed en prod |
 | `GATEWAY_URL` | Data plane Hono aparte (`npm run dev:gateway`) |
 | BYOK en Settings | Keys del cliente, cifradas |
 
-Sin keys de lab el playground guest hace eco local. Con keys, rutea de verdad. Sin Stripe no hay
-carga de wallet salvo `ENABLE_MANUAL_CREDITS=true` (sandbox).
+El eco guest existe únicamente como ayuda de desarrollo y nunca forma parte de la API de producción.
+En producción, inferencia requiere sesión o Bearer y al menos un proveedor de plataforma o BYOK.
+Sin Stripe no hay carga de wallet ni suscripción; `ENABLE_MANUAL_CREDITS=true` funciona solo fuera de
+producción.
 
-Webhook Stripe: `{APP_URL}/api/webhooks/stripe` evento `checkout.session.completed`.
+Antes del primer despliegue sobre una base nueva, ejecutá `npm run db:migrate` usando la URL directa.
+Las instancias existentes siguen recibiendo las adiciones idempotentes de `ensureDb`; adoptá las
+migraciones en una ventana controlada antes de quitar ese bootstrap. Para Stripe, configurá
+el webhook `{APP_URL}/api/webhooks/stripe` con `checkout.session.completed`,
+`checkout.session.async_payment_succeeded`, `customer.subscription.created|updated|deleted`,
+`invoice.paid`, `invoice.payment_failed` y `payment_intent.succeeded`.
 
 Producción: [https://web-production-ef6b3.up.railway.app](https://web-production-ef6b3.up.railway.app) (Railway + Neon + Stripe Checkout/Link).
 
@@ -58,6 +68,23 @@ const res = await nexus.chat.send({
 ```
 
 También sirve el SDK de OpenAI con `baseURL: .../api/v1`.
+
+Las API keys pueden limitarse a `inference`, `management:read` y `management:write`. Los presupuestos,
+límites por key, créditos y membresías de workspace se validan en el servidor; no dependen del cliente.
+
+## Verificación antes de desplegar
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm audit
+```
+
+En producción usá HTTPS en `NEXT_PUBLIC_APP_URL`, Postgres/Neon, Redis distribuido, secretos reales y
+el webhook firmado de Stripe. El checkout calcula impuestos automáticamente con Stripe Tax cuando la
+cuenta de Stripe está configurada para ello.
 
 ## API
 

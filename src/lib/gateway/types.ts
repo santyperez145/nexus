@@ -1,6 +1,13 @@
 export type ChatMessage = {
   role: "system" | "user" | "assistant" | "tool";
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+        image_url?: { url: string } | string;
+        source?: { type?: string; media_type?: string; data?: string; url?: string };
+      }>;
   name?: string;
   tool_call_id?: string;
   tool_calls?: unknown[];
@@ -50,13 +57,19 @@ export type ChatRequest = {
   transforms?: Array<"middle-out">;
   stream_options?: { include_usage?: boolean };
   file_ids?: string[];
+  store?: boolean;
+  background?: boolean;
+  prompt_cache_retention?: "in_memory" | "24h";
 };
 
 export type AuthContext = {
   userId: string;
   apiKeyId?: string;
   workspaceId?: string | null;
+  workspaceIds?: string[];
   isManagement: boolean;
+  scopes?: string[];
+  plan?: string;
   creditMicros: number;
   zdr: boolean;
   allowTraining: boolean;

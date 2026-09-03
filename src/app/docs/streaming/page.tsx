@@ -7,7 +7,7 @@ export default function StreamingDocsPage() {
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/docs" className="text-amber-700 hover:underline">
+          <Link href="/docs" className="text-violet-700 hover:underline">
             Docs
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -60,7 +60,7 @@ for await (const chunk of stream) {
             Envelopes: <code className="text-zinc-800">/messages</code> y{" "}
             <code className="text-zinc-800">/responses</code> también aceptan{" "}
             <code className="text-zinc-800">stream: true</code> — ver{" "}
-            <Link href="/docs/envelopes" className="text-amber-700 hover:underline">
+            <Link href="/docs/envelopes" className="text-violet-700 hover:underline">
               Envelopes
             </Link>
             .

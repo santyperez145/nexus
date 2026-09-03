@@ -56,10 +56,10 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
         <Link href="/models" className="relative text-sm text-zinc-500 hover:text-zinc-900">
           ← Catálogo
         </Link>
-        <h1 className="relative mt-4 font-[family-name:var(--font-syne)] text-4xl font-semibold tracking-tight text-zinc-950 md:text-5xl">
+        <h1 className="relative mt-4 text-4xl font-semibold tracking-tight text-zinc-950 md:text-5xl">
           {model.name}
         </h1>
-        <p className="relative mt-2 font-mono text-sm text-amber-700">{model.id}</p>
+        <p className="relative mt-2 font-mono text-sm text-violet-700">{model.id}</p>
         <div className="relative mt-3 flex flex-wrap gap-2 text-[11px]">
           <span className="rounded border border-zinc-200 bg-white px-2 py-0.5 font-mono text-zinc-600">
             {model.architecture.modality}
@@ -91,7 +91,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
           ) : null}
           <Link
             href={`/models?author=${encodeURIComponent(model.author)}`}
-            className="rounded border border-zinc-200 bg-white px-2 py-0.5 text-amber-800 hover:underline"
+            className="rounded border border-zinc-200 bg-white px-2 py-0.5 text-violet-800 hover:underline"
           >
             author {model.author}
           </Link>
@@ -100,7 +100,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
           {model.description}
         </p>
         <div className="relative mt-6 flex flex-wrap gap-2">
-          <Button asChild className="bg-amber-600 text-white hover:bg-amber-700">
+          <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
             <Link href={`/chat?model=${encodeURIComponent(model.id)}`}>Probar en chat</Link>
           </Button>
           <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100">
@@ -116,31 +116,31 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
           </Button>
         </div>
         <p className="relative mt-3 text-xs text-zinc-500">
-          Guest OK: chat sin signup responde en eco local hasta que cablees labs / BYOK.
+          Producción requiere autenticación y un provider o BYOK cableado; no genera respuestas simuladas.
         </p>
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
             <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Contexto</div>
-            <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold tabular-nums text-zinc-900">
+            <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
               {(model.contextLength / 1000).toFixed(0)}k
             </div>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
             <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Prompt / 1M</div>
-            <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold tabular-nums text-zinc-900">
+            <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
               {model.free ? "Gratis" : formatUsd(usdPerMillion(model.pricing.prompt), 2)}
             </div>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
             <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Completion / 1M</div>
-            <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold tabular-nums text-zinc-900">
+            <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
               {model.free ? "—" : formatUsd(usdPerMillion(model.pricing.completion), 2)}
             </div>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
             <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Uso instancia</div>
-            <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold tabular-nums text-zinc-900">
+            <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
               {usage.requests ? usage.requests.toLocaleString() : "—"}
             </div>
             <div className="mt-0.5 text-[11px] text-zinc-500">
@@ -180,7 +180,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
           />
         </div>
 
-        <h2 className="mt-10 font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
+        <h2 className="mt-10 text-xl font-semibold text-zinc-900">
           Endpoints
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
@@ -201,7 +201,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                     <div className="min-w-0">
                       <Link
                         href={`/providers/${e.adapter}`}
-                        className="font-mono text-sm text-amber-700 hover:underline"
+                        className="font-mono text-sm text-violet-700 hover:underline"
                       >
                         {e.adapter}
                       </Link>
@@ -222,7 +222,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                     </div>
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                    <div className="h-full rounded-full bg-amber-500/45" style={{ width: `${bar}%` }} />
+                    <div className="h-full rounded-full bg-violet-500/45" style={{ width: `${bar}%` }} />
                   </div>
                   <div className="mt-2 flex gap-4 text-xs tabular-nums text-zinc-500">
                     <span>in {formatUsd(usdPerMillion(e.pricing.prompt), 2)}/1M</span>
@@ -240,7 +240,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
 
         {related.length ? (
           <section className="mt-10">
-            <h2 className="font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
+            <h2 className="text-xl font-semibold text-zinc-900">
               Más de {model.author}
             </h2>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -248,7 +248,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                 <Link
                   key={m.id}
                   href={`/models/${m.id}`}
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 transition-colors hover:border-amber-600/40"
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 transition-colors hover:border-zinc-300"
                 >
                   <div className="truncate font-medium text-zinc-900">{m.name}</div>
                   <div className="truncate font-mono text-[11px] text-zinc-500">{m.id}</div>
@@ -266,7 +266,7 @@ curl $NEXUS_URL/api/v1/chat/completions \\
   -H "X-Title: Tu App" \\
   -d '{"model":"${model.id}","messages":[{"role":"user","content":"Hola"}]}'
 
-# guest (eco local)
+# demo local de desarrollo (deshabilitada en producción)
 curl $NEXUS_URL/api/v1/chat/completions \\
   -H "X-Nexus-Guest: 1" \\
   -d '{"model":"${model.id}","messages":[{"role":"user","content":"ping"}]}'

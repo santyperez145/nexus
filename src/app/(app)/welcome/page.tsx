@@ -12,9 +12,9 @@ type KeyRow = { id: string; prefix: string };
 type Status = { ok?: boolean; providers?: Record<string, boolean> };
 
 const STEPS = [
-  { id: 1, title: "Crédito", body: "Tu wallet nace con $1 de bienvenida." },
+  { id: 1, title: "Wallet", body: "Activá un plan o cargá créditos con Stripe." },
   { id: 2, title: "API key", body: "Revelá la key Default una sola vez." },
-  { id: 3, title: "Primer request", body: "Probá chat o Studio (eco local sin labs)." },
+  { id: 3, title: "Primer request", body: "Probá Chat o Studio con un provider o BYOK cableado." },
   { id: 4, title: "Cables", body: "Conectá labs o BYOK cuando quieras live." },
 ];
 
@@ -113,7 +113,7 @@ export default function WelcomePage() {
 
       <div className="mb-6 h-1.5 overflow-hidden rounded-full bg-white/5">
         <div
-          className="h-full rounded-full bg-amber-400/70 transition-[width]"
+          className="h-full rounded-full bg-violet-500 transition-[width]"
           style={{ width: `${(completedCount / 4) * 100}%` }}
         />
       </div>
@@ -127,14 +127,14 @@ export default function WelcomePage() {
               key={s.id}
               className={`rounded-xl border px-4 py-3 ${
                 isActive
-                  ? "border-violet-300 bg-amber-400/[0.06]"
+                  ? "border-violet-300 bg-violet-50"
                   : isDone
                     ? "border-emerald-500/25 bg-emerald-500/[0.04]"
                     : "border-zinc-200 bg-white"
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <div className="text-[10px] uppercase tracking-[0.12em] text-amber-500/80">
+                <div className="text-[10px] uppercase tracking-[0.12em] text-violet-700">
                   Paso {s.id}
                 </div>
                 <span className="text-[10px] uppercase tracking-wide text-zinc-500">
@@ -228,7 +228,7 @@ await nexus.chat.send({
         <p className="mt-1 text-sm text-zinc-500">
           {wiredLabs > 0
             ? `${wiredLabs} lab(s) cableados en esta instancia.`
-            : "Sin labs de plataforma — el ping usa eco local hasta BYOK o Conexiones."}
+            : "Sin providers de plataforma: agregá BYOK o cableá Conexiones antes del primer request."}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">

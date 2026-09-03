@@ -7,23 +7,23 @@ export default function MediaDocsPage() {
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/docs" className="text-amber-700 hover:underline">
+          <Link href="/docs" className="text-violet-700 hover:underline">
             Docs
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
           Media
         </p>
         <MarketingPageHeader title="Media">
-          Imagen, TTS, STT, embeddings y video jobs. Sin key de lab → placeholder/eco local con
-          ledger; con OPENAI/BYOK → upstream real. UI:{" "}
-          <Link href="/studio" className="text-amber-700 hover:underline">
+          Imagen, TTS, STT, embeddings y video jobs. Sin credenciales devuelve provider_unwired;
+          con OPENAI/BYOK ejecuta upstream real y concilia el ledger. UI:{" "}
+          <Link href="/studio" className="text-violet-700 hover:underline">
             Studio
           </Link>
           .
         </MarketingPageHeader>
 
         <section className="mb-8">
-          <h2 className="mb-2 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+          <h2 className="mb-2 text-lg font-semibold text-zinc-900">
             Images
           </h2>
           <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
@@ -40,7 +40,7 @@ export default function MediaDocsPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-2 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+          <h2 className="mb-2 text-lg font-semibold text-zinc-900">
             TTS / STT
           </h2>
           <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
@@ -60,7 +60,7 @@ curl $NEXUS_URL/api/v1/audio/transcriptions \\
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-2 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+          <h2 className="mb-2 text-lg font-semibold text-zinc-900">
             Embeddings
           </h2>
           <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
@@ -81,7 +81,7 @@ const e = await nexus.embeddings.create({
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-2 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+          <h2 className="mb-2 text-lg font-semibold text-zinc-900">
             Video jobs
           </h2>
           <p className="mb-3 text-sm text-zinc-600">
@@ -109,7 +109,7 @@ curl "$NEXUS_URL/api/v1/videos?id=$JOB" \\
           </li>
           <li>
             Recipe:{" "}
-            <Link href="/apps/media-image" className="text-amber-700 hover:underline">
+            <Link href="/apps/media-image" className="text-violet-700 hover:underline">
               media-image
             </Link>
             .

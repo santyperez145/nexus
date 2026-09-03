@@ -9,8 +9,26 @@ import { sendPasswordResetEmail } from "./email";
 import { id } from "./ids";
 import { issueApiKey } from "./keys";
 
+function authSecret() {
+  const configured = process.env.BETTER_AUTH_SECRET;
+  const buildPhase =
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_PHASE === "phase-export";
+  if (
+    process.env.NODE_ENV === "production" &&
+    !buildPhase &&
+    (!configured || configured.length < 32)
+  ) {
+    throw new Error("BETTER_AUTH_SECRET must be configured with at least 32 characters in production");
+  }
+  if (process.env.NODE_ENV === "production" && !buildPhase && !APP_URL.startsWith("https://")) {
+    throw new Error("NEXT_PUBLIC_APP_URL must be an HTTPS URL in production");
+  }
+  return configured ?? "nexus-development-auth-secret-change-me-32-plus";
+}
+
 export const auth = betterAuth({
-  secret: process.env.BETTER_AUTH_SECRET ?? "nexus-dev-auth-secret-change-me",
+  secret: authSecret(),
   baseURL: APP_URL,
   trustedOrigins: trustedAuthOrigins(APP_URL),
   database: drizzleAdapter(db, {

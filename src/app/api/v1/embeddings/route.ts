@@ -14,11 +14,11 @@ export async function POST(req: Request) {
     const catalog = findModel(requested);
     const pricing = catalog?.endpoints[0]?.pricing ?? catalog?.pricing ?? { prompt: 0.00000002, completion: 0 };
     const providerModel = catalog?.endpoints[0]?.providerModel ?? requested.split("/").pop() ?? requested;
-    const byok = await resolveByokKey(auth.userId, "openai");
+    const byok = await resolveByokKey(auth.userId, "openai", auth);
     const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
     const isByok = Boolean(byok) && !platform;
     const promptTokens = Math.ceil(input.join(" ").length / 4);
-    const reserved = await holdMediaCredits({
+    const reservation = await holdMediaCredits({
       auth,
       modality: "embedding",
       isByok,
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         completionTokens: 0,
         pricing: { prompt: pricing.prompt, completion: pricing.completion ?? 0 },
         latencyMs: Date.now() - started,
-        reservedMicros: reserved,
+        reservation,
       });
       settled = true;
       return Response.json({
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
         is_byok: isByok,
       });
     } catch (error) {
-      if (!settled) await releaseReserve(auth, reserved);
+      if (!settled) await releaseReserve(auth, reservation);
       throw error;
     }
   } catch (error) {

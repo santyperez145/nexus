@@ -54,7 +54,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       <article className="relative mx-auto max-w-2xl px-4 py-12 md:py-16">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
         <Link href="/blog" className="relative text-sm text-zinc-500 hover:text-zinc-900">
           ← Blog
@@ -62,14 +62,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         <p className="relative mt-6 text-[11px] uppercase tracking-[0.08em] text-zinc-400">
           {post.date}
         </p>
-        <h1 className="relative mt-2 font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-zinc-950 md:text-4xl">
+        <h1 className="relative mt-2 text-3xl font-semibold tracking-tight text-zinc-950 md:text-4xl">
           {post.title}
         </h1>
         <p className="relative mt-3 text-lg text-zinc-500">{post.summary}</p>
 
-        <div className="relative mt-6 rounded-xl border border-amber-200/80 bg-amber-50/60 px-4 py-3 text-sm text-amber-950/90">
+        <div className="relative mt-6 rounded-xl border border-violet-200/80 bg-violet-50/60 px-4 py-3 text-sm text-zinc-700">
           Changelog honesto — sin métricas de tracción inventadas. Cableá labs en{" "}
-          <Link href="/status" className="underline hover:text-amber-900">
+          <Link href="/status" className="underline hover:text-zinc-900">
             /status
           </Link>{" "}
           para ver live vs echo.
@@ -86,7 +86,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             <Link
               key={l.href}
               href={l.href}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-amber-800 hover:border-amber-600/40"
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-violet-800 hover:border-zinc-300"
             >
               {l.label} →
             </Link>
@@ -95,7 +95,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
         {others.length ? (
           <section className="relative mt-12 border-t border-zinc-200 pt-8">
-            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+            <h2 className="text-lg font-semibold text-zinc-900">
               Más notas
             </h2>
             <ul className="mt-3 grid gap-2">
@@ -103,7 +103,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                 <li key={p.slug}>
                   <Link
                     href={`/blog/${p.slug}`}
-                    className="block rounded-lg border border-zinc-200 bg-white px-3 py-2.5 hover:border-amber-600/40"
+                    className="block rounded-lg border border-zinc-200 bg-white px-3 py-2.5 hover:border-zinc-300"
                   >
                     <div className="text-[11px] uppercase tracking-wide text-zinc-400">{p.date}</div>
                     <div className="font-medium text-zinc-900">{p.title}</div>

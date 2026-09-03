@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { encryptSecret } from "@/lib/crypto";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
-import { canAccess, userScope } from "@/lib/gateway/tenant";
+import { assertWorkspaceManager, canAccess, resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
 import { writeAudit } from "@/lib/gateway/audit";
 import { id } from "@/lib/ids";
 
@@ -32,13 +32,20 @@ export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
     const body = await req.json();
+    const workspaceId = await resolveOwnedWorkspace(auth, body.workspace_id);
+    await assertWorkspaceManager(auth, workspaceId);
+    const provider = typeof body.provider === "string" ? body.provider.trim().toLowerCase() : "";
+    const key = typeof body.key === "string" ? body.key.trim() : "";
+    if (!/^[a-z0-9_-]{2,64}$/.test(provider) || key.length < 8 || key.length > 4096) {
+      return jsonError(Object.assign(new Error("valid provider and key are required"), { status: 400 }));
+    }
     const row = {
       id: id("byok"),
       userId: auth.userId,
-      workspaceId: body.workspace_id ?? auth.workspaceId,
-      provider: body.provider,
-      encryptedKey: encryptSecret(body.key),
-      label: body.label ?? body.provider,
+      workspaceId,
+      provider,
+      encryptedKey: encryptSecret(key),
+      label: String(body.label ?? provider).slice(0, 120),
     };
     await db.insert(schema.byokCredentials).values(row);
     await writeAudit(auth, "byok.create", { resource: "byok", resourceId: row.id, headers: req.headers });
@@ -61,6 +68,7 @@ export async function DELETE(req: Request) {
     if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
+    await assertWorkspaceManager(auth, row.workspaceId);
     await db
       .update(schema.byokCredentials)
       .set({ deleted: true, encryptedKey: "" })

@@ -5,6 +5,7 @@ import {
   FREE_MODEL_CREDITS_THRESHOLD_USD,
   FREE_MODEL_RPD_NO_CREDITS,
   FREE_MODEL_RPD_WITH_CREDITS,
+  PLAN_LIMITS,
 } from "@/lib/config";
 
 export default function LimitsDocsPage() {
@@ -12,7 +13,7 @@ export default function LimitsDocsPage() {
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/docs" className="text-amber-700 hover:underline">
+          <Link href="/docs" className="text-violet-700 hover:underline">
             Docs
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -33,6 +34,13 @@ export default function LimitsDocsPage() {
           <li>
             Guardrails: techo de costo por request + allow/block de slugs antes del lab.
           </li>
+          <li>
+            Planes: Free {PLAN_LIMITS.free.rpm} RPM / {PLAN_LIMITS.free.apiKeys} keys /{" "}
+            {PLAN_LIMITS.free.workspaces} workspace; Pro {PLAN_LIMITS.pro.rpm} RPM /{" "}
+            {PLAN_LIMITS.pro.apiKeys} keys / {PLAN_LIMITS.pro.workspaces} workspaces; Team{" "}
+            {PLAN_LIMITS.team.rpm.toLocaleString("es-AR")} RPM / {PLAN_LIMITS.team.apiKeys} keys /{" "}
+            {PLAN_LIMITS.team.workspaces} workspaces.
+          </li>
         </ul>
         <pre className="mb-6 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`# Rate limits de la sesión (cookie o bearer)
@@ -42,11 +50,12 @@ curl $NEXUS_URL/api/internal/rate-limits \\
         </pre>
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white text-sm">
           {[
-            ["RPM cuenta", "Ventana rodante 60s (Redis o memoria)"],
+            ["RPM cuenta", "Ventana rodante de 60s; Redis distribuido obligatorio en producción"],
             ["RPD :free", `${FREE_MODEL_RPD_NO_CREDITS} / ${FREE_MODEL_RPD_WITH_CREDITS} según saldo`],
             ["Key limit", "USD spend o requests; include_byok_in_limit opcional"],
             ["Workspace", "Budget interval day|month; corta con 402"],
             ["Files", "8 MB · extract PDF/text · image/* → vision parts"],
+            ["Scopes", "inference, management:read y management:write por API key"],
           ].map(([k, v], i) => (
             <div
               key={k}

@@ -30,13 +30,53 @@ function toCoreMessages(messages: ChatMessage[]): ModelMessage[] {
       } as ModelMessage;
     }
     const role = m.role;
+    if (role === "assistant" && m.tool_calls?.length) {
+      const content: Array<Record<string, unknown>> = [];
+      const text =
+        typeof m.content === "string"
+          ? m.content
+          : m.content.map((part) => part.text ?? "").join("");
+      if (text) content.push({ type: "text", text });
+      for (const [index, raw] of m.tool_calls.entries()) {
+        const call = raw as {
+          id?: string;
+          toolCallId?: string;
+          name?: string;
+          toolName?: string;
+          input?: unknown;
+          function?: { name?: string; arguments?: string };
+        };
+        let input = call.input ?? {};
+        if (call.function?.arguments) {
+          try {
+            input = JSON.parse(call.function.arguments);
+          } catch {
+            input = {};
+          }
+        }
+        content.push({
+          type: "tool-call",
+          toolCallId: call.toolCallId ?? call.id ?? `tool_${index}`,
+          toolName: call.toolName ?? call.function?.name ?? call.name ?? "tool",
+          input,
+        });
+      }
+      return { role: "assistant", content } as ModelMessage;
+    }
     if (typeof m.content === "string") {
       return { role, content: m.content } as ModelMessage;
     }
     const parts = (m.content ?? []).map((p) => {
-      if (p.image_url?.url) return { type: "image" as const, image: p.image_url.url };
-      if (p.type === "image_url" && p.image_url?.url) {
-        return { type: "image" as const, image: p.image_url.url };
+      const imageUrl = typeof p.image_url === "string" ? p.image_url : p.image_url?.url;
+      if (imageUrl) return { type: "image" as const, image: imageUrl };
+      if (p.source?.type === "base64" && p.source.data) {
+        return {
+          type: "image" as const,
+          image: `data:${p.source.media_type ?? "image/png"};base64,${p.source.data}`,
+        };
+      }
+      if (p.source?.type === "url" && p.source.url) {
+        return { type: "image" as const, image: p.source.url };
       }
       return { type: "text" as const, text: p.text ?? "" };
     });
@@ -89,6 +129,7 @@ export async function completeChat(opts: {
   stop?: string | string[];
   responseFormat?: { type: string; json_schema?: unknown };
   reasoningEffort?: "low" | "medium" | "high";
+  signal?: AbortSignal;
 }) {
   const apiKey = opts.forceLocal ? undefined : envKey(opts.endpoint.adapter, opts.byok);
   if (!apiKey) {
@@ -120,6 +161,7 @@ export async function completeChat(opts: {
     frequencyPenalty: opts.frequencyPenalty,
     presencePenalty: opts.presencePenalty,
     stopSequences: stop,
+    abortSignal: opts.signal,
     ...(Object.keys(openai).length ? { providerOptions: { openai } as never } : {}),
     ...(opts.tools
       ? {
@@ -158,6 +200,7 @@ export async function streamChat(opts: {
   frequencyPenalty?: number;
   presencePenalty?: number;
   stop?: string | string[];
+  signal?: AbortSignal;
 }) {
   const apiKey = opts.forceLocal ? undefined : envKey(opts.endpoint.adapter, opts.byok);
   if (!apiKey) {
@@ -182,6 +225,7 @@ export async function streamChat(opts: {
     frequencyPenalty: opts.frequencyPenalty,
     presencePenalty: opts.presencePenalty,
     stopSequences: stop,
+    abortSignal: opts.signal,
     ...(opts.tools
       ? {
           tools: opts.tools,

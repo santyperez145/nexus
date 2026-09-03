@@ -65,7 +65,7 @@ app.post("/v1/chat/completions", async (c) => {
     await ensureDb();
     const auth = await authenticateRequest(c.req.raw);
     const body = (await c.req.json()) as ChatRequest;
-    const res = await handleChat(body, auth, c.req.raw.headers);
+    const res = await handleChat(body, auth, c.req.raw.headers, c.req.raw.signal);
     return res;
   } catch (error) {
     return jsonError(error);
@@ -77,7 +77,7 @@ app.post("/v1/completions", async (c) => {
     await ensureDb();
     const auth = await authenticateRequest(c.req.raw);
     const body = (await c.req.json()) as ChatRequest;
-    return await handleChat(body, auth, c.req.raw.headers);
+    return await handleChat(body, auth, c.req.raw.headers, c.req.raw.signal);
   } catch (error) {
     return jsonError(error);
   }

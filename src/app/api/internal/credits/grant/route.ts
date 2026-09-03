@@ -6,7 +6,7 @@ import { usdToMicros } from "@/lib/money";
 import { eq, sql } from "drizzle-orm";
 
 export async function POST(req: Request) {
-  if (!manualCreditsEnabled()) {
+  if (process.env.NODE_ENV === "production" || !manualCreditsEnabled()) {
     return Response.json({ error: "Manual credits disabled" }, { status: 403 });
   }
   const session = await getSession();

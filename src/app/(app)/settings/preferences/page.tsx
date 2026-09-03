@@ -77,7 +77,7 @@ export default function PreferencesPage() {
               }}
               className={`rounded-full border px-3 py-1 font-mono text-xs ${
                 base === s
-                  ? "border-violet-300 bg-amber-400/10 text-zinc-700"
+                  ? "border-violet-300 bg-violet-50 text-zinc-700"
                   : "border-zinc-200 text-zinc-500 hover:text-zinc-800"
               }`}
             >

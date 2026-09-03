@@ -18,6 +18,8 @@ export const SCHEMA_SQL = [
     stripe_customer_id text
   )`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS stripe_customer_id text`,
+  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'free'`,
+  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS subscription_status text NOT NULL DEFAULT 'inactive'`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_low_balance boolean NOT NULL DEFAULT true`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_key_limit boolean NOT NULL DEFAULT true`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_org_invite boolean NOT NULL DEFAULT true`,
@@ -114,6 +116,7 @@ export const SCHEMA_SQL = [
     key_hash text NOT NULL UNIQUE,
     key_prefix text NOT NULL,
     is_management boolean NOT NULL DEFAULT false,
+    scopes jsonb,
     disabled boolean NOT NULL DEFAULT false,
     limit_micros bigint,
     usage_micros bigint NOT NULL DEFAULT 0,
@@ -123,6 +126,7 @@ export const SCHEMA_SQL = [
     created_at timestamp NOT NULL DEFAULT now()
   )`,
   `CREATE INDEX IF NOT EXISTS api_key_user_idx ON "api_key"(user_id)`,
+  `ALTER TABLE "api_key" ADD COLUMN IF NOT EXISTS scopes jsonb`,
   `CREATE TABLE IF NOT EXISTS "credit_ledger" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
@@ -135,6 +139,40 @@ export const SCHEMA_SQL = [
   )`,
   `CREATE INDEX IF NOT EXISTS ledger_user_idx ON "credit_ledger"(user_id)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS ledger_stripe_session_uidx ON "credit_ledger"(stripe_session_id)`,
+  `CREATE TABLE IF NOT EXISTS "credit_hold" (
+    id text PRIMARY KEY,
+    generation_id text NOT NULL UNIQUE,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    api_key_id text REFERENCES "api_key"(id) ON DELETE SET NULL,
+    workspace_id text REFERENCES "workspace"(id) ON DELETE SET NULL,
+    reserved_micros bigint NOT NULL,
+    actual_micros bigint,
+    budget_held boolean NOT NULL DEFAULT false,
+    key_limit_held boolean NOT NULL DEFAULT false,
+    status text NOT NULL DEFAULT 'open',
+    created_at timestamp NOT NULL DEFAULT now(),
+    closed_at timestamp
+  )`,
+  `CREATE INDEX IF NOT EXISTS credit_hold_user_idx ON "credit_hold"(user_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS credit_hold_open_idx ON "credit_hold"(status, created_at)`,
+  `ALTER TABLE "credit_hold" ADD COLUMN IF NOT EXISTS budget_held boolean NOT NULL DEFAULT false`,
+  `ALTER TABLE "credit_hold" ADD COLUMN IF NOT EXISTS key_limit_held boolean NOT NULL DEFAULT false`,
+  `CREATE TABLE IF NOT EXISTS "subscription" (
+    id text PRIMARY KEY,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    customer_id text NOT NULL,
+    plan text NOT NULL,
+    status text NOT NULL,
+    price_id text,
+    quantity integer NOT NULL DEFAULT 1,
+    current_period_start timestamp,
+    current_period_end timestamp,
+    cancel_at_period_end boolean NOT NULL DEFAULT false,
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS subscription_user_idx ON "subscription"(user_id)`,
+  `CREATE INDEX IF NOT EXISTS subscription_customer_idx ON "subscription"(customer_id)`,
   `CREATE TABLE IF NOT EXISTS "generation" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
@@ -205,11 +243,16 @@ export const SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS "oauth_code" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    code_hash text NOT NULL,
+    workspace_id text REFERENCES workspace(id) ON DELETE SET NULL,
+    scopes jsonb NOT NULL DEFAULT '["inference:write"]'::jsonb,
+    code_hash text NOT NULL UNIQUE,
     code_challenge text NOT NULL,
     expires_at timestamp NOT NULL,
     used boolean NOT NULL DEFAULT false
   )`,
+  `ALTER TABLE "oauth_code" ADD COLUMN IF NOT EXISTS workspace_id text REFERENCES workspace(id) ON DELETE SET NULL`,
+  `ALTER TABLE "oauth_code" ADD COLUMN IF NOT EXISTS scopes jsonb NOT NULL DEFAULT '["inference:write"]'::jsonb`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS oauth_code_code_hash_unique ON "oauth_code" (code_hash)`,
   `CREATE TABLE IF NOT EXISTS "provider_health" (
     id text PRIMARY KEY,
     provider text NOT NULL UNIQUE,
@@ -227,12 +270,14 @@ export const SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS "video_job" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id text REFERENCES workspace(id) ON DELETE SET NULL,
     model text NOT NULL,
     prompt text NOT NULL,
     status text NOT NULL DEFAULT 'queued',
     result_url text,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
+  `ALTER TABLE "video_job" ADD COLUMN IF NOT EXISTS workspace_id text REFERENCES workspace(id) ON DELETE SET NULL`,
   `CREATE TABLE IF NOT EXISTS "observability_destination" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
@@ -246,11 +291,12 @@ export const SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS "chat_share" (
     id text PRIMARY KEY,
     user_id text REFERENCES "user"(id) ON DELETE SET NULL,
+    workspace_id text REFERENCES workspace(id) ON DELETE SET NULL,
     title text,
     payload jsonb NOT NULL,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS ledger_generation_uidx ON "credit_ledger"(generation_id)`,
+  `ALTER TABLE "chat_share" ADD COLUMN IF NOT EXISTS workspace_id text REFERENCES workspace(id) ON DELETE SET NULL`,
   `DROP INDEX IF EXISTS ledger_generation_uidx`,
   `CREATE UNIQUE INDEX IF NOT EXISTS ledger_generation_type_uidx ON "credit_ledger"(generation_id, type)`,
   `CREATE TABLE IF NOT EXISTS "schema_migrations" (

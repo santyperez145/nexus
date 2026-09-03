@@ -7,7 +7,7 @@ import { transcribeAudio } from "@/lib/media/upstream";
 export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
-    const apiKey = await resolveByokKey(auth.userId, "openai");
+    const apiKey = await resolveByokKey(auth.userId, "openai", auth);
     const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
     const isByok = Boolean(apiKey) && !platform;
     if (!apiKey && !platform) {
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     }
     const contentType = req.headers.get("content-type") ?? "";
     const started = Date.now();
-    const reserved = await holdMediaCredits({
+    const reservation = await holdMediaCredits({
       auth,
       modality: "transcription",
       isByok,
@@ -35,11 +35,11 @@ export async function POST(req: Request) {
         if (file instanceof File) {
           const live = await transcribeAudio(file, file.name, model, apiKey);
           if (live && "error" in live) {
-            await releaseReserve(auth, reserved);
+            await releaseReserve(auth, reservation);
             return jsonError(Object.assign(new Error(String(live.error)), { status: live.status ?? 502 }));
           }
           if (!(live && "text" in live)) {
-            await releaseReserve(auth, reserved);
+            await releaseReserve(auth, reservation);
             return jsonError(Object.assign(new Error("STT provider returned no text"), { status: 502 }));
           }
           const billed = await chargeAndRecordMedia({
@@ -53,15 +53,15 @@ export async function POST(req: Request) {
             usd: MEDIA_DEFAULT_USD.transcription,
             latencyMs: Date.now() - started,
             metadata: { filename: file.name, bytes: file.size },
-            reservedMicros: reserved,
+            reservation,
           });
           return Response.json({ ...live, id: billed.id, cost: billed.costMicros / 1_000_000 });
         }
       }
-      await releaseReserve(auth, reserved);
+      await releaseReserve(auth, reservation);
       return jsonError(Object.assign(new Error("multipart file required"), { status: 400 }));
     } catch (error) {
-      await releaseReserve(auth, reserved);
+      await releaseReserve(auth, reservation);
       throw error;
     }
   } catch (error) {

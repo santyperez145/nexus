@@ -46,7 +46,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthShell title="Crear cuenta" subtitle="Incluye $1 de crédito de bienvenida.">
+    <AuthShell title="Crear cuenta" subtitle="Tu gateway, keys y wallet en un solo lugar.">
       <form onSubmit={onSubmit} className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="name" className="text-zinc-700">
@@ -54,6 +54,8 @@ export default function RegisterPage() {
           </Label>
           <Input
             id="name"
+            name="name"
+            autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -66,7 +68,10 @@ export default function RegisterPage() {
           </Label>
           <Input
             id="email"
+            name="email"
             type="email"
+            inputMode="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -79,7 +84,9 @@ export default function RegisterPage() {
           </Label>
           <Input
             id="password"
+            name="password"
             type="password"
+            autoComplete="new-password"
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -97,7 +104,7 @@ export default function RegisterPage() {
                         ? strength <= 1
                           ? "bg-rose-400"
                           : strength <= 2
-                            ? "bg-amber-400"
+                            ? "bg-violet-500"
                             : "bg-emerald-500"
                         : "bg-zinc-200"
                     }`}
@@ -110,6 +117,7 @@ export default function RegisterPage() {
         </div>
         <label className="flex items-start gap-2 text-sm text-zinc-600">
           <input
+            name="terms"
             type="checkbox"
             checked={terms}
             onChange={(e) => setTerms(e.target.checked)}
@@ -117,29 +125,29 @@ export default function RegisterPage() {
           />
           <span>
             Acepto{" "}
-            <Link href="/terms" className="text-amber-700 hover:underline">
+            <Link href="/terms" className="text-violet-700 hover:underline">
               Terms
             </Link>{" "}
             y{" "}
-            <Link href="/privacy" className="text-amber-700 hover:underline">
+            <Link href="/privacy" className="text-violet-700 hover:underline">
               Privacy
             </Link>
             .
           </span>
         </label>
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
-        <Button type="submit" className="bg-amber-600 text-white hover:bg-amber-700">
+        {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+        <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
           Crear cuenta
         </Button>
       </form>
       <p className="mt-4 text-sm text-zinc-500">
         ¿Ya tenés cuenta?{" "}
-        <Link href="/login" className="text-amber-700 hover:underline">
+        <Link href="/login" className="text-violet-700 hover:underline">
           Entrar
         </Link>
         {" · "}
-        <Link href="/chat" className="text-amber-700 hover:underline">
-          Probar guest
+        <Link href="/chat" className="text-violet-700 hover:underline">
+          Ver playground
         </Link>
       </p>
     </AuthShell>

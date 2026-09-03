@@ -112,7 +112,7 @@ export default async function OverviewPage() {
 
       {labs === 0 ? (
         <p className="mb-6 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-zinc-800">
-          No hay labs cableados: el playground responde en eco local.{" "}
+          No hay providers cableados: la inferencia está bloqueada hasta configurar uno.{" "}
           <Link href="/settings/connections" className="text-violet-700 hover:underline">
             Conexiones
           </Link>

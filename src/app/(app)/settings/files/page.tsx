@@ -103,7 +103,7 @@ export default function FilesPage() {
           if (e.dataTransfer.files?.length) void uploadMany(e.dataTransfer.files);
         }}
         className={`mb-4 rounded-2xl border border-dashed px-4 py-10 text-center transition-colors ${
-          drag ? "border-amber-400/50 bg-violet-50" : "border-zinc-200 bg-white"
+          drag ? "border-violet-300 bg-violet-50" : "border-zinc-200 bg-white"
         }`}
       >
         <p className="text-sm text-zinc-400">Arrastrá uno o varios archivos acá</p>
@@ -147,7 +147,7 @@ export default function FilesPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate font-medium text-zinc-800">{f.filename}</span>
                     {img ? (
-                      <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-950">
+                      <span className="rounded border border-violet-200 bg-violet-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-950">
                         vision
                       </span>
                     ) : null}

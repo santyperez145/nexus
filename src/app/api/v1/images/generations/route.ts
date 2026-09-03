@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     if (!prompt) return jsonError(Object.assign(new Error("prompt required"), { status: 400 }));
     const model = String(body.model ?? "openai/gpt-image-1");
     const n = Math.min(4, Math.max(1, Number(body.n) || 1));
-    const apiKey = await resolveByokKey(auth.userId, "openai");
+    const apiKey = await resolveByokKey(auth.userId, "openai", auth);
     const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
     const isByok = Boolean(apiKey) && !platform;
     if (!apiKey && !platform) {
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       );
     }
     const usd = MEDIA_DEFAULT_USD.image * n;
-    const reserved = await holdMediaCredits({ auth, modality: "image", isByok, usd });
+    const reservation = await holdMediaCredits({ auth, modality: "image", isByok, usd });
     const started = Date.now();
     try {
       const live = await generateImage({
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
         apiKey,
       });
       if (live && "error" in live) {
-        await releaseReserve(auth, reserved);
+        await releaseReserve(auth, reservation);
         return jsonError(Object.assign(new Error(String(live.error)), { status: live.status ?? 502 }));
       }
       const billed = await chargeAndRecordMedia({
@@ -49,17 +49,17 @@ export async function POST(req: Request) {
         usd,
         latencyMs: Date.now() - started,
         metadata: { n, size: body.size ?? "1024x1024" },
-        reservedMicros: reserved,
+        reservation,
       });
       if (live && "data" in live) {
         return Response.json({ ...live, id: billed.id, cost: billed.costMicros / 1_000_000 });
       }
-      await releaseReserve(auth, reserved);
+      await releaseReserve(auth, reservation);
       return jsonError(
         Object.assign(new Error("Image provider returned no data"), { status: 502, code: "provider_error" }),
       );
     } catch (error) {
-      await releaseReserve(auth, reserved);
+      await releaseReserve(auth, reservation);
       throw error;
     }
   } catch (error) {

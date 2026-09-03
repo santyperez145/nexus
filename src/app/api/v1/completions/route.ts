@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       ...body,
       messages: body.messages ?? (body.prompt ? [{ role: "user", content: body.prompt }] : undefined),
     };
-    return await handleChat(mapped, auth, req.headers);
+    return await handleChat(mapped, auth, req.headers, req.signal);
   } catch (error) {
     return jsonError(error);
   }

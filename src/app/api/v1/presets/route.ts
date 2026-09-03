@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
-import { canAccess, userScope } from "@/lib/gateway/tenant";
+import { canAccess, canMutateResource, userScope } from "@/lib/gateway/tenant";
 import { id } from "@/lib/ids";
 import { slugify } from "@/lib/slug";
 
@@ -50,7 +50,7 @@ export async function DELETE(req: Request) {
     const presetId = new URL(req.url).searchParams.get("id");
     if (!presetId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.presets).where(eq(schema.presets.id, presetId)).limit(1);
-    if (!row || !canAccess(auth, row)) {
+    if (!row || !canAccess(auth, row) || !(await canMutateResource(auth, row))) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await db.delete(schema.presets).where(eq(schema.presets.id, presetId));

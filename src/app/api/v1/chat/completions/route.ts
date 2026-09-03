@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
     const body = (await req.json()) as ChatRequest;
-    return await handleChat(body, auth, req.headers);
+    return await handleChat(body, auth, req.headers, req.signal);
   } catch (error) {
     return jsonError(error);
   }

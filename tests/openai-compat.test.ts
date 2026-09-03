@@ -82,6 +82,32 @@ describe("openai-compat", () => {
     assert.equal(resp.metadata.nexus_chat_id, "gen-abc");
   });
 
+  it("normalizes AI SDK tool calls for all protocol envelopes", () => {
+    const chat = chatCompletionPayload({
+      id: "gen-tools",
+      model: "nexus/auto",
+      provider: "openai",
+      text: "",
+      finishReason: "tool-calls",
+      promptTokens: 2,
+      completionTokens: 1,
+      costUsd: 0.001,
+      isByok: false,
+      pricing: { prompt: 0, completion: 0 },
+      toolCalls: [{ toolCallId: "call_weather", toolName: "weather", input: { city: "BA" } }],
+    });
+    assert.equal(chat.choices[0]?.finish_reason, "tool_calls");
+    const tool = chat.choices[0]?.message.tool_calls?.[0];
+    assert.equal(tool?.function.name, "weather");
+    assert.equal(tool?.function.arguments, '{"city":"BA"}');
+    const response = toResponseEnvelope(chat);
+    const functionCall = response.output.find((item) => item.type === "function_call");
+    assert.equal(functionCall && "call_id" in functionCall ? functionCall.call_id : "", "call_weather");
+    const anthropic = toAnthropicMessage(chat);
+    const toolUse = anthropic.content.find((block) => block.type === "tool_use");
+    assert.deepEqual(toolUse && "input" in toolUse ? toolUse.input : null, { city: "BA" });
+  });
+
   it("maps chat.completion to Anthropic Messages envelope", () => {
     const chat = chatCompletionPayload({
       id: "gen-xyz",

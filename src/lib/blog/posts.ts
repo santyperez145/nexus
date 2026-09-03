@@ -16,8 +16,8 @@ export const BLOG_POSTS: BlogPost[] = [
       "Una sola base URL, keys sk-nx-, 400+ modelos y fee solo al cargar créditos.",
     body: [
       "Nexus expone /api/v1 compatible con el SDK de OpenAI y con envelopes Responses / Messages.",
-      "El catálogo vive en el repo (full.json + overlays). Sin keys de lab cableadas, el hop puede ser eco local — lo dice /status, no lo escondemos.",
-      "Precio de inferencia = lista. Fee de plataforma al cargar créditos (4.9%). Signup con crédito de bienvenida documentado.",
+      "El catálogo vive en el repo (full.json + overlays). Sin providers cableados, producción falla de forma explícita con provider_unwired.",
+      "Precio de inferencia = lista. Fee de plataforma al cargar créditos (4.9%) y planes Pro/Team con Stripe.",
     ],
   },
   {
@@ -28,7 +28,7 @@ export const BLOG_POSTS: BlogPost[] = [
       "Privacy que no vacía el plan, preview de hops y reintento laxo cuando hace falta.",
     body: [
       "ZDR prefiere endpoints marcados en el catálogo. allow_training filtra hosts que entrenan.",
-      "Si el plan queda vacío, el chat reintenta en modo laxo para no romper tip-to-tip (eco / BYOK).",
+      "Si el filtro ZDR deja el plan vacío, el gateway corta fail-closed; nunca relaja privacidad para completar.",
       "POST /api/v1/routing/preview y el playground muestran adapter, wired y zdr antes de gastar.",
     ],
   },
@@ -65,7 +65,7 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       "El gateway ya aceptaba content[] con image_url; ahora Chat adjunta imágenes (pegar o file) y Files image/* se inyectan como parts, no como placeholder de bytes.",
       "El playground puede apuntar a /messages y /responses además de chat/completions — misma inferencia, reshape distinto.",
-      "Arena corre A vs B en modo blind (slugs ocultos hasta votar) y copia resultado local. /api/v1/status expone mode live|echo según labs cableados.",
+      "Arena corre A vs B en modo blind (slugs ocultos hasta votar). /api/v1/status expone mode live|unconfigured según providers cableados.",
     ],
   },
   {
@@ -73,12 +73,12 @@ export const BLOG_POSTS: BlogPost[] = [
     title: "Guest playground: tip-to-tip sin signup",
     date: "2026-09-03",
     summary:
-      "X-Nexus-Guest habilita eco local rate-limited. Nunca quema keys de lab; rankings excluyen guest noise.",
+      "X-Nexus-Guest habilita una demo local rate-limited únicamente fuera de producción.",
     body: [
-      "OpenRouter exige cuenta para completar. Nexus deja probar Chat y Arena con header X-Nexus-Guest: 1 — el gateway fuerza forceLocal y un throttle de 8 rpm por IP.",
-      "El SDK acepta new Nexus({ guest: true }) sin bearer. Session/API key siempre ganan si están presentes.",
-      "Las generaciones guest no inflan Rankings populares. Para hops live: signup ($1) o BYOK en Settings.",
-      "Docs y /status documentan el path. Prod Railway ya smokea guest → provider local.",
+      "En desarrollo, Nexus deja probar Chat y Arena con X-Nexus-Guest: 1; el gateway fuerza un eco aislado y throttle de 8 rpm por IP.",
+      "El SDK acepta new Nexus({ guest: true }) para entornos locales. Producción exige sesión o Bearer.",
+      "Las generaciones guest no se persisten ni inflan Rankings. Para hops live: suscripción/wallet y provider o BYOK.",
+      "Docs y /status distinguen live de unconfigured; el eco nunca forma parte del data plane productivo.",
     ],
   },
 ];

@@ -34,7 +34,7 @@ export default async function GenerationPage({
 
   const totalTok = Math.max(1, row.promptTokens + row.completionTokens + row.reasoningTokens + cached);
   const tokenParts = [
-    { label: "prompt", n: row.promptTokens, color: "bg-amber-400/70" },
+    { label: "prompt", n: row.promptTokens, color: "bg-violet-500" },
     { label: "completion", n: row.completionTokens, color: "bg-emerald-400/60" },
     { label: "reasoning", n: row.reasoningTokens, color: "bg-sky-400/50" },
     { label: "cached", n: cached, color: "bg-zinc-400/40" },

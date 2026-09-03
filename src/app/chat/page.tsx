@@ -6,6 +6,7 @@ import { allModels } from "@/lib/catalog";
 import { getSession } from "@/lib/auth";
 import { db, ensureDb, schema } from "@/lib/db";
 import { wiredProviders } from "@/lib/providers/registry";
+import { guestPlaygroundEnabled } from "@/lib/config";
 import { and, eq } from "drizzle-orm";
 
 export default async function ChatPage({
@@ -28,37 +29,41 @@ export default async function ChatPage({
         .limit(1)
     : [];
   const models = allModels().map((m) => ({ id: m.id, name: m.name }));
-  const guest = !userId;
+  const guest = !userId && guestPlaygroundEnabled();
+  const requiresAuth = !userId && !guest;
 
   return (
     <div>
       <AppPageHeader title="Chat">
         Playground con route trace. Mismo prompt a uno o dos modelos · historial en este dispositivo.
       </AppPageHeader>
-      {guest ? (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3">
-          <p className="text-sm text-amber-100/90">
-            Modo público: podés completar en eco local (sin keys). Cuenta = $1 de crédito + hops live /
-            BYOK.
+      {!userId ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+          <p className="text-sm text-zinc-700">
+            {guest
+              ? "Demo local de desarrollo: eco aislado, sin providers ni persistencia."
+              : "La inferencia de producción requiere una cuenta y una API key o sesión activa."}
           </p>
           <div className="flex gap-2">
             <Button asChild size="sm" variant="outline">
               <Link href="/login">Entrar</Link>
             </Button>
-            <Button asChild size="sm" className="bg-amber-600 text-white hover:bg-amber-700">
+            <Button asChild size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Link href="/register">Crear cuenta</Link>
             </Button>
           </div>
         </div>
       ) : null}
-      <Playground
-        models={models}
-        defaultModel={q.model ?? user?.defaultModel ?? "nexus/auto"}
-        compareModel={q.compare}
-        platformLabs={wiredProviders().length}
-        hasByok={byok.length > 0}
-        guest={guest}
-      />
+      {!requiresAuth ? (
+        <Playground
+          models={models}
+          defaultModel={q.model ?? user?.defaultModel ?? "nexus/auto"}
+          compareModel={q.compare}
+          platformLabs={wiredProviders().length}
+          hasByok={byok.length > 0}
+          guest={guest}
+        />
+      ) : null}
     </div>
   );
 }

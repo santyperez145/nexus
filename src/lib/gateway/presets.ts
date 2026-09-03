@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import type { ChatMessage, ChatRequest } from "./types";
+import type { AuthContext, ChatMessage, ChatRequest } from "./types";
+import { canAccess, userScope } from "./tenant";
 
 export function presetSlugFromModel(model?: string) {
   if (!model) return null;
@@ -9,14 +10,19 @@ export function presetSlugFromModel(model?: string) {
   return null;
 }
 
-export async function applyPreset(req: ChatRequest, userId: string): Promise<ChatRequest> {
+export async function applyPreset(req: ChatRequest, auth: AuthContext): Promise<ChatRequest> {
   const slug = presetSlugFromModel(req.model);
   if (!slug) return req;
-  const [row] = await db
+  const rows = await db
     .select()
     .from(schema.presets)
-    .where(and(eq(schema.presets.userId, userId), eq(schema.presets.slug, slug)))
-    .limit(1);
+    .where(
+      and(
+        userScope(auth, schema.presets.userId, schema.presets.workspaceId),
+        eq(schema.presets.slug, slug),
+      ),
+    );
+  const row = rows.find((candidate) => canAccess(auth, candidate));
   if (!row) throw Object.assign(new Error(`Preset not found: ${slug}`), { status: 404 });
   const cfg = row.config as Record<string, unknown>;
   let messages = req.messages;

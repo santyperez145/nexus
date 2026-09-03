@@ -43,7 +43,7 @@ export default async function AppsPage() {
       <div className="relative mx-auto max-w-5xl px-4 py-12 md:py-16">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
         <MarketingPageHeader title="Apps">
           Recipes curados + ranking real por{" "}
@@ -60,7 +60,7 @@ export default async function AppsPage() {
           ].map((s) => (
             <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
-              <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold text-zinc-900">
+              <div className="mt-1 text-2xl font-semibold text-zinc-900">
                 {s.v}
               </div>
             </div>
@@ -68,16 +68,16 @@ export default async function AppsPage() {
         </div>
 
         <p className="mb-8 text-sm text-zinc-500">
-          Gateway mode: {wired ? `${wired} labs live` : "local echo"}. Guest puede probar recipes
+          Gateway mode: {wired ? `${wired} labs live` : "unconfigured"}. La demo local puede probar recipes
           vía{" "}
-          <Link href="/chat" className="text-amber-700 hover:underline">
+          <Link href="/chat" className="text-violet-700 hover:underline">
             /chat
           </Link>{" "}
-          sin key (eco).
+          sin key solo fuera de producción.
         </p>
 
         <section className="mb-12">
-          <h2 className="mb-4 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-900">
             Recipes
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -85,9 +85,9 @@ export default async function AppsPage() {
               <Link
                 key={r.slug}
                 href={`/apps/${r.slug}`}
-                className="group rounded-xl border border-zinc-200 bg-white px-4 py-4 transition-colors hover:border-amber-600/40"
+                className="group rounded-xl border border-zinc-200 bg-white px-4 py-4 transition-colors hover:border-zinc-300"
               >
-                <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900 group-hover:text-amber-900">
+                <div className="font-semibold text-zinc-900 group-hover:text-zinc-950">
                   {r.title}
                 </div>
                 <p className="mt-1 text-sm text-zinc-500">{r.blurb}</p>
@@ -108,7 +108,7 @@ export default async function AppsPage() {
         </section>
 
         <section>
-          <h2 className="mb-4 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-900">
             Live attribution
           </h2>
           {!apps.length ? (
@@ -119,7 +119,7 @@ export default async function AppsPage() {
 -H "X-Title: Mi App"`}
               </pre>
               <div className="mt-4">
-                <Link href="/docs" className="text-amber-700 hover:underline">
+                <Link href="/docs" className="text-violet-700 hover:underline">
                   Docs →
                 </Link>
               </div>
@@ -140,7 +140,7 @@ export default async function AppsPage() {
                     i ? "border-t border-zinc-100" : ""
                   }`}
                 >
-                  <div className="min-w-0 font-[family-name:var(--font-syne)] font-semibold text-zinc-900">
+                  <div className="min-w-0 font-semibold text-zinc-900">
                     {a.name}
                   </div>
                   <div className="hidden truncate font-mono text-xs text-zinc-500 md:block">

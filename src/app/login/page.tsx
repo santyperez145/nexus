@@ -36,6 +36,10 @@ export default function LoginPage() {
           </Label>
           <Input
             id="email"
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -47,27 +51,29 @@ export default function LoginPage() {
             <Label htmlFor="password" className="text-zinc-700">
               Password
             </Label>
-            <Link href="/forgot-password" className="text-xs text-amber-700 hover:underline">
+            <Link href="/forgot-password" className="text-xs text-violet-700 hover:underline">
               Olvidé mi password
             </Link>
           </div>
           <Input
             id="password"
+            name="password"
             type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             className="border-zinc-300 bg-white text-zinc-900"
           />
         </div>
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
-        <Button type="submit" className="bg-amber-600 text-white hover:bg-amber-700">
+        {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+        <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
           Entrar
         </Button>
       </form>
       <p className="mt-4 text-sm text-zinc-500">
         ¿No tienes cuenta?{" "}
-        <Link href="/register" className="text-amber-700 hover:underline">
+        <Link href="/register" className="text-violet-700 hover:underline">
           Crear una
         </Link>
       </p>

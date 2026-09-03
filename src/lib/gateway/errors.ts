@@ -39,5 +39,40 @@ export function jsonError(error: unknown) {
     headers["X-RateLimit-Limit"] = "60";
     headers["X-RateLimit-Remaining"] = "0";
   }
-  return Response.json({ error: { message, code, metadata } }, { status: safe, headers });
+  const type =
+    safe === 401
+      ? "authentication_error"
+      : safe === 403
+        ? "permission_error"
+        : safe === 429
+          ? "rate_limit_error"
+          : safe >= 500
+            ? "server_error"
+            : "invalid_request_error";
+  return Response.json({ error: { message, type, param: null, code, metadata } }, { status: safe, headers });
+}
+
+export function anthropicJsonError(error: unknown) {
+  const base = jsonError(error);
+  const status = base.status;
+  const message = error instanceof Error ? error.message : "Internal error";
+  const type =
+    status === 401
+      ? "authentication_error"
+      : status === 403
+        ? "permission_error"
+        : status === 404
+          ? "not_found_error"
+          : status === 413
+            ? "request_too_large"
+            : status === 429
+              ? "rate_limit_error"
+              : status >= 500
+                ? "api_error"
+                : "invalid_request_error";
+  const requestId = currentRequestId();
+  return Response.json(
+    { type: "error", error: { type, message }, ...(requestId ? { request_id: requestId } : {}) },
+    { status, headers: base.headers },
+  );
 }

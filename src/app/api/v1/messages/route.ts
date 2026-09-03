@@ -1,7 +1,9 @@
-import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { authenticateRequest } from "@/lib/gateway/api-auth";
 import { handleChat } from "@/lib/gateway/handle-chat";
 import { reshapeChatResponse } from "@/lib/gateway/openai-compat";
-import type { ChatMessage, ChatRequest } from "@/lib/gateway/types";
+import { anthropicInputToMessages, anthropicTools } from "@/lib/gateway/protocol-input";
+import type { ChatRequest } from "@/lib/gateway/types";
+import { anthropicJsonError } from "@/lib/gateway/errors";
 
 export async function POST(req: Request) {
   try {
@@ -11,16 +13,20 @@ export async function POST(req: Request) {
       ...body,
       model: body.model,
       models: body.fallbacks?.map((f: { model?: string }) => f.model).filter(Boolean) ?? body.models,
-      messages: (body.messages ?? []) as ChatMessage[],
+      messages: anthropicInputToMessages(body.system, body.messages),
       max_tokens: body.max_tokens,
       temperature: body.temperature,
+      top_p: body.top_p,
+      top_k: body.top_k,
+      stop: body.stop_sequences,
       stream: body.stream,
-      tools: body.tools,
+      tools: anthropicTools(body.tools),
+      tool_choice: body.tool_choice,
       provider: body.provider,
     };
-    const res = await handleChat(mapped, auth, req.headers);
+    const res = await handleChat(mapped, auth, req.headers, req.signal);
     return await reshapeChatResponse(res, "anthropic");
   } catch (error) {
-    return jsonError(error);
+    return anthropicJsonError(error);
   }
 }

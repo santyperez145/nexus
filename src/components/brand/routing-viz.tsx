@@ -74,7 +74,7 @@ export function RoutingViz({
       <text x="32" y="260" fill="#a1a1aa" fontSize="12">
         {anyLive
           ? `${live.size} lab(s) cableados en esta instancia · fallback al siguiente.`
-          : "Sin keys de lab: el hop puede ser eco local. Si un lab cae, el gateway prueba el siguiente."}
+          : "Sin providers cableados no se ejecuta inferencia. Agregá una key de plataforma o BYOK."}
       </text>
     </svg>
   );

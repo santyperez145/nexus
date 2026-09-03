@@ -24,7 +24,7 @@ export function AuthTrustStrip() {
   }, []);
 
   const models = status?.models ?? "…";
-  const mode = status?.mode === "live" ? "live hops" : status?.mode === "echo" ? "local echo" : "…";
+  const mode = status?.mode === "live" ? "live hops" : status?.mode === "unconfigured" ? "unconfigured" : "…";
   const labs = status?.wired_labs ?? "…";
 
   return (
@@ -37,10 +37,10 @@ export function AuthTrustStrip() {
         <Link
           key={s.k}
           href={s.href}
-          className="rounded-xl border border-zinc-200/80 bg-white/60 px-3 py-2.5 transition-colors hover:border-amber-600/40"
+          className="rounded-xl border border-zinc-200/80 bg-white/60 px-3 py-2.5 transition-colors hover:border-zinc-300"
         >
           <div className="text-[10px] uppercase tracking-[0.08em] text-zinc-500">{s.k}</div>
-          <div className="mt-0.5 font-[family-name:var(--font-syne)] text-sm font-semibold tabular-nums text-zinc-900">
+          <div className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
             {s.v}
           </div>
         </Link>

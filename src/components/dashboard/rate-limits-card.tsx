@@ -37,7 +37,7 @@ export function RateLimitsCard() {
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
             <div
-              className={`h-full rounded-full ${rpmPct >= 90 ? "bg-rose-400/70" : "bg-amber-400/60"}`}
+              className={`h-full rounded-full ${rpmPct >= 90 ? "bg-rose-400/70" : "bg-violet-400"}`}
               style={{ width: `${Math.max(rpmPct ? 3 : 0, rpmPct)}%` }}
             />
           </div>

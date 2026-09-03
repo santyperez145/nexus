@@ -48,7 +48,7 @@ function ResetForm() {
       {!token ? (
         <p className="text-sm text-red-600">
           Token inválido o ausente.{" "}
-          <Link href="/forgot-password" className="text-amber-700 hover:underline">
+          <Link href="/forgot-password" className="text-violet-700 hover:underline">
             Pedir otro enlace
           </Link>
           .
@@ -61,7 +61,9 @@ function ResetForm() {
             </Label>
             <Input
               id="password"
+              name="password"
               type="password"
+              autoComplete="new-password"
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -69,18 +71,18 @@ function ResetForm() {
               className="border-zinc-300 bg-white text-zinc-900"
             />
           </div>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
           <Button
             type="submit"
             disabled={busy}
-            className="bg-amber-600 text-white hover:bg-amber-700"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             Guardar
           </Button>
         </form>
       )}
       <p className="mt-4 text-sm text-zinc-500">
-        <Link href="/login" className="text-amber-700 hover:underline">
+        <Link href="/login" className="text-violet-700 hover:underline">
           Volver a entrar
         </Link>
       </p>

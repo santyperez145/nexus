@@ -488,7 +488,7 @@ export function ModelsExplorer({
                   />
                 </div>
                 <Link href={`/models/${m.id}`} className="block pr-16">
-                  <div className="font-[family-name:var(--font-syne)] text-lg font-semibold tracking-tight text-zinc-950">
+                  <div className="text-lg font-semibold tracking-tight text-zinc-950">
                     {m.name}
                   </div>
                   <div className="mt-0.5 font-mono text-xs text-violet-700">{m.id}</div>

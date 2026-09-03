@@ -13,7 +13,7 @@ export default async function RecipePage({ params }: { params: Promise<{ slug: s
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/apps" className="text-amber-700 hover:underline">
+          <Link href="/apps" className="text-violet-700 hover:underline">
             Apps
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -31,7 +31,7 @@ export default async function RecipePage({ params }: { params: Promise<{ slug: s
           ))}
           <Link
             href={`/chat?model=${encodeURIComponent(recipe.model)}`}
-            className="rounded border border-amber-600/30 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800 hover:underline"
+            className="rounded border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] text-violet-800 hover:underline"
           >
             Probar en chat →
           </Link>

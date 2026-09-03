@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { BYOK_FEE } from "../src/lib/config";
 import { usdToMicros, tokenCostUsd } from "../src/lib/money";
+import { estimateReservationMicros } from "../src/lib/gateway/billing";
 
 describe("atomic settle math", () => {
   it("never charges more than balance when clamping", () => {
@@ -16,6 +17,23 @@ describe("atomic settle math", () => {
   it("byok fee stays below full list price", () => {
     const usd = 1.25;
     assert.ok(usdToMicros(usd * BYOK_FEE) < usdToMicros(usd));
+  });
+
+  it("preauthorizes the most expensive fallback with a UTF-8 token ceiling", () => {
+    const input = [{ role: "user", content: "hola 🌎" }];
+    const outputTokens = 64;
+    const expensive = { prompt: 0.00001, completion: 0.00002 };
+    const inputCeiling = new TextEncoder().encode(JSON.stringify(input)).byteLength;
+    const reserve = estimateReservationMicros({
+      input,
+      estimatedInputTokens: 1,
+      outputTokens,
+      pricings: [{ prompt: 0.000001, completion: 0.000002 }, expensive],
+    });
+    assert.equal(
+      reserve,
+      usdToMicros(tokenCostUsd(inputCeiling, outputTokens, expensive)),
+    );
   });
 });
 

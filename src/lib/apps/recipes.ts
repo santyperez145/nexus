@@ -124,7 +124,7 @@ const r = await nexus.chat.send({
   {
     slug: "route-preview",
     title: "Preview de hops sin gastar",
-    blurb: "Inspeccioná adapters cableados antes del completion (guest OK).",
+    blurb: "Inspeccioná adapters cableados antes del completion; el preview público no gasta.",
     tags: ["routing", "debug"],
     model: "nexus/auto",
     curl: `curl $NEXUS_URL/api/v1/routing/preview \\
@@ -183,7 +183,7 @@ const r = await nexus.chat.send({
   {
     slug: "media-image",
     title: "Generación de imagen",
-    blurb: "POST /images/generations — placeholder local sin OPENAI key.",
+    blurb: "POST /images/generations — upstream real con OPENAI key o BYOK.",
     tags: ["media", "image"],
     model: "openai/gpt-image-1",
     curl: `curl $NEXUS_URL/api/v1/images/generations \\
@@ -232,8 +232,8 @@ const r = await nexus.chat.send({
   },
   {
     slug: "guest-playground",
-    title: "Guest eco (sin API key)",
-    blurb: "Solo en chat completions: eco local rate-limited. No sirve para keys, BYOK ni media.",
+    title: "Demo local (sin API key)",
+    blurb: "Solo desarrollo: eco aislado y rate-limited. Producción exige sesión o Bearer.",
     tags: ["guest", "demo"],
     model: "nexus/auto",
     curl: `curl $NEXUS_URL/api/v1/chat/completions \\
@@ -244,8 +244,8 @@ const r = await nexus.chat.send({
     "stream": false,
     "messages": [{"role":"user","content":"ping guest"}]
   }'`,
-    sdk: `// Browser playground manda X-Nexus-Guest automáticamente.
-// Desde curl/SDK usá el header; la respuesta es eco local (provider: local).`,
+    sdk: `// Disponible únicamente en desarrollo local.
+// Producción rechaza X-Nexus-Guest y requiere una credencial real.`,
   },
 ];
 

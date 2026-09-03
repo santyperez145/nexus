@@ -13,15 +13,20 @@ type Workspace = {
   slug: string;
   isDefault?: boolean;
   includeByokInBudgets?: boolean;
+  organizationId?: string | null;
+  can_manage?: boolean;
   budget: { interval: string; limit: number; spent: number } | null;
 };
 
 export default function WorkspacesPage() {
   const [rows, reload] = useRemoteData<Workspace[]>("/api/v1/workspaces");
+  const [organizations] = useRemoteData<Array<{ id: string; name: string; role: string }>>("/api/v1/organization");
   const [name, setName] = useState("");
   const [limit, setLimit] = useState("50");
   const [editId, setEditId] = useState<string | null>(null);
   const [editLimit, setEditLimit] = useState("");
+  const [organizationId, setOrganizationId] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
   const list = rows ?? [];
 
   return (
@@ -39,13 +44,34 @@ export default function WorkspacesPage() {
           className="w-32"
           inputMode="decimal"
         />
+        <select
+          value={organizationId}
+          onChange={(event) => setOrganizationId(event.target.value)}
+          className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm"
+          aria-label="Organización del workspace"
+        >
+          <option value="">Personal</option>
+          {(organizations ?? [])
+            .filter((organization) => organization.role === "owner" || organization.role === "admin")
+            .map((organization) => (
+              <option key={organization.id} value={organization.id}>
+                {organization.name}
+              </option>
+            ))}
+        </select>
         <Button
           onClick={async () => {
-            await fetch("/api/v1/workspaces", {
+            const res = await fetch("/api/v1/workspaces", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name, limit: limit ? Number(limit) : undefined }),
+              body: JSON.stringify({
+                name,
+                limit: limit ? Number(limit) : undefined,
+                organization_id: organizationId || undefined,
+              }),
             });
+            const json = await res.json();
+            setMsg(json.data ? "Workspace creado" : json.error?.message ?? "No se pudo crear");
             setName("");
             reload();
           }}
@@ -53,6 +79,7 @@ export default function WorkspacesPage() {
           Crear
         </Button>
       </div>
+      {msg ? <p className="mb-4 text-sm text-zinc-700">{msg}</p> : null}
       <div className="grid gap-3">
         {list.map((w) => {
           const pct =
@@ -66,14 +93,17 @@ export default function WorkspacesPage() {
                   <div className="text-lg font-semibold text-zinc-900">
                     {w.name}
                     {w.isDefault ? (
-                      <span className="ml-2 text-[10px] uppercase tracking-wide text-amber-500/80">
+                      <span className="ml-2 text-[10px] uppercase tracking-wide text-violet-700">
                         default
                       </span>
                     ) : null}
                   </div>
                   <div className="font-mono text-xs text-zinc-600">/{w.slug}</div>
+                  {w.organizationId ? (
+                    <div className="mt-1 text-xs text-violet-700">workspace de organización</div>
+                  ) : null}
                 </div>
-                <div className="flex flex-wrap gap-1">
+                {w.can_manage !== false ? <div className="flex flex-wrap gap-1">
                   <Button
                     variant="outline"
                     size="sm"
@@ -113,7 +143,7 @@ export default function WorkspacesPage() {
                       Borrar
                     </Button>
                   ) : null}
-                </div>
+                </div> : <span className="text-xs text-zinc-500">acceso member</span>}
               </div>
 
               {w.budget ? (
@@ -127,7 +157,7 @@ export default function WorkspacesPage() {
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
                     <div
-                      className={`h-full rounded-full ${pct >= 90 ? "bg-rose-400/70" : "bg-amber-400/60"}`}
+                      className={`h-full rounded-full ${pct >= 90 ? "bg-rose-400/70" : "bg-violet-400"}`}
                       style={{ width: `${Math.max(pct ? 3 : 0, pct)}%` }}
                     />
                   </div>

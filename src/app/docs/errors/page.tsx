@@ -18,7 +18,7 @@ export default function ErrorsDocsPage() {
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/docs" className="text-amber-700 hover:underline">
+          <Link href="/docs" className="text-violet-700 hover:underline">
             Docs
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -37,7 +37,7 @@ export default function ErrorsDocsPage() {
               }`}
             >
               <span className="font-mono text-sm text-zinc-900">{status}</span>
-              <code className="text-sm text-amber-800">{code}</code>
+              <code className="text-sm text-violet-800">{code}</code>
               <span className="text-sm text-zinc-600">{note}</span>
             </div>
           ))}

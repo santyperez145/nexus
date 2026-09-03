@@ -7,7 +7,7 @@ export default function ProviderRoutingDocsPage() {
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/docs" className="text-amber-700 hover:underline">
+          <Link href="/docs" className="text-violet-700 hover:underline">
             Docs
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -67,7 +67,7 @@ export default function ProviderRoutingDocsPage() {
         </p>
         <p className="text-sm text-zinc-500">
           Ver hosts:{" "}
-          <Link href="/providers" className="text-amber-700 hover:underline">
+          <Link href="/providers" className="text-violet-700 hover:underline">
             /providers
           </Link>
           . SDK: <code className="text-zinc-700">nexus.routing.preview(…)</code>.

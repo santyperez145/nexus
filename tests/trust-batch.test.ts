@@ -81,10 +81,9 @@ describe("org RBAC", () => {
     assert.equal(canManageOrg(true, "member"), true);
     assert.equal(canManageOrg(false, "admin"), true);
     assert.equal(canManageOrg(false, "member"), false);
-    assert.equal(normalizeInviteRole("admin", false), "admin");
-    assert.equal(normalizeInviteRole("owner", false), null);
-    assert.equal(normalizeInviteRole("owner", true), "owner");
-    assert.equal(normalizeInviteRole("billing", true), null);
+    assert.equal(normalizeInviteRole("admin"), "admin");
+    assert.equal(normalizeInviteRole("owner"), null);
+    assert.equal(normalizeInviteRole("billing"), null);
   });
 });
 

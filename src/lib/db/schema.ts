@@ -28,6 +28,8 @@ export const users = pgTable("user", {
   autoTopupThresholdUsd: numeric("auto_topup_threshold_usd"),
   autoTopupAmountUsd: numeric("auto_topup_amount_usd"),
   stripeCustomerId: text("stripe_customer_id"),
+  plan: text("plan").notNull().default("free"),
+  subscriptionStatus: text("subscription_status").notNull().default("inactive"),
   notifyLowBalance: boolean("notify_low_balance").notNull().default(true),
   notifyKeyLimit: boolean("notify_key_limit").notNull().default(true),
   notifyOrgInvite: boolean("notify_org_invite").notNull().default(true),
@@ -176,6 +178,7 @@ export const apiKeys = pgTable(
     keyHash: text("key_hash").notNull().unique(),
     keyPrefix: text("key_prefix").notNull(),
     isManagement: boolean("is_management").notNull().default(false),
+    scopes: jsonb("scopes").$type<string[] | null>(),
     disabled: boolean("disabled").notNull().default(false),
     limitMicros: bigint("limit_micros", { mode: "number" }),
     usageMicros: bigint("usage_micros", { mode: "number" }).notNull().default(0),
@@ -206,6 +209,51 @@ export const creditLedger = pgTable(
     uniqueIndex("ledger_stripe_session_uidx").on(t.stripeSessionId),
     uniqueIndex("ledger_generation_type_uidx").on(t.generationId, t.type),
   ],
+);
+
+export const creditHolds = pgTable(
+  "credit_hold",
+  {
+    id: text("id").primaryKey(),
+    generationId: text("generation_id").notNull().unique(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    apiKeyId: text("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
+    reservedMicros: bigint("reserved_micros", { mode: "number" }).notNull(),
+    actualMicros: bigint("actual_micros", { mode: "number" }),
+    budgetHeld: boolean("budget_held").notNull().default(false),
+    keyLimitHeld: boolean("key_limit_held").notNull().default(false),
+    status: text("status").notNull().default("open"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    closedAt: timestamp("closed_at"),
+  },
+  (t) => [
+    index("credit_hold_user_idx").on(t.userId, t.createdAt),
+    index("credit_hold_open_idx").on(t.status, t.createdAt),
+  ],
+);
+
+export const subscriptions = pgTable(
+  "subscription",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    customerId: text("customer_id").notNull(),
+    plan: text("plan").notNull(),
+    status: text("status").notNull(),
+    priceId: text("price_id"),
+    quantity: integer("quantity").notNull().default(1),
+    currentPeriodStart: timestamp("current_period_start"),
+    currentPeriodEnd: timestamp("current_period_end"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("subscription_user_idx").on(t.userId), index("subscription_customer_idx").on(t.customerId)],
 );
 
 export const generations = pgTable(
@@ -303,7 +351,9 @@ export const oauthCodes = pgTable("oauth_code", {
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  codeHash: text("code_hash").notNull(),
+  workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
+  scopes: jsonb("scopes").$type<string[]>().notNull().default(["inference:write"]),
+  codeHash: text("code_hash").notNull().unique(),
   codeChallenge: text("code_challenge").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").notNull().default(false),
@@ -330,6 +380,7 @@ export const videoJobs = pgTable("video_job", {
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
   model: text("model").notNull(),
   prompt: text("prompt").notNull(),
   status: text("status").notNull().default("queued"),
@@ -353,6 +404,7 @@ export const observabilityDestinations = pgTable("observability_destination", {
 export const chatShares = pgTable("chat_share", {
   id: text("id").primaryKey(),
   userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
   title: text("title"),
   payload: jsonb("payload")
     .$type<{

@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const text = String(body.input ?? body.text ?? "");
     if (!text) return jsonError(Object.assign(new Error("input required"), { status: 400 }));
     const model = String(body.model ?? "openai/tts");
-    const apiKey = await resolveByokKey(auth.userId, "openai");
+    const apiKey = await resolveByokKey(auth.userId, "openai", auth);
     const platform = Boolean(process.env.OPENAI_API_KEY?.trim());
     const isByok = Boolean(apiKey) && !platform;
     if (!apiKey && !platform) {
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     }
     const charK = Math.max(1, text.length / 1000);
     const usd = MEDIA_DEFAULT_USD.speech * charK;
-    const reserved = await holdMediaCredits({ auth, modality: "speech", isByok, usd });
+    const reservation = await holdMediaCredits({ auth, modality: "speech", isByok, usd });
     const started = Date.now();
     try {
       const live = await synthesizeSpeech({
@@ -35,11 +35,11 @@ export async function POST(req: Request) {
         apiKey,
       });
       if (live && "error" in live) {
-        await releaseReserve(auth, reserved);
+        await releaseReserve(auth, reservation);
         return jsonError(Object.assign(new Error(String(live.error)), { status: live.status ?? 502 }));
       }
       if (!(live && "buffer" in live && live.buffer)) {
-        await releaseReserve(auth, reserved);
+        await releaseReserve(auth, reservation);
         return jsonError(Object.assign(new Error("TTS provider returned no audio"), { status: 502 }));
       }
       const billed = await chargeAndRecordMedia({
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
         usd,
         promptTokens: Math.ceil(text.length / 4),
         latencyMs: Date.now() - started,
-        reservedMicros: reserved,
+        reservation,
       });
       const bytes = new Uint8Array(live.buffer);
       return new Response(bytes, {
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         },
       });
     } catch (error) {
-      await releaseReserve(auth, reserved);
+      await releaseReserve(auth, reservation);
       throw error;
     }
   } catch (error) {

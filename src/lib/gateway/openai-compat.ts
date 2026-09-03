@@ -12,6 +12,37 @@ export type CompletionUsage = {
   };
 };
 
+type CanonicalToolCall = {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+};
+
+function canonicalToolCall(raw: unknown, index: number): CanonicalToolCall {
+  const call = (raw ?? {}) as {
+    id?: string;
+    toolCallId?: string;
+    name?: string;
+    toolName?: string;
+    input?: unknown;
+    arguments?: unknown;
+    function?: { name?: string; arguments?: string };
+  };
+  const args = call.function?.arguments ?? call.arguments ?? call.input ?? {};
+  return {
+    id: call.id ?? call.toolCallId ?? `call_${index}`,
+    type: "function",
+    function: {
+      name: call.function?.name ?? call.toolName ?? call.name ?? "tool",
+      arguments: typeof args === "string" ? args : JSON.stringify(args),
+    },
+  };
+}
+
+function canonicalFinishReason(reason: string) {
+  return reason === "tool-calls" || reason === "tool_use" ? "tool_calls" : reason;
+}
+
 export function usagePayload(opts: {
   promptTokens: number;
   completionTokens: number;
@@ -53,6 +84,8 @@ export function chatCompletionPayload(opts: {
   reasoning?: string | null;
   created?: number;
 }) {
+  const finishReason = canonicalFinishReason(opts.finishReason);
+  const toolCalls = opts.toolCalls?.map(canonicalToolCall);
   return {
     id: opts.id,
     object: "chat.completion" as const,
@@ -64,14 +97,14 @@ export function chatCompletionPayload(opts: {
       {
         index: 0,
         logprobs: null,
-        finish_reason: opts.finishReason,
+        finish_reason: finishReason,
         native_finish_reason: opts.finishReason,
         message: {
           role: "assistant" as const,
           content: opts.text || null,
           refusal: null,
           reasoning: opts.reasoning ?? null,
-          ...(opts.toolCalls?.length ? { tool_calls: opts.toolCalls } : {}),
+          ...(toolCalls?.length ? { tool_calls: toolCalls } : {}),
         },
       },
     ],
@@ -145,14 +178,23 @@ export function toResponseEnvelope(chat: ChatLike) {
           },
         ],
       },
-      ...(msg?.tool_calls ?? []).map((call, i) => ({
+      ...(msg?.tool_calls ?? []).map((call, i) => {
+        const toolCall = canonicalToolCall(call, i);
+        return {
         type: "function_call" as const,
         id: `fc_${chat.id}_${i}`,
-        call,
-      })),
+          call_id: toolCall.id,
+          name: toolCall.function.name,
+          arguments: toolCall.function.arguments,
+          status: "completed" as const,
+        };
+      }),
     ],
     usage: {
       input_tokens: chat.usage?.prompt_tokens ?? 0,
+      input_tokens_details: {
+        cached_tokens: chat.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+      },
       output_tokens: chat.usage?.completion_tokens ?? 0,
       total_tokens: chat.usage?.total_tokens ?? 0,
       output_tokens_details: {
@@ -160,9 +202,9 @@ export function toResponseEnvelope(chat: ChatLike) {
       },
     },
     metadata: {
-      provider: chat.provider ?? null,
-      cost: chat.usage?.cost ?? 0,
-      is_byok: chat.usage?.is_byok ?? false,
+      provider: chat.provider ?? "",
+      cost_usd: String(chat.usage?.cost ?? 0),
+      is_byok: String(chat.usage?.is_byok ?? false),
       nexus_chat_id: chat.id,
     },
   };
@@ -183,14 +225,14 @@ export function toAnthropicMessage(chat: ChatLike) {
     content: [
       { type: "text" as const, text },
       ...((msg?.tool_calls ?? []).map((call) => {
-        const c = call as { id?: string; function?: { name?: string; arguments?: string }; name?: string };
+        const c = canonicalToolCall(call, 0);
         return {
           type: "tool_use" as const,
-          id: c.id ?? "tool",
-          name: c.function?.name ?? c.name ?? "tool",
+          id: c.id,
+          name: c.function.name,
           input: (() => {
             try {
-              return JSON.parse(c.function?.arguments ?? "{}");
+              return JSON.parse(c.function.arguments);
             } catch {
               return {};
             }
@@ -230,6 +272,9 @@ export async function reshapeChatResponse(
     headers: {
       "X-Nexus-Upstream-Object": "chat.completion",
       "X-Nexus-Envelope": shape,
+      ...(res.headers.get("x-request-id")
+        ? { "X-Request-Id": res.headers.get("x-request-id") as string }
+        : {}),
     },
   });
 }
@@ -241,14 +286,36 @@ export function sseEvent(event: string, data: unknown) {
 export function chatChunkToProtocolSse(chunk: ReturnType<typeof chatChunkPayload>, shape: "response" | "anthropic") {
   const delta = typeof chunk.choices[0]?.delta?.content === "string" ? chunk.choices[0].delta.content : "";
   const done = chunk.choices[0]?.finish_reason != null;
+  const responseId = chunk.id.startsWith("gen-") ? `resp_${chunk.id.slice(4)}` : `resp_${chunk.id}`;
   if (shape === "response") {
     if (delta) {
-      return sseEvent("response.output_text.delta", { type: "response.output_text.delta", delta });
+      return sseEvent("response.output_text.delta", {
+        type: "response.output_text.delta",
+        item_id: `msg_${chunk.id}`,
+        output_index: 0,
+        content_index: 0,
+        delta,
+      });
     }
     if (done) {
       return sseEvent("response.completed", {
         type: "response.completed",
-        response: { id: chunk.id.startsWith("gen-") ? `resp_${chunk.id.slice(4)}` : `resp_${chunk.id}`, status: "completed" },
+        response: {
+          id: responseId,
+          object: "response",
+          created_at: chunk.created,
+          status: "completed",
+          model: chunk.model,
+          output: [],
+          usage: chunk.usage
+            ? {
+                input_tokens: chunk.usage.prompt_tokens,
+                output_tokens: chunk.usage.completion_tokens,
+                total_tokens: chunk.usage.total_tokens,
+              }
+            : null,
+          metadata: { provider: chunk.provider ?? "" },
+        },
       });
     }
     return "";
@@ -261,7 +328,21 @@ export function chatChunkToProtocolSse(chunk: ReturnType<typeof chatChunkPayload
     });
   }
   if (done) {
-    return sseEvent("message_stop", { type: "message_stop" });
+    const stopReason =
+      chunk.choices[0]?.finish_reason === "length"
+        ? "max_tokens"
+        : chunk.choices[0]?.finish_reason === "tool_calls"
+          ? "tool_use"
+          : "end_turn";
+    return (
+      sseEvent("content_block_stop", { type: "content_block_stop", index: 0 }) +
+      sseEvent("message_delta", {
+        type: "message_delta",
+        delta: { stop_reason: stopReason, stop_sequence: null },
+        usage: { output_tokens: chunk.usage?.completion_tokens ?? 0 },
+      }) +
+      sseEvent("message_stop", { type: "message_stop" })
+    );
   }
   return "";
 }
@@ -270,17 +351,12 @@ function reshapeChatStream(res: Response, shape: "response" | "anthropic") {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   let buffer = "";
+  let started = false;
   const body = new ReadableStream({
     async start(controller) {
       const send = (chunk: string) => {
         if (chunk) controller.enqueue(encoder.encode(chunk));
       };
-      if (shape === "response") {
-        send(sseEvent("response.created", { type: "response.created" }));
-      } else {
-        send(sseEvent("message_start", { type: "message_start" }));
-        send(sseEvent("content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }));
-      }
       const reader = res.body?.getReader();
       if (!reader) {
         controller.close();
@@ -299,13 +375,56 @@ function reshapeChatStream(res: Response, shape: "response" | "anthropic") {
           if (raw === "[DONE]") continue;
           try {
             const json = JSON.parse(raw) as ReturnType<typeof chatChunkPayload>;
+            if (!started) {
+              started = true;
+              if (shape === "response") {
+                const responseId = json.id.startsWith("gen-")
+                  ? `resp_${json.id.slice(4)}`
+                  : `resp_${json.id}`;
+                send(
+                  sseEvent("response.created", {
+                    type: "response.created",
+                    response: {
+                      id: responseId,
+                      object: "response",
+                      created_at: json.created,
+                      status: "in_progress",
+                      model: json.model,
+                      output: [],
+                    },
+                  }),
+                );
+              } else {
+                send(
+                  sseEvent("message_start", {
+                    type: "message_start",
+                    message: {
+                      id: json.id.startsWith("gen-") ? `msg_${json.id.slice(4)}` : json.id,
+                      type: "message",
+                      role: "assistant",
+                      model: json.model,
+                      content: [],
+                      stop_reason: null,
+                      stop_sequence: null,
+                      usage: { input_tokens: 0, output_tokens: 0 },
+                    },
+                  }),
+                );
+                send(
+                  sseEvent("content_block_start", {
+                    type: "content_block_start",
+                    index: 0,
+                    content_block: { type: "text", text: "" },
+                  }),
+                );
+              }
+            }
             send(chatChunkToProtocolSse(json, shape));
           } catch {
             /* skip malformed */
           }
         }
       }
-      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       controller.close();
     },
   });
@@ -315,6 +434,9 @@ function reshapeChatStream(res: Response, shape: "response" | "anthropic") {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Nexus-Envelope": shape,
+      ...(res.headers.get("x-request-id")
+        ? { "X-Request-Id": res.headers.get("x-request-id") as string }
+        : {}),
     },
   });
 }

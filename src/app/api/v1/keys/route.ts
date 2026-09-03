@@ -1,8 +1,15 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { issueApiKey } from "@/lib/keys";
 import { microsToUsd, usdToMicros } from "@/lib/money";
+import { defaultScopes, normalizeApiKeyScopes, scopeAllows } from "@/lib/gateway/acl";
+import { resolveOwnedWorkspace } from "@/lib/gateway/tenant";
+import { limitsForPlan } from "@/lib/config";
+
+function ownsKey(auth: { userId: string; workspaceId?: string | null }, row: typeof schema.apiKeys.$inferSelect) {
+  return row.userId === auth.userId && (!auth.workspaceId || row.workspaceId === auth.workspaceId);
+}
 
 function serializeKey(k: typeof schema.apiKeys.$inferSelect) {
   const usage = microsToUsd(k.usageMicros);
@@ -14,6 +21,7 @@ function serializeKey(k: typeof schema.apiKeys.$inferSelect) {
     label: k.name,
     disabled: k.disabled,
     is_management: k.isManagement,
+    scopes: k.scopes ?? defaultScopes(k.isManagement),
     created_at: k.createdAt,
     updated_at: k.lastUsedAt ?? k.createdAt,
     last_used: k.lastUsedAt,
@@ -51,17 +59,20 @@ export async function POST(req: Request) {
     const body = await req.json();
     if (body.rotate_id) {
       const [row] = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.id, body.rotate_id)).limit(1);
-      if (!row || row.userId !== auth.userId) {
+      if (!row || !ownsKey(auth, row)) {
         return jsonError(Object.assign(new Error("not found"), { status: 404 }));
       }
-      await db.delete(schema.apiKeys).where(eq(schema.apiKeys.id, row.id));
       const created = await issueApiKey({
         userId: auth.userId,
         workspaceId: row.workspaceId,
         name: row.name,
         isManagement: row.isManagement,
         limitMicros: row.limitMicros,
+        limitReset: row.limitReset,
+        includeByokInLimit: row.includeByokInLimit,
+        scopes: row.scopes ?? undefined,
       });
+      await db.delete(schema.apiKeys).where(eq(schema.apiKeys.id, row.id));
       return Response.json({
         data: {
           ...created,
@@ -71,12 +82,32 @@ export async function POST(req: Request) {
         },
       });
     }
+    const isManagement = Boolean(body.is_management);
+    const [existingCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.apiKeys)
+      .where(eq(schema.apiKeys.userId, auth.userId));
+    const maxKeys = limitsForPlan(auth.plan).apiKeys;
+    if (Number(existingCount?.count ?? 0) >= maxKeys) {
+      return jsonError(
+        Object.assign(new Error(`Plan limit reached (${maxKeys} API keys)`), {
+          status: 403,
+          code: "plan_limit",
+        }),
+      );
+    }
+    const scopes = normalizeApiKeyScopes(body.scopes, isManagement);
+    if (auth.apiKeyId && scopes.some((scope) => !scopeAllows(auth.scopes, scope))) {
+      return jsonError(Object.assign(new Error("cannot delegate scopes you do not have"), { status: 403 }));
+    }
+    const workspaceId = await resolveOwnedWorkspace(auth, body.workspace_id);
     const created = await issueApiKey({
       userId: auth.userId,
-      workspaceId: body.workspace_id ?? auth.workspaceId ?? null,
+      workspaceId,
       name: body.name ?? body.label ?? "Default",
-      isManagement: Boolean(body.is_management),
+      isManagement,
       limitMicros: body.limit != null ? usdToMicros(Number(body.limit)) : null,
+      scopes,
     });
     return Response.json({
       data: {
@@ -101,11 +132,12 @@ export async function PATCH(req: Request) {
       limit?: number | null;
       include_byok_in_limit?: boolean;
       limit_reset?: string | null;
+      scopes?: unknown;
     };
     const keyId = body.id ?? new URL(req.url).searchParams.get("id");
     if (!keyId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.id, keyId)).limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !ownsKey(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     const patch: Partial<typeof schema.apiKeys.$inferInsert> = {};
@@ -117,6 +149,13 @@ export async function PATCH(req: Request) {
       patch.includeByokInLimit = body.include_byok_in_limit;
     }
     if (body.limit_reset !== undefined) patch.limitReset = body.limit_reset;
+    if (body.scopes !== undefined) {
+      const scopes = normalizeApiKeyScopes(body.scopes, row.isManagement);
+      if (auth.apiKeyId && scopes.some((scope) => !scopeAllows(auth.scopes, scope))) {
+        return jsonError(Object.assign(new Error("cannot delegate scopes you do not have"), { status: 403 }));
+      }
+      patch.scopes = scopes;
+    }
     if (Object.keys(patch).length) {
       await db.update(schema.apiKeys).set(patch).where(eq(schema.apiKeys.id, keyId));
     }
@@ -134,7 +173,7 @@ export async function DELETE(req: Request) {
     const keyId = searchParams.get("id");
     if (!keyId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.id, keyId)).limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !ownsKey(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await db.delete(schema.apiKeys).where(eq(schema.apiKeys.id, keyId));

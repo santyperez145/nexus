@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppPageHeader } from "@/components/layout/app-page-header";
-import { CREDIT_PACKS, CREDIT_PURCHASE_FEE } from "@/lib/config";
+import { CREDIT_PACKS, CREDIT_PURCHASE_FEE, SUBSCRIPTION_PLANS } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatUsd } from "@/lib/money";
@@ -15,6 +15,15 @@ type Credits = {
   total_credits: number;
   total_usage: number;
   manual_credits?: boolean;
+  plan: string;
+  subscription_status: string;
+  subscription?: {
+    plan: string;
+    status: string;
+    quantity: number;
+    current_period_end: string | null;
+    cancel_at_period_end: boolean;
+  } | null;
   ledger: Array<{ id: string; type: string; amount: number; note: string | null; created_at: string }>;
 };
 
@@ -33,15 +42,27 @@ function CreditsInner() {
   const params = useSearchParams();
   const checkoutOk = params.get("ok") === "1";
   const canceled = params.get("canceled") === "1";
+  const subscriptionResult = params.get("subscription");
   const [credits, reload] = useRemoteData<Credits>("/api/v1/credits");
   const [prefs, reloadPrefs] = useRemoteData<Prefs>("/api/internal/preferences");
   const [analytics] = useRemoteData<Analytics>("/api/v1/analytics?days=7");
   const [msg, setMsg] = useState<string | null>(
-    canceled ? "Checkout cancelado." : checkoutOk ? "Confirmando pago con Stripe…" : null,
+    subscriptionResult === "ok"
+      ? "Confirmando suscripción con Stripe…"
+      : subscriptionResult === "canceled" || canceled
+        ? "Checkout cancelado."
+        : checkoutOk
+          ? "Confirmando pago con Stripe…"
+          : null,
   );
   const [threshold, setThreshold] = useState<string | null>(null);
   const [amount, setAmount] = useState<string | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "in" | "out">("all");
+  const [teamSeats, setTeamSeats] = useState("5");
+  const subscriptionConfirmed =
+    subscriptionResult === "ok" &&
+    ["active", "trialing"].includes(credits?.subscription_status ?? "");
+  const displayMessage = subscriptionConfirmed ? `Plan ${credits?.plan ?? ""} activo.` : msg;
   const baseline = useRef<number | null>(null);
   const polls = useRef(0);
   const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
@@ -70,6 +91,23 @@ function CreditsInner() {
       window.history.replaceState({}, "", "/settings/credits");
     }
   }, [checkoutOk, credits]);
+
+  useEffect(() => {
+    if (subscriptionResult !== "ok") return;
+    if (subscriptionConfirmed) {
+      window.history.replaceState({}, "", "/settings/credits");
+      return;
+    }
+    const timer = window.setInterval(reload, 1500);
+    const stop = window.setTimeout(() => {
+      window.clearInterval(timer);
+      setMsg("Stripe está confirmando la suscripción. Refrescá en unos segundos.");
+    }, 18_000);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(stop);
+    };
+  }, [reload, subscriptionConfirmed, subscriptionResult]);
 
   const burn7d = analytics?.totals.cost ?? 0;
   const dailyBurn = burn7d / 7;
@@ -105,6 +143,26 @@ function CreditsInner() {
     }
     setMsg(data.error ?? "No se pudo iniciar el checkout");
     reload();
+  }
+
+  async function subscribe(planId: string, seats = 1) {
+    setMsg(null);
+    const res = await fetch("/api/internal/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planId, seats }),
+    });
+    const data = await res.json();
+    if (data.url) return window.location.assign(data.url);
+    setMsg(data.error ?? "No se pudo iniciar la suscripción");
+  }
+
+  async function manageSubscription() {
+    setMsg(null);
+    const res = await fetch("/api/internal/checkout", { method: "PATCH" });
+    const data = await res.json();
+    if (data.url) return window.location.assign(data.url);
+    setMsg(data.error ?? "No se pudo abrir el portal de facturación");
   }
 
   async function saveTopup(enabled: boolean) {
@@ -147,7 +205,7 @@ function CreditsInner() {
             {credits.total_credits > 0 ? (
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
                 <div
-                  className="h-full rounded-full bg-amber-400/70"
+                  className="h-full rounded-full bg-violet-500"
                   style={{
                     width: `${Math.min(100, (credits.remaining / credits.total_credits) * 100)}%`,
                   }}
@@ -190,7 +248,7 @@ function CreditsInner() {
                 {analytics.by_day.map((d) => (
                   <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
                     <div
-                      className="w-full rounded-sm bg-amber-400/60"
+                      className="w-full rounded-sm bg-violet-400"
                       style={{ height: `${Math.max(4, (d.cost / maxDayCost) * 100)}%` }}
                       title={`${d.day}: ${formatUsd(d.cost, 4)}`}
                     />
@@ -204,7 +262,73 @@ function CreditsInner() {
         </div>
       ) : null}
 
-      <h2 className="mb-3 text-lg font-medium">Packs</h2>
+      <div className="mb-3 mt-8 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-medium">Planes</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Suscripción para capacidades de plataforma; la inferencia sigue descontándose del wallet.
+          </p>
+        </div>
+        {credits?.subscription ? (
+          <Button variant="outline" onClick={() => void manageSubscription()}>
+            Gestionar suscripción
+          </Button>
+        ) : null}
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {SUBSCRIPTION_PLANS.map((plan) => {
+          const current = credits?.plan === plan.id && ["active", "trialing"].includes(credits.subscription_status);
+          return (
+            <div
+              key={plan.id}
+              className={`rounded-2xl border bg-white p-5 ${current ? "border-violet-300 ring-2 ring-violet-100" : "border-zinc-200"}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xl font-semibold text-zinc-950">{plan.name}</div>
+                  <p className="mt-1 text-sm text-zinc-500">{plan.description}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-semibold text-zinc-950">${plan.monthlyUsd}</div>
+                  <div className="text-xs text-zinc-500">/mes{plan.seats ? " por asiento" : ""}</div>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-zinc-700">
+                Incluye ${plan.includedCreditsUsd} en créditos de inferencia por factura pagada.
+              </p>
+              {plan.seats && !credits?.subscription ? (
+                <label className="mt-4 block text-xs text-zinc-600">
+                  Asientos Team
+                  <Input
+                    className="mt-1"
+                    type="number"
+                    min={1}
+                    max={250}
+                    value={teamSeats}
+                    onChange={(event) => setTeamSeats(event.target.value)}
+                  />
+                </label>
+              ) : null}
+              <Button
+                className="mt-4 w-full"
+                variant={credits?.subscription ? "outline" : "default"}
+                onClick={() =>
+                  credits?.subscription
+                    ? void manageSubscription()
+                    : void subscribe(plan.id, plan.seats ? Math.max(1, Number(teamSeats) || 1) : 1)
+                }
+              >
+                {current ? "Gestionar plan actual" : credits?.subscription ? "Cambiar en portal" : `Elegir ${plan.name}`}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs text-zinc-500">
+        Impuestos no incluidos: se calculan solo cuando la cuenta Stripe tiene registros fiscales activos.
+      </p>
+
+      <h2 className="mb-3 mt-10 text-lg font-medium">Packs</h2>
       <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {CREDIT_PACKS.map((p) => {
           const charge = p.usd * (1 + CREDIT_PURCHASE_FEE);
@@ -283,7 +407,7 @@ function CreditsInner() {
         </Button>
       </div>
 
-      {msg ? <p className="mt-4 text-sm text-zinc-950">{msg}</p> : null}
+      {displayMessage ? <p className="mt-4 text-sm text-zinc-950">{displayMessage}</p> : null}
 
       {credits?.ledger?.length ? (
         <>

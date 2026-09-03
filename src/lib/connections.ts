@@ -14,8 +14,8 @@ export function connectionStatus() {
     database: {
       id: "database",
       label: "Base de datos",
-      wired: present(process.env.DATABASE_URL),
-      hint: present(process.env.DATABASE_URL)
+      wired: present(process.env.DATABASE_URL) || present(process.env.POSTGRES_URL),
+      hint: present(process.env.DATABASE_URL) || present(process.env.POSTGRES_URL)
         ? "Postgres / Neon"
         : "PGlite local (./data/nexus). Para prod: DATABASE_URL",
       env: ["DATABASE_URL"],
@@ -29,20 +29,21 @@ export function connectionStatus() {
     },
     stripe: {
       id: "stripe",
-      label: "Stripe (créditos)",
+      label: "Stripe (créditos + suscripciones)",
       wired: present(process.env.STRIPE_SECRET_KEY),
       webhook: present(process.env.STRIPE_WEBHOOK_SECRET),
-      hint: "STRIPE_SECRET_KEY + webhook a /api/webhooks/stripe",
-      env: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
+      plans: present(process.env.STRIPE_PRICE_PRO_MONTHLY) && present(process.env.STRIPE_PRICE_TEAM_MONTHLY),
+      hint: "Secret, webhook y Price IDs Pro/Team",
+      env: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_PRO_MONTHLY", "STRIPE_PRICE_TEAM_MONTHLY"],
     },
     redis: {
       id: "redis",
       label: "Redis",
       wired:
         present(process.env.REDIS_URL) ||
-        present(process.env.UPSTASH_REDIS_REST_URL) ||
-        present(process.env.KV_REST_API_URL),
-      hint: "REDIS_URL, Upstash o Vercel KV. Sin esto: rate limit en memoria.",
+        (present(process.env.UPSTASH_REDIS_REST_URL) && present(process.env.UPSTASH_REDIS_REST_TOKEN)) ||
+        (present(process.env.KV_REST_API_URL) && present(process.env.KV_REST_API_TOKEN)),
+      hint: "REDIS_URL, Upstash o Vercel KV. Producción falla cerrado si falta.",
       env: ["REDIS_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_URL"],
     },
     providers: NEXUS_PROVIDERS.map((p) => ({

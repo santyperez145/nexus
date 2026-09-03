@@ -1,11 +1,24 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { GUEST_USER_ID, GUEST_EMAIL, assertGuestRateLimit } from "../src/lib/gateway/guest";
+import {
+  GUEST_USER_ID,
+  GUEST_EMAIL,
+  assertGuestRateLimit,
+  guestAuthContext,
+} from "../src/lib/gateway/guest";
 
 describe("guest playground", () => {
   it("exports stable guest identity", () => {
     assert.equal(GUEST_USER_ID, "usr_nexus_guest_playground");
     assert.ok(GUEST_EMAIL.includes("guest"));
+  });
+
+  it("isolates ephemeral guest identities by client IP", () => {
+    const first = guestAuthContext(new Headers({ "x-forwarded-for": "198.51.100.10" }));
+    const same = guestAuthContext(new Headers({ "x-forwarded-for": "198.51.100.10" }));
+    const other = guestAuthContext(new Headers({ "x-forwarded-for": "198.51.100.11" }));
+    assert.equal(first.userId, same.userId);
+    assert.notEqual(first.userId, other.userId);
   });
 
   it("rate-limits guest IP after rpm", async () => {

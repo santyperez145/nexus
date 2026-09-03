@@ -63,7 +63,7 @@ export default function EnterprisePage() {
       <div className="relative mx-auto max-w-4xl px-4 py-12 md:py-16">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
         <MarketingPageHeader title="Enterprise">
           Controles reales de privacidad, presupuesto y auditoría — no un “plan Enterprise”
@@ -84,14 +84,14 @@ export default function EnterprisePage() {
                   [postgres && "pg", stripe && "stripe", redis && "redis"].filter(Boolean).join(" · ") ||
                   "mínimo",
               },
-              { k: "Mode", v: wired.length ? "live hops" : "local echo" },
+              { k: "Mode", v: wired.length ? "live hops" : "unconfigured" },
             ].map((row, i) => (
               <div
                 key={row.k}
                 className={`px-4 py-3 ${i ? "border-t border-zinc-100 lg:border-l lg:border-t-0" : ""}`}
               >
                 <div className="text-[10px] uppercase tracking-wide text-zinc-500">{row.k}</div>
-                <div className="mt-1 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+                <div className="mt-1 text-lg font-semibold text-zinc-900">
                   {row.v}
                 </div>
               </div>
@@ -108,7 +108,7 @@ export default function EnterprisePage() {
             <Link
               key={row.k}
               href={row.href}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-zinc-300"
             >
               <div className="text-[10px] uppercase tracking-wide text-zinc-500">{row.k}</div>
               <div className="mt-1 font-mono text-sm text-zinc-900">{row.v}</div>
@@ -121,9 +121,9 @@ export default function EnterprisePage() {
             <Link
               key={c.t}
               href={c.href}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-4 transition-colors hover:border-amber-600/40"
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-4 transition-colors hover:border-zinc-300"
             >
-              <div className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+              <div className="text-lg font-semibold text-zinc-900">
                 {c.t}
               </div>
               <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">{c.d}</p>
@@ -132,7 +132,7 @@ export default function EnterprisePage() {
         </div>
 
         <div className="mt-10 border-t border-zinc-200 pt-8">
-          <h2 className="font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
+          <h2 className="text-xl font-semibold text-zinc-900">
             Qué no prometemos
           </h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-zinc-600">
@@ -143,7 +143,7 @@ export default function EnterprisePage() {
         </div>
 
         <div className="mt-8 flex flex-wrap gap-2">
-          <Button asChild className="bg-amber-600 text-white hover:bg-amber-700">
+          <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
             <Link href="/docs/provider-routing">Docs ZDR / routing</Link>
           </Button>
           <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">

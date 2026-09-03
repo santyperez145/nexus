@@ -15,8 +15,7 @@ export default function TermsPage() {
             <p>
               Nexus ofrece API unificada, SDK, dashboard y billing sobre modelos de terceros. El
               precio de inferencia es el de lista del catálogo (0% markup). Al cargar créditos se
-              aplica un fee de plataforma (4.9%). El signup puede incluir un crédito de bienvenida
-              documentado en la app.
+              aplica un fee de plataforma (4.9%). Toda acreditación real queda documentada en el ledger.
             </p>
           </section>
 
@@ -52,8 +51,8 @@ export default function TermsPage() {
             <h2 className="mb-2 text-base font-medium text-zinc-900">Disponibilidad</h2>
             <p>
               El status público en <code className="text-zinc-800">/status</code> refleja checks
-              honestos. Sin keys de lab cableadas, el gateway puede responder con eco local — no es
-              un proveedor frontier fingido. No garantizamos SLA de terceros.
+              honestos. Sin keys de lab cableadas, producción devuelve provider_unwired y no simula
+              una respuesta frontier. No garantizamos SLA de terceros.
             </p>
           </section>
 

@@ -204,7 +204,7 @@ export function MediaStudio() {
           ))}
         </div>
         <span className="text-[11px] text-zinc-500">
-          7d local echo: {localPct}% · sin key = placeholder
+          7d local/dev: {localPct}% · sin provider = error explícito
         </span>
       </div>
 
@@ -215,7 +215,7 @@ export function MediaStudio() {
       {tab === "image" ? (
         <Panel
           title="Images"
-          hint="POST /api/v1/images/generations — placeholder SVG local sin OPENAI key."
+          hint="POST /api/v1/images/generations — requiere OPENAI key o BYOK."
           onRun={() => void runImage()}
           busy={busy}
         >

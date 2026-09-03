@@ -33,6 +33,68 @@ const INFERENCE_PATHS = [
   "/api/v1/videos",
 ];
 
+const RESOURCE_PATHS = [
+  ["/api/v1/analytics", "activity"],
+  ["/api/v1/generation", "activity"],
+  ["/api/v1/generations", "activity"],
+  ["/api/v1/credits", "billing"],
+  ["/api/v1/keys", "keys"],
+  ["/api/v1/byok", "byok"],
+  ["/api/v1/files", "files"],
+  ["/api/v1/guardrails", "guardrails"],
+  ["/api/v1/observability", "observability"],
+  ["/api/v1/organization", "organizations"],
+  ["/api/v1/workspaces", "workspaces"],
+  ["/api/v1/oauth", "oauth"],
+  ["/api/v1/presets", "presets"],
+  ["/api/v1/shares", "shares"],
+] as const;
+
+const MANAGEMENT_SCOPES = new Set([
+  "activity:read",
+  "billing:read",
+  "keys:read",
+  "keys:write",
+  "byok:read",
+  "byok:write",
+  "files:read",
+  "files:write",
+  "guardrails:read",
+  "guardrails:write",
+  "observability:read",
+  "observability:write",
+  "organizations:read",
+  "organizations:write",
+  "workspaces:read",
+  "workspaces:write",
+  "oauth:read",
+  "oauth:write",
+  "presets:read",
+  "presets:write",
+  "shares:read",
+  "shares:write",
+]);
+
+export function defaultScopes(isManagement: boolean) {
+  return isManagement ? [...MANAGEMENT_SCOPES] : ["inference:write"];
+}
+
+export function normalizeApiKeyScopes(raw: unknown, isManagement: boolean) {
+  if (!Array.isArray(raw)) return defaultScopes(isManagement);
+  const requested = [...new Set(raw.map(String))];
+  const allowed = isManagement ? MANAGEMENT_SCOPES : new Set(["inference:write"]);
+  if (!requested.length || requested.some((scope) => !allowed.has(scope))) {
+    throw deny("Invalid API key scopes", 400, "invalid_request");
+  }
+  return requested;
+}
+
+export function scopeAllows(granted: string[] | undefined, required: string) {
+  const scopes = granted ?? [];
+  const resource = required.split(":")[0];
+  return scopes.includes("*") || scopes.includes(required) || scopes.includes(`${resource}:*`);
+}
+
 function pathnameOf(req: Request) {
   try {
     return new URL(req.url).pathname.replace(/\/$/, "") || "/";
@@ -55,6 +117,17 @@ export function isManagementPath(req: Request) {
 
 export function isInferencePath(req: Request) {
   return matches(pathnameOf(req), INFERENCE_PATHS);
+}
+
+export function requiredScope(req: Request) {
+  if (isInferencePath(req) || pathnameOf(req) === "/api/v1/routing/preview") {
+    return "inference:write";
+  }
+  const path = pathnameOf(req);
+  const resource = RESOURCE_PATHS.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`))?.[1];
+  if (!resource) return null;
+  const action = req.method === "GET" || req.method === "HEAD" ? "read" : "write";
+  return `${resource}:${action}`;
 }
 
 export function deny(message: string, status = 403, code = "forbidden") {
@@ -80,6 +153,11 @@ export function enforcePathPolicy(req: Request, auth: AuthContext) {
   }
   if (isInferencePath(req) && !auth.guest && auth.apiKeyId && auth.isManagement) {
     throw deny("Management keys cannot run inference. Use an inference key (sk-nx-).");
+  }
+  const required = requiredScope(req);
+  const scopes = auth.scopes ?? defaultScopes(auth.isManagement);
+  if (required && !scopeAllows(scopes, required)) {
+    throw deny(`API key is missing scope ${required}`);
   }
 }
 

@@ -37,8 +37,8 @@ export async function POST(req: Request) {
         adapters.add(`${candidate.model.id}:${endpoint.adapter}`);
         const byok =
           auth.userId !== "guest"
-            ? ((await resolveByokKey(auth.userId, endpoint.adapter)) ??
-              (await resolveByokKey(auth.userId, endpoint.name)) ??
+            ? ((await resolveByokKey(auth.userId, endpoint.adapter, auth)) ??
+              (await resolveByokKey(auth.userId, endpoint.name, auth)) ??
               undefined)
             : undefined;
         hops.push({
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     return Response.json({
       data: {
         requested: plan.requested,
-        mode: live.length ? "live" : hops.length ? "local_echo" : "empty",
+        mode: live.length ? "live" : hops.length ? "unconfigured" : "empty",
         hops,
         live_count: live.length,
         guest: auth.userId === "guest",
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
           auth.userId === "guest"
             ? "Preview público (prefs default). Entrá para BYOK y privacy de tu cuenta."
             : live.length === 0
-              ? "Sin keys de lab: el gateway responderá en eco local. Agregá BYOK o Conexiones."
+              ? "Sin providers cableados: agregá BYOK o una key de plataforma antes de inferir."
               : `${live.length} host(s) cableados; el primero viable gana.`,
       },
     });

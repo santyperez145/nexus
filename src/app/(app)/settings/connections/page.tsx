@@ -12,11 +12,12 @@ type Status = {
   gatewayUrl: string | null;
   database: { label: string; wired: boolean; hint: string; env: string[] };
   auth: { label: string; wired: boolean; hint: string; env: string[] };
-  stripe: { label: string; wired: boolean; webhook: boolean; hint: string; env: string[] };
+  stripe: { label: string; wired: boolean; webhook: boolean; plans: boolean; hint: string; env: string[] };
   redis: { label: string; wired: boolean; hint: string; env: string[] };
   providers: Array<{ id: string; label: string; env: string; wired: boolean }>;
   search?: Array<{ id: string; label: string; wired: boolean }>;
   manualCredits: boolean;
+  platformAdmin: boolean;
 };
 
 type ProbeMap = Record<string, { ok: boolean; detail: string }>;
@@ -36,7 +37,7 @@ export default function ConnectionsPage() {
 
   const blocks = [status.database, status.auth, status.stripe, status.redis];
   const wiredLabs = status.providers.filter((p) => p.wired).length;
-  const mode = wiredLabs > 0 ? "live hops" : "local echo";
+  const mode = wiredLabs > 0 ? "live hops" : "unconfigured";
 
   return (
     <div>
@@ -92,7 +93,7 @@ export default function ConnectionsPage() {
         <Link href="/settings/byok" className="text-violet-700 hover:underline">
           BYOK
         </Link>{" "}
-        o esperá eco local honesto.
+        o agregá una credencial BYOK.
       </p>
       <div className="mb-8 grid gap-2 md:grid-cols-2">
         {status.providers.map((p) => (
@@ -132,8 +133,9 @@ export default function ConnectionsPage() {
         <div className="font-medium text-zinc-700">Webhook Stripe</div>
         <p className="mt-1 font-mono text-xs text-zinc-400">{status.webhookUrl}</p>
         <p className="mt-2 text-zinc-500">
-          En el dashboard de Stripe → Webhooks → este URL. Evento:{" "}
-          <code>checkout.session.completed</code>.
+          Eventos: <code>checkout.session.completed</code>, <code>checkout.session.async_payment_succeeded</code>,{" "}
+          <code>customer.subscription.*</code>, <code>invoice.paid</code>,{" "}
+          <code>invoice.payment_failed</code> y <code>payment_intent.succeeded</code>.
         </p>
         {status.gatewayUrl ? (
           <p className="mt-2 text-zinc-500">Gateway data plane: {status.gatewayUrl}</p>
@@ -145,7 +147,7 @@ export default function ConnectionsPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {status.platformAdmin ? <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           onClick={async () => {
@@ -193,7 +195,9 @@ export default function ConnectionsPage() {
             Cargar $10 (wallet)
           </Button>
         ) : null}
-      </div>
+      </div> : (
+        <p className="text-sm text-zinc-500">Los probes y el sync global están reservados al platform admin.</p>
+      )}
       {msg ? <p className="mt-4 text-sm text-zinc-950">{msg}</p> : null}
     </div>
   );

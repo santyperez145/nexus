@@ -30,7 +30,7 @@ export default async function ProvidersPage() {
       <div className="relative mx-auto max-w-6xl px-4 py-12 md:py-16">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-8 h-48 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-8 h-48 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
         <MarketingPageHeader title="Providers">
           Hosts de inferencia del catálogo. Conteos = slugs que listan el adapter. Circuitos desde
@@ -45,7 +45,7 @@ export default async function ProvidersPage() {
           ].map((s) => (
             <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
-              <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold text-zinc-900">
+              <div className="mt-1 text-2xl font-semibold text-zinc-900">
                 {s.v}
               </div>
             </div>
@@ -62,14 +62,14 @@ export default async function ProvidersPage() {
               <Link
                 key={p.id}
                 href={`/providers/${p.id}`}
-                className="group rounded-2xl border border-zinc-200 bg-white p-4 transition-colors hover:border-amber-600/40"
+                className="group rounded-2xl border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-950 group-hover:text-amber-900">
+                    <div className="text-lg font-semibold text-zinc-950 group-hover:text-zinc-950">
                       {p.label}
                     </div>
-                    <div className="mt-0.5 font-mono text-xs text-amber-700">{p.id}</div>
+                    <div className="mt-0.5 font-mono text-xs text-violet-700">{p.id}</div>
                   </div>
                   <span
                     className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
@@ -93,14 +93,14 @@ export default async function ProvidersPage() {
                       circuit === "open"
                         ? "border-rose-300 bg-rose-50 text-rose-800"
                         : p.zdr
-                          ? "border-amber-600/30 bg-amber-50 text-amber-800"
+                          ? "border-violet-200 bg-violet-50 text-violet-800"
                           : "border-zinc-200 text-zinc-500"
                     }`}
                   >
                     {circuit === "open" ? "circuit open" : p.zdr ? "ZDR" : circuit}
                   </span>
                 </div>
-                <div className="mt-3 text-xs text-amber-700 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="mt-3 text-xs text-violet-700 opacity-0 transition-opacity group-hover:opacity-100">
                   Ficha →
                 </div>
               </Link>
@@ -112,7 +112,7 @@ export default async function ProvidersPage() {
           En el request:{" "}
           <code className="text-zinc-700">provider.only: [&quot;groq&quot;, &quot;together&quot;]</code>.{" "}
           Health: <code className="text-zinc-700">GET /api/v1/providers/health</code>.{" "}
-          <Link href="/docs/provider-routing" className="text-amber-700 hover:underline">
+          <Link href="/docs/provider-routing" className="text-violet-700 hover:underline">
             Routing docs →
           </Link>
         </p>

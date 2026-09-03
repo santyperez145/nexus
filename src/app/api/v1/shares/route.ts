@@ -2,6 +2,7 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db, ensureDb, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { id } from "@/lib/ids";
+import { canAccess, canMutateResource, userScope } from "@/lib/gateway/tenant";
 
 type SharePayload = {
   model: string;
@@ -35,7 +36,12 @@ export async function GET(req: Request) {
     const rows = await db
       .select()
       .from(schema.chatShares)
-      .where(and(eq(schema.chatShares.userId, auth.userId), isNotNull(schema.chatShares.userId)))
+      .where(
+        and(
+          userScope(auth, schema.chatShares.userId, schema.chatShares.workspaceId),
+          isNotNull(schema.chatShares.userId),
+        ),
+      )
       .orderBy(desc(schema.chatShares.createdAt))
       .limit(100);
     return Response.json({
@@ -57,13 +63,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await ensureDb();
-    let userId: string | null = null;
-    try {
-      const auth = await authenticateRequest(req);
-      userId = auth.userId;
-    } catch {
-      /* guest share permitido: payload público, sin PII de cuenta */
-    }
+    const auth = await authenticateRequest(req);
+    const userId = auth.userId;
     const body = (await req.json()) as {
       title?: string;
       model?: string;
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
     const row = {
       id: id("share"),
       userId,
+      workspaceId: auth.workspaceId ?? null,
       title: (body.title ?? sanitized.find((m) => m.role === "user")?.content ?? "Chat")
         .slice(0, 120)
         .trim(),
@@ -109,12 +111,15 @@ export async function DELETE(req: Request) {
     if (!shareId) {
       return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     }
-    const [row] = await db
-      .select()
-      .from(schema.chatShares)
-      .where(and(eq(schema.chatShares.id, shareId), eq(schema.chatShares.userId, auth.userId)))
-      .limit(1);
-    if (!row) return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+    const [row] = await db.select().from(schema.chatShares).where(eq(schema.chatShares.id, shareId)).limit(1);
+    if (
+      !row ||
+      !row.userId ||
+      !canAccess(auth, { userId: row.userId, workspaceId: row.workspaceId }) ||
+      !(await canMutateResource(auth, { userId: row.userId, workspaceId: row.workspaceId }))
+    ) {
+      return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+    }
     await db.delete(schema.chatShares).where(eq(schema.chatShares.id, shareId));
     return Response.json({ data: { id: shareId, deleted: true } });
   } catch (error) {

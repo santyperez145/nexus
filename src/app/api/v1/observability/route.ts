@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
-import { canAccess, userScope } from "@/lib/gateway/tenant";
+import { assertWorkspaceManager, canAccess, resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { assertPublicHttpUrl } from "@/lib/net/public-url";
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       if (!row || !canAccess(auth, row) || row.deleted) {
         return jsonError(Object.assign(new Error("not found"), { status: 404 }));
       }
+      await assertWorkspaceManager(auth, row.workspaceId);
       const config = (row.config ?? {}) as { url?: string; secret?: string };
       if (!config.url) return jsonError(Object.assign(new Error("url missing"), { status: 400 }));
       const result = await pingWebhookDestination({ url: config.url, secret: config.secret });
@@ -55,10 +56,12 @@ export async function POST(req: Request) {
     const secret = body.secret === false ? undefined : newWebhookSecret();
     const url = String(body.url ?? body.config?.url ?? "");
     assertPublicHttpUrl(url);
+    const workspaceId = await resolveOwnedWorkspace(auth, body.workspace_id);
+    await assertWorkspaceManager(auth, workspaceId);
     const row = {
       id: id("obs"),
       userId: auth.userId,
-      workspaceId: body.workspace_id ?? auth.workspaceId,
+      workspaceId,
       type: body.type ?? "webhook",
       name: body.name ?? "Webhook",
       config: {
@@ -94,6 +97,7 @@ export async function DELETE(req: Request) {
     if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
+    await assertWorkspaceManager(auth, row.workspaceId);
     await db
       .update(schema.observabilityDestinations)
       .set({ deleted: true })

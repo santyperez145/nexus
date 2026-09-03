@@ -57,14 +57,15 @@ export default function DocsPage() {
         </MarketingPageHeader>
 
         <div className="mb-8 overflow-hidden rounded-xl border border-zinc-200 bg-white px-4 py-4">
-          <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-950">
+          <div className="font-semibold text-zinc-950">
             Autenticación
           </div>
           <p className="mt-1 text-sm text-zinc-600">
             Inferencia: Bearer <code className="text-zinc-800">sk-nx-</code>. Management:{" "}
             <code className="text-zinc-800">sk-nx-mgmt-</code> (keys, BYOK, tenants). El header{" "}
-            <code className="text-zinc-800">X-Nexus-Guest</code> solo vale en chat/completions,
-            completions, messages y responses — eco local, 8 rpm/IP, sin persistencia ni keys.
+            <code className="text-zinc-800">X-Nexus-Guest</code> habilita un eco aislado solo en
+            desarrollo, con 8 rpm/IP y sin persistencia ni keys. Producción siempre requiere sesión
+            o Bearer.
           </p>
         </div>
 
@@ -73,9 +74,9 @@ export default function DocsPage() {
             <a
               key={href}
               href={href}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-zinc-300"
             >
-              <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">{label}</div>
+              <div className="font-semibold text-zinc-900">{label}</div>
               <div className="mt-1 text-xs text-zinc-500">{note}</div>
             </a>
           ))}
@@ -94,9 +95,9 @@ export default function DocsPage() {
             <a
               key={href}
               href={href}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-amber-600/40"
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-zinc-300"
             >
-              <div className="font-[family-name:var(--font-syne)] font-semibold text-zinc-900">
+              <div className="font-semibold text-zinc-900">
                 {label}
               </div>
               <div className="mt-1 text-xs text-zinc-500">{note}</div>
@@ -246,7 +247,7 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
               key={path}
               className="flex flex-wrap gap-3 border border-zinc-200 bg-white px-3 py-2 text-sm"
             >
-              <span className="w-36 shrink-0 font-mono text-amber-700">{method}</span>
+              <span className="w-20 shrink-0 font-mono text-[11px] font-medium uppercase tracking-wide text-violet-700">{method}</span>
               <span className="flex-1 font-mono text-zinc-800">{path}</span>
               <span className="text-zinc-500">{label}</span>
             </div>
@@ -254,7 +255,7 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
         </div>
         <p className="mt-8 text-sm text-zinc-500">
           Spec:{" "}
-          <a className="text-amber-700 hover:underline" href="/openapi.yaml">
+          <a className="text-violet-700 hover:underline" href="/openapi.yaml">
             /openapi.yaml
           </a>
         </p>

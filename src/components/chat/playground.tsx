@@ -215,7 +215,7 @@ export function Playground({
         const message =
           res.status === 401
             ? guest
-              ? "Necesitás sesión o una API key. Creá cuenta (incluye $1) o Entrá para chatear."
+              ? "Necesitás sesión o una API key. Creá una cuenta o entrá para chatear."
               : "Sesión expirada — volvé a entrar."
             : (json.error?.message ?? "Error de gateway");
         const messages = [...visible, { role: "assistant" as const, content: message }];
@@ -275,7 +275,7 @@ export function Playground({
       const message =
         res.status === 401
           ? guest
-            ? "Necesitás sesión o una API key. Creá cuenta (incluye $1) o Entrá para chatear."
+            ? "Necesitás sesión o una API key. Creá una cuenta o entrá para chatear."
             : "Sesión expirada — volvé a entrar."
           : (err.error?.message ?? "Error de gateway");
       const messages = [...visible, { role: "assistant" as const, content: message }];
@@ -482,9 +482,9 @@ export function Playground({
         </div>
       ) : null}
       {guest ? (
-        <p className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-sm text-zinc-800/90">
-          Guest demo · completions en eco local (sin keys de lab), rate-limit por IP. Signup incluye $1
-          para hops live / BYOK.{" "}
+        <p className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-zinc-800/90">
+          Demo de desarrollo · eco local aislado, rate-limit por IP y sin persistencia. Producción
+          requiere autenticación.{" "}
           <Link href="/register" className="text-violet-700 hover:underline">
             Crear cuenta
           </Link>
@@ -494,7 +494,7 @@ export function Playground({
         <p className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-zinc-800">
           {sawLocal
             ? "La última respuesta fue eco local (sin key de lab)."
-            : "Sin labs de plataforma ni BYOK: el chat responderá en eco local."}{" "}
+            : "Sin providers de plataforma ni BYOK no hay una ruta de inferencia disponible."}{" "}
           <Link href="/settings/byok" className="text-violet-700 hover:underline">
             BYOK
           </Link>
@@ -781,7 +781,7 @@ export function Playground({
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-          <label className="cursor-pointer rounded-md border border-zinc-200 px-2 py-1 hover:border-amber-500/40 hover:text-zinc-700">
+          <label className="cursor-pointer rounded-md border border-zinc-200 px-2 py-1 hover:border-violet-300 hover:text-zinc-700">
             + imagen
             <input
               type="file"
@@ -876,7 +876,7 @@ function LanePicker({
             type="button"
             onClick={() => onChange({ model: m.id, query: "" })}
             className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
-              lane.model === m.id ? "border-amber-400/60 text-zinc-950" : "border-zinc-200 text-zinc-500"
+              lane.model === m.id ? "border-violet-400 text-zinc-950" : "border-zinc-200 text-zinc-500"
             }`}
           >
             {m.id}
@@ -891,7 +891,7 @@ function LanePicker({
               type="button"
               onClick={() => onChange({ model: `@${p.slug}`, query: "" })}
               className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
-                lane.model === `@${p.slug}` ? "border-amber-400/60 text-zinc-950" : "border-zinc-200 text-zinc-500"
+                lane.model === `@${p.slug}` ? "border-violet-400 text-zinc-950" : "border-zinc-200 text-zinc-500"
               }`}
             >
               @{p.slug}

@@ -1,6 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { enforcePathPolicy, isGuestInferencePath, isManagementPath } from "../src/lib/gateway/acl";
+import {
+  enforcePathPolicy,
+  isGuestInferencePath,
+  isManagementPath,
+  normalizeApiKeyScopes,
+  requiredScope,
+} from "../src/lib/gateway/acl";
 import type { AuthContext } from "../src/lib/gateway/types";
 
 const guest: AuthContext = {
@@ -43,5 +49,20 @@ describe("API path policy", () => {
     const chat = new Request("http://localhost/api/v1/chat/completions");
     assert.throws(() => enforcePathPolicy(chat, mgmtKey), (err: Error & { status?: number }) => err.status === 403);
     enforcePathPolicy(chat, inferenceKey);
+  });
+
+  it("requires method-specific least-privilege scopes", () => {
+    const readKeys = new Request("http://localhost/api/v1/keys");
+    const writeKeys = new Request("http://localhost/api/v1/keys", { method: "POST" });
+    assert.equal(requiredScope(readKeys), "keys:read");
+    assert.equal(requiredScope(writeKeys), "keys:write");
+    const readOnly: AuthContext = { ...mgmtKey, scopes: ["keys:read"] };
+    enforcePathPolicy(readKeys, readOnly);
+    assert.throws(() => enforcePathPolicy(writeKeys, readOnly), /missing scope keys:write/);
+  });
+
+  it("rejects scopes outside the key class", () => {
+    assert.deepEqual(normalizeApiKeyScopes(["inference:write"], false), ["inference:write"]);
+    assert.throws(() => normalizeApiKeyScopes(["keys:write"], false), /Invalid API key scopes/);
   });
 });

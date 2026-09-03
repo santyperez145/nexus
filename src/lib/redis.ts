@@ -35,6 +35,7 @@ const memoryStore: CounterStore = {
 let store: CounterStore | null = null;
 
 async function createStore(): Promise<CounterStore> {
+  const production = process.env.NODE_ENV === "production";
   const restUrl =
     process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
   const restToken =
@@ -67,7 +68,8 @@ async function createStore(): Promise<CounterStore> {
     const redis = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 2, lazyConnect: true });
     try {
       await redis.connect();
-    } catch {
+    } catch (error) {
+      if (production) throw error;
       return memoryStore;
     }
     return {
@@ -86,6 +88,11 @@ async function createStore(): Promise<CounterStore> {
     };
   }
 
+  if (production) {
+    throw new Error(
+      "A distributed Redis rate-limit store is required in production (UPSTASH_REDIS_REST_* or REDIS_URL)",
+    );
+  }
   return memoryStore;
 }
 

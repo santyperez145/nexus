@@ -55,25 +55,28 @@ export default function ForgotPasswordPage() {
             </Label>
             <Input
               id="email"
+              name="email"
               type="email"
+              inputMode="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               className="border-zinc-300 bg-white text-zinc-900"
             />
           </div>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
           <Button
             type="submit"
             disabled={busy}
-            className="bg-amber-600 text-white hover:bg-amber-700"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             Enviar enlace
           </Button>
         </form>
       )}
       <p className="mt-4 text-sm text-zinc-500">
-        <Link href="/login" className="text-amber-700 hover:underline">
+        <Link href="/login" className="text-violet-700 hover:underline">
           Volver a entrar
         </Link>
       </p>

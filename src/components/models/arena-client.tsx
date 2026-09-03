@@ -65,10 +65,14 @@ export function ArenaClient({
   defaultA,
   defaultB,
   models,
+  guest,
+  authenticated,
 }: {
   defaultA: string;
   defaultB: string;
   models: string[];
+  guest: boolean;
+  authenticated: boolean;
 }) {
   const [a, setA] = useState(defaultA);
   const [b, setB] = useState(defaultB);
@@ -113,7 +117,7 @@ export function ArenaClient({
       headers: {
         "Content-Type": "application/json",
         "X-Title": "Nexus Arena",
-        "X-Nexus-Guest": "1",
+        ...(guest ? { "X-Nexus-Guest": "1" } : {}),
       },
       signal,
       body: JSON.stringify({
@@ -127,7 +131,7 @@ export function ArenaClient({
       const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
       setOut(
         res.status === 401
-          ? "Auth requerida. Si ves esto en prod viejo, esperá el deploy — guest eco ya está en main."
+          ? "La Arena de producción requiere iniciar sesión."
           : (err.error?.message ?? `HTTP ${res.status}`),
       );
       return;
@@ -164,6 +168,10 @@ export function ArenaClient({
 
   async function run() {
     if (!prompt.trim() || busy || a === b) return;
+    if (!authenticated && !guest) {
+      setMsg("Iniciá sesión para comparar modelos en producción.");
+      return;
+    }
     setBusy(true);
     setMsg(null);
     setOutA("");
@@ -263,7 +271,7 @@ export function ArenaClient({
       />
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button
-          className="bg-amber-600 text-white hover:bg-amber-700"
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
           disabled={busy || a === b}
           onClick={() => void run()}
         >
@@ -291,7 +299,7 @@ export function ArenaClient({
       <div className="grid gap-4 md:grid-cols-2">
         {[left, right].map((lane) => (
           <div key={lane.ui + lane.model} className="rounded-xl border border-zinc-200 bg-white p-4">
-            <div className="mb-2 font-mono text-xs text-amber-700">
+            <div className="mb-2 font-mono text-xs text-violet-700">
               {blind && !reveal ? `Modelo ${lane.ui.toUpperCase()}` : lane.model}
             </div>
             <pre className="min-h-[160px] whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
@@ -315,10 +323,10 @@ export function ArenaClient({
           Empate
         </Button>
       </div>
-      {msg ? <p className="mt-3 text-sm text-amber-800">{msg}</p> : null}
+      {msg ? <p className="mt-3 text-sm text-violet-800">{msg}</p> : null}
 
       <section className="mt-10 border-t border-zinc-200 pt-8">
-        <h2 className="font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
+        <h2 className="text-xl font-semibold text-zinc-900">
           Tus votos (este browser)
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
@@ -333,7 +341,7 @@ export function ArenaClient({
                 key={t.id}
                 className="flex justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
               >
-                <span className="font-mono text-amber-700">
+                <span className="font-mono text-violet-700">
                   #{i + 1} {t.id}
                 </span>
                 <span className="tabular-nums text-zinc-500">

@@ -189,8 +189,8 @@ export function CompareClient({
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
         <div className="grid grid-cols-[8rem_1fr_1fr] gap-2 border-b border-zinc-200 bg-zinc-50/80 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-zinc-500">
           <span>Campo</span>
-          <span className="truncate font-mono normal-case tracking-normal text-amber-700">{left.id}</span>
-          <span className="truncate font-mono normal-case tracking-normal text-amber-700">{right.id}</span>
+          <span className="truncate font-mono normal-case tracking-normal text-violet-700">{left.id}</span>
+          <span className="truncate font-mono normal-case tracking-normal text-violet-700">{right.id}</span>
         </div>
         {rows.map((r, i) => (
           <div
@@ -221,7 +221,7 @@ export function CompareClient({
       </div>
 
       <section className="mt-8">
-        <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+        <h2 className="text-lg font-semibold text-zinc-900">
           Costo estimado
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
@@ -274,7 +274,7 @@ export function CompareClient({
       </section>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <Button asChild className="bg-amber-600 text-white hover:bg-amber-700">
+        <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
           <Link
             href={`/chat?model=${encodeURIComponent(left.id)}&compare=${encodeURIComponent(right.id)}`}
           >

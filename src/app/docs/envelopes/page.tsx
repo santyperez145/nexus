@@ -7,7 +7,7 @@ export default function EnvelopesDocsPage() {
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/docs" className="text-amber-700 hover:underline">
+          <Link href="/docs" className="text-violet-700 hover:underline">
             Docs
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -19,7 +19,7 @@ export default function EnvelopesDocsPage() {
         </MarketingPageHeader>
 
         <section className="mb-10">
-          <h2 className="mb-2 font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
+          <h2 className="mb-2 text-xl font-semibold text-zinc-900">
             Anthropic Messages
           </h2>
           <p className="mb-3 text-sm text-zinc-600">
@@ -47,7 +47,7 @@ const r = await nexus.messages.create({
         </section>
 
         <section className="mb-10">
-          <h2 className="mb-2 font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
+          <h2 className="mb-2 text-xl font-semibold text-zinc-900">
             OpenAI Responses
           </h2>
           <p className="mb-3 text-sm text-zinc-600">
@@ -84,15 +84,15 @@ const r = await nexus.responses.create({
           </li>
           <li>
             Probá en{" "}
-            <Link href="/chat" className="text-amber-700 hover:underline">
+            <Link href="/chat" className="text-violet-700 hover:underline">
               Chat
             </Link>{" "}
             o recipes{" "}
-            <Link href="/apps/anthropic-messages" className="text-amber-700 hover:underline">
+            <Link href="/apps/anthropic-messages" className="text-violet-700 hover:underline">
               anthropic-messages
             </Link>{" "}
             /{" "}
-            <Link href="/apps/openai-responses" className="text-amber-700 hover:underline">
+            <Link href="/apps/openai-responses" className="text-violet-700 hover:underline">
               openai-responses
             </Link>
             .

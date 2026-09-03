@@ -6,11 +6,12 @@ import {
   FREE_MODEL_RPD_WITH_CREDITS,
   manualCreditsEnabled,
 } from "@/lib/config";
-import { db, schema } from "@/lib/db";
+import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { microsToUsd, tokenCostUsd, usdToMicros } from "@/lib/money";
 import { maybeNotifyKeyLimit, maybeNotifyLowBalance } from "@/lib/notify";
 import { chargeAmountCents, getStripe } from "@/lib/stripe";
+import { creditPurchaseOnce } from "@/lib/billing/stripe-credit";
 import type { AuthContext } from "./types";
 
 function computeMicros(opts: {
@@ -33,26 +34,54 @@ function computeMicros(opts: {
   return { usd: opts.isByok ? usd * BYOK_FEE : usd, micros, ledgerType };
 }
 
-async function debitIfEnough(userId: string, micros: number) {
+function rowsOf<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[];
+  return ((result as { rows?: T[] })?.rows ?? []);
+}
+
+export function estimateReservationMicros(opts: {
+  input: unknown;
+  estimatedInputTokens: number;
+  outputTokens: number;
+  pricings: Array<{ prompt: number; completion: number }>;
+  isFree?: boolean;
+}) {
+  if (opts.isFree || !opts.pricings.length) return 0;
+  const inputTokenCeiling = Math.max(
+    opts.estimatedInputTokens,
+    new TextEncoder().encode(JSON.stringify(opts.input)).byteLength,
+  );
+  return Math.max(
+    0,
+    ...opts.pricings.map((pricing) =>
+      usdToMicros(tokenCostUsd(inputTokenCeiling, opts.outputTokens, pricing)),
+    ),
+  );
+}
+
+async function debitIfEnough(tx: DbExecutor, userId: string, micros: number) {
   if (micros <= 0) return;
-  const result = await db.execute(
+  const result = await tx.execute(
     sql`UPDATE "user" SET credit_micros = credit_micros - ${micros} WHERE id = ${userId} AND credit_micros >= ${micros} RETURNING credit_micros`,
   );
-  const rows = Array.isArray(result)
-    ? result
-    : ((result as { rows?: unknown[] }).rows ?? []);
+  const rows = rowsOf(result);
   if (!rows.length) {
     throw Object.assign(new Error("Insufficient credits"), { status: 402, code: "insufficient_credits" });
   }
 }
 
-async function creditBalance(userId: string, micros: number) {
+async function creditBalance(tx: DbExecutor, userId: string, micros: number) {
   if (micros <= 0) return;
-  await db
+  await tx
     .update(schema.users)
     .set({ creditMicros: sql`${schema.users.creditMicros} + ${micros}` })
     .where(eq(schema.users.id, userId));
 }
+
+export type CreditReservation = {
+  generationId: string;
+  reservedMicros: number;
+};
 
 export async function assertCredits(
   auth: AuthContext,
@@ -98,38 +127,154 @@ export async function assertCredits(
 
 export async function reserveCredits(
   auth: AuthContext,
+  generationId: string,
   estimatedMicros: number,
   opts: { isFree?: boolean; byokFeeOnly?: boolean } = {},
-): Promise<number> {
-  if (auth.guest || opts.isFree) return 0;
+): Promise<CreditReservation> {
+  if (auth.guest || opts.isFree) return { generationId, reservedMicros: 0 };
   const need = opts.byokFeeOnly
     ? Math.max(1, Math.floor(estimatedMicros * BYOK_FEE))
     : estimatedMicros;
-  if (need <= 0) return 0;
-  await assertCredits(auth, estimatedMicros, opts);
-  await debitIfEnough(auth.userId, need);
-  auth.creditMicros = Math.max(0, auth.creditMicros - need);
-  await db.insert(schema.creditLedger).values({
-    id: id("led"),
-    userId: auth.userId,
-    type: "reserve",
-    micros: -need,
-    note: `hold ${need} µUSD`,
+  if (need <= 0) return { generationId, reservedMicros: 0 };
+
+  await withTransaction(async (tx) => {
+    await debitIfEnough(tx, auth.userId, need);
+
+    let keyLimitHeld = false;
+    if (auth.apiKeyId) {
+      const [key] = await tx
+        .select({
+          limitMicros: schema.apiKeys.limitMicros,
+          includeByokInLimit: schema.apiKeys.includeByokInLimit,
+        })
+        .from(schema.apiKeys)
+        .where(and(eq(schema.apiKeys.id, auth.apiKeyId), eq(schema.apiKeys.userId, auth.userId)))
+        .limit(1);
+      const shouldHold = key?.limitMicros != null && (!opts.byokFeeOnly || key.includeByokInLimit);
+      if (shouldHold) {
+        const result = await tx.execute(
+          sql`UPDATE "api_key"
+              SET usage_micros = usage_micros + ${need}
+              WHERE id = ${auth.apiKeyId}
+                AND user_id = ${auth.userId}
+                AND usage_micros + ${need} <= limit_micros
+              RETURNING id`,
+        );
+        if (!rowsOf(result).length) {
+          throw Object.assign(new Error("API key credit limit reached"), {
+            status: 402,
+            code: "insufficient_credits",
+          });
+        }
+        keyLimitHeld = true;
+      }
+    }
+
+    let budgetHeld = false;
+    if (auth.workspaceId) {
+      const [workspace] = await tx
+        .select({
+          id: schema.workspaces.id,
+          userId: schema.workspaces.userId,
+          includeByokInBudgets: schema.workspaces.includeByokInBudgets,
+        })
+        .from(schema.workspaces)
+        .where(eq(schema.workspaces.id, auth.workspaceId))
+        .limit(1);
+      const accessible =
+        workspace &&
+        (workspace.userId === auth.userId || auth.workspaceIds?.includes(workspace.id));
+      if (!accessible) {
+        throw Object.assign(new Error("Workspace not found"), { status: 403, code: "forbidden" });
+      }
+      const shouldHold = !opts.byokFeeOnly || workspace.includeByokInBudgets;
+      if (shouldHold) {
+        const [budget] = await tx
+          .select({ id: schema.workspaceBudgets.id })
+          .from(schema.workspaceBudgets)
+          .where(eq(schema.workspaceBudgets.workspaceId, auth.workspaceId))
+          .limit(1);
+        if (budget) {
+          const result = await tx.execute(
+            sql`UPDATE "workspace_budget"
+                SET spent_micros = spent_micros + ${need}
+                WHERE id = ${budget.id}
+                  AND spent_micros + ${need} <= limit_micros
+                RETURNING id`,
+          );
+          if (!rowsOf(result).length) {
+            throw Object.assign(new Error("Workspace budget exceeded"), {
+              status: 402,
+              code: "insufficient_credits",
+            });
+          }
+          budgetHeld = true;
+        }
+      }
+    }
+
+    await tx.insert(schema.creditHolds).values({
+      id: id("hold"),
+      generationId,
+      userId: auth.userId,
+      apiKeyId: auth.apiKeyId,
+      workspaceId: auth.workspaceId,
+      reservedMicros: need,
+      budgetHeld,
+      keyLimitHeld,
+    });
+    await tx.insert(schema.creditLedger).values({
+      id: id("led"),
+      userId: auth.userId,
+      type: "reserve",
+      micros: -need,
+      generationId,
+      note: `hold ${need} µUSD`,
+    });
   });
-  return need;
+
+  auth.creditMicros = Math.max(0, auth.creditMicros - need);
+  return { generationId, reservedMicros: need };
 }
 
-export async function releaseReserve(auth: AuthContext, reservedMicros: number) {
-  if (auth.guest || reservedMicros <= 0) return;
-  await creditBalance(auth.userId, reservedMicros);
-  auth.creditMicros += reservedMicros;
-  await db.insert(schema.creditLedger).values({
-    id: id("led"),
-    userId: auth.userId,
-    type: "reserve_release",
-    micros: reservedMicros,
-    note: "hold released",
+export async function releaseReserve(auth: AuthContext, reservation: CreditReservation) {
+  if (auth.guest || reservation.reservedMicros <= 0) return;
+  const released = await withTransaction(async (tx) => {
+    const rows = await tx
+      .update(schema.creditHolds)
+      .set({ status: "released", closedAt: new Date(), actualMicros: 0 })
+      .where(
+        and(
+          eq(schema.creditHolds.generationId, reservation.generationId),
+          eq(schema.creditHolds.userId, auth.userId),
+          eq(schema.creditHolds.status, "open"),
+        ),
+      )
+      .returning();
+    const hold = rows[0];
+    if (!hold) return 0;
+    await creditBalance(tx, auth.userId, hold.reservedMicros);
+    if (hold.keyLimitHeld && hold.apiKeyId) {
+      await tx.execute(
+        sql`UPDATE "api_key" SET usage_micros = GREATEST(0, usage_micros - ${hold.reservedMicros}) WHERE id = ${hold.apiKeyId}`,
+      );
+    }
+    if (hold.budgetHeld && hold.workspaceId) {
+      await tx.execute(
+        sql`UPDATE "workspace_budget" SET spent_micros = GREATEST(0, spent_micros - ${hold.reservedMicros}) WHERE workspace_id = ${hold.workspaceId}`,
+      );
+    }
+    await tx.insert(schema.creditLedger).values({
+      id: id("led"),
+      userId: auth.userId,
+      type: "reserve_release",
+      micros: hold.reservedMicros,
+      generationId: reservation.generationId,
+      note: "hold released",
+    });
+    return hold.reservedMicros;
   });
+  auth.creditMicros += released;
 }
 
 export async function settleUsage(opts: {
@@ -140,7 +285,7 @@ export async function settleUsage(opts: {
   pricing: { prompt: number; completion: number };
   isFree: boolean;
   isByok: boolean;
-  reservedMicros?: number;
+  reservation?: CreditReservation;
 }) {
   if (opts.auth.guest) return { usd: 0, micros: 0 };
   const computed = computeMicros({
@@ -152,26 +297,75 @@ export async function settleUsage(opts: {
     logPrompts: opts.auth.logPrompts,
   });
   const micros = computed.micros;
-  const reserved = opts.reservedMicros ?? 0;
+  const reservation = opts.reservation;
+  const reserved = reservation?.reservedMicros ?? 0;
 
-  if (reserved > 0) {
-    if (micros < reserved) await creditBalance(opts.auth.userId, reserved - micros);
-    else if (micros > reserved) await debitIfEnough(opts.auth.userId, micros - reserved);
-    await db.insert(schema.creditLedger).values({
-      id: id("led"),
-      userId: opts.auth.userId,
-      type: "reserve_release",
-      micros: reserved,
-      generationId: opts.generationId,
-      note: "hold closed",
-    }).catch(() => undefined);
-  } else if (micros > 0) {
-    await debitIfEnough(opts.auth.userId, micros);
-  }
+  const billedMicros = await withTransaction(async (tx) => {
+    if (reserved > 0 && reservation) {
+      const closed = await tx
+        .update(schema.creditHolds)
+        .set({ status: "settled", actualMicros: micros, closedAt: new Date() })
+        .where(
+          and(
+            eq(schema.creditHolds.generationId, reservation.generationId),
+            eq(schema.creditHolds.userId, opts.auth.userId),
+            eq(schema.creditHolds.status, "open"),
+          ),
+        )
+        .returning();
+      const hold = closed[0];
+      if (!hold) {
+        const [existing] = await tx
+          .select({ status: schema.creditHolds.status, actualMicros: schema.creditHolds.actualMicros })
+          .from(schema.creditHolds)
+          .where(
+            and(
+              eq(schema.creditHolds.generationId, reservation.generationId),
+              eq(schema.creditHolds.userId, opts.auth.userId),
+            ),
+          )
+          .limit(1);
+        if (existing?.status === "settled") return existing.actualMicros ?? micros;
+        throw Object.assign(new Error("Credit hold is not open"), {
+          status: 409,
+          code: "hold_closed",
+        });
+      }
 
-  if (micros > 0) {
-    try {
-      await db.insert(schema.creditLedger).values({
+      const delta = micros - hold.reservedMicros;
+      if (delta > 0) await debitIfEnough(tx, opts.auth.userId, delta);
+      else if (delta < 0) await creditBalance(tx, opts.auth.userId, -delta);
+      if (hold.keyLimitHeld && hold.apiKeyId && delta !== 0) {
+        await tx.execute(
+          sql`UPDATE "api_key" SET usage_micros = GREATEST(0, usage_micros + ${delta}) WHERE id = ${hold.apiKeyId}`,
+        );
+      } else if (hold.apiKeyId && !hold.keyLimitHeld && micros > 0) {
+        const [key] = await tx
+          .select({ limitMicros: schema.apiKeys.limitMicros, includeByokInLimit: schema.apiKeys.includeByokInLimit })
+          .from(schema.apiKeys)
+          .where(and(eq(schema.apiKeys.id, hold.apiKeyId), eq(schema.apiKeys.userId, opts.auth.userId)))
+          .limit(1);
+        if (key?.limitMicros == null && (!opts.isByok || key?.includeByokInLimit)) {
+          await tx
+            .update(schema.apiKeys)
+            .set({ usageMicros: sql`${schema.apiKeys.usageMicros} + ${micros}` })
+            .where(eq(schema.apiKeys.id, hold.apiKeyId));
+        }
+      }
+      if (hold.budgetHeld && hold.workspaceId && delta !== 0) {
+        await tx.execute(
+          sql`UPDATE "workspace_budget" SET spent_micros = GREATEST(0, spent_micros + ${delta}) WHERE workspace_id = ${hold.workspaceId}`,
+        );
+      }
+      await tx.insert(schema.creditLedger).values({
+        id: id("led"),
+        userId: opts.auth.userId,
+        type: "reserve_release",
+        micros: hold.reservedMicros,
+        generationId: opts.generationId,
+        note: "hold settled",
+      });
+      await tx.insert(schema.creditLedger).values({
         id: id("led"),
         userId: opts.auth.userId,
         type: computed.ledgerType,
@@ -179,9 +373,29 @@ export async function settleUsage(opts: {
         generationId: opts.generationId,
         note: opts.isByok ? `BYOK fee ${(BYOK_FEE * 100).toFixed(0)}%` : null,
       });
-    } catch {
-      /* unique generation_id: already settled */
+      return micros;
     }
+
+    const inserted = await tx
+      .insert(schema.creditLedger)
+      .values({
+        id: id("led"),
+        userId: opts.auth.userId,
+        type: computed.ledgerType,
+        micros: -micros,
+        generationId: opts.generationId,
+        note: opts.isByok ? `BYOK fee ${(BYOK_FEE * 100).toFixed(0)}%` : null,
+      })
+      .onConflictDoNothing({
+        target: [schema.creditLedger.generationId, schema.creditLedger.type],
+      })
+      .returning();
+    if (!inserted.length) return micros;
+    if (micros > 0) await debitIfEnough(tx, opts.auth.userId, micros);
+    return micros;
+  });
+
+  if (billedMicros > 0) {
     const [after] = await db
       .select({ creditMicros: schema.users.creditMicros })
       .from(schema.users)
@@ -193,14 +407,7 @@ export async function settleUsage(opts: {
     }
   }
 
-  if (opts.auth.apiKeyId) {
-    await db
-      .update(schema.apiKeys)
-      .set({
-        usageMicros: sql`${schema.apiKeys.usageMicros} + ${micros}`,
-        lastUsedAt: new Date(),
-      })
-      .where(eq(schema.apiKeys.id, opts.auth.apiKeyId));
+  if (opts.auth.apiKeyId && billedMicros > 0) {
     const [key] = await db
       .select()
       .from(schema.apiKeys)
@@ -215,24 +422,7 @@ export async function settleUsage(opts: {
       });
     }
   }
-  if (opts.auth.workspaceId && micros > 0) {
-    let chargeBudget = true;
-    if (opts.isByok) {
-      const [ws] = await db
-        .select({ includeByokInBudgets: schema.workspaces.includeByokInBudgets })
-        .from(schema.workspaces)
-        .where(eq(schema.workspaces.id, opts.auth.workspaceId))
-        .limit(1);
-      chargeBudget = Boolean(ws?.includeByokInBudgets);
-    }
-    if (chargeBudget) {
-      await db
-        .update(schema.workspaceBudgets)
-        .set({ spentMicros: sql`${schema.workspaceBudgets.spentMicros} + ${micros}` })
-        .where(eq(schema.workspaceBudgets.workspaceId, opts.auth.workspaceId));
-    }
-  }
-  return { usd: computed.usd, micros };
+  return { usd: computed.usd, micros: billedMicros };
 }
 
 export async function maybeAutoTopup(userId: string) {
@@ -253,33 +443,30 @@ export async function maybeAutoTopup(userId: string) {
   });
   const pm = methods.data[0];
   if (!pm) return;
-  const intent = await stripe.paymentIntents.create({
-    amount: chargeAmountCents(amount),
-    currency: "usd",
-    customer: user.stripeCustomerId,
-    payment_method: pm.id,
-    off_session: true,
-    confirm: true,
-    metadata: {
-      userId,
-      creditsUsd: String(amount),
-      auto_topup: "1",
+  const intent = await stripe.paymentIntents.create(
+    {
+      amount: chargeAmountCents(amount),
+      currency: "usd",
+      customer: user.stripeCustomerId,
+      payment_method: pm.id,
+      off_session: true,
+      confirm: true,
+      metadata: {
+        userId,
+        creditsUsd: String(amount),
+        auto_topup: "1",
+      },
     },
-  });
+    { idempotencyKey: `nexus:auto-topup:${userId}:${Math.floor(Date.now() / 300_000)}` },
+  );
   if (intent.status !== "succeeded") return;
-  const micros = usdToMicros(amount);
-  await db.insert(schema.creditLedger).values({
-    id: id("led"),
+  await creditPurchaseOnce({
     userId,
-    type: "auto_topup",
-    micros,
-    note: `Auto top-up Stripe ${amount} USD (saldo < ${threshold}) · pi ${intent.id}`,
     stripeSessionId: intent.id,
+    creditsUsd: amount,
+    customerId: user.stripeCustomerId,
+    note: `Auto top-up Stripe ${amount} USD (saldo < ${threshold})`,
   });
-  await db
-    .update(schema.users)
-    .set({ creditMicros: sql`${schema.users.creditMicros} + ${micros}` })
-    .where(eq(schema.users.id, userId));
 }
 
 export async function checkFreeRateLimit(auth: AuthContext, isFree: boolean) {

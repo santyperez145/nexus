@@ -90,7 +90,7 @@ export default function OauthPage() {
           { n: "3", t: "Key", d: "Canje PKCE → sk-nx- (mostrada una vez)." },
         ].map((s) => (
           <li key={s.n} className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-amber-500/80">
+            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-violet-700">
               Paso {s.n}
             </div>
             <div className="mt-1 text-lg font-semibold text-zinc-900">
@@ -112,9 +112,9 @@ export default function OauthPage() {
       </div>
 
       {code ? (
-        <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+        <div className="mt-4 rounded-xl border border-violet-200 bg-violet-500/5 px-3 py-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[10px] uppercase tracking-wide text-amber-500/80">code</span>
+            <span className="text-[10px] uppercase tracking-wide text-violet-700">code</span>
             <Button size="sm" variant="ghost" onClick={() => void flashCopy("code", code)}>
               {copied === "code" ? "Copiado" : "Copiar"}
             </Button>

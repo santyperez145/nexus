@@ -96,11 +96,32 @@ export default function OrgsPage() {
     reload();
   }
 
+  async function changeRole(orgId: string, memberId: string, nextRole: string) {
+    const res = await fetch("/api/v1/organization", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ organization_id: orgId, member_id: memberId, role: nextRole }),
+    });
+    const json = await res.json();
+    setMsg(json.data ? "Rol actualizado" : json.error?.message ?? "No se pudo actualizar");
+    reload();
+  }
+
+  async function removeMember(orgId: string, memberId: string) {
+    const res = await fetch(
+      `/api/v1/organization?organization_id=${encodeURIComponent(orgId)}&member_id=${encodeURIComponent(memberId)}`,
+      { method: "DELETE" },
+    );
+    const json = await res.json();
+    setMsg(json.data ? "Miembro removido" : json.error?.message ?? "No se pudo remover");
+    reload();
+  }
+
   return (
     <div>
       <AppPageHeader title="Organizations">
         Equipos con roles owner/admin/member. Invites por email (7d): owner y admin pueden invitar.
-        Billing multi-tenant sigue separado del wallet de cuenta.
+        Los seats Team controlan capacidad; owner/admin gestionan membresía y workspaces compartidos.
       </AppPageHeader>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
@@ -141,7 +162,7 @@ export default function OrgsPage() {
 
       {msg ? <p className="mb-4 text-sm text-zinc-950">{msg}</p> : null}
       {lastAcceptUrl ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-500/5 px-3 py-2 text-xs">
           <span className="text-zinc-600">Link invite:</span>
           <code className="max-w-full truncate font-mono text-zinc-800/80">{lastAcceptUrl}</code>
           <Button
@@ -196,6 +217,26 @@ export default function OrgsPage() {
                     <span>
                       {m.email || m.name} · {m.role}
                     </span>
+                    {(o.role === "owner" || o.role === "admin") && m.role !== "owner" ? (
+                      <span className="flex items-center gap-2">
+                        <select
+                          value={m.role}
+                          onChange={(event) => void changeRole(o.id, m.id, event.target.value)}
+                          className="rounded-md border border-zinc-200 bg-white px-2 py-1"
+                          aria-label={`Rol de ${m.email}`}
+                        >
+                          <option value="member">member</option>
+                          <option value="admin">admin</option>
+                        </select>
+                        <button
+                          type="button"
+                          className="text-rose-600 hover:underline"
+                          onClick={() => void removeMember(o.id, m.id)}
+                        >
+                          remover
+                        </button>
+                      </span>
+                    ) : null}
                   </div>
                 ))}
                 {o.pending_invites?.map((p) => (

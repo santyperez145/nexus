@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
-import { canAccess, userScope } from "@/lib/gateway/tenant";
+import { canAccess, canMutateResource, userScope } from "@/lib/gateway/tenant";
 import { extractFileText } from "@/lib/files/extract";
 import { id } from "@/lib/ids";
 
@@ -82,7 +82,7 @@ export async function DELETE(req: Request) {
     const fileId = new URL(req.url).searchParams.get("id");
     if (!fileId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.files).where(eq(schema.files.id, fileId)).limit(1);
-    if (!row || !canAccess(auth, row)) {
+    if (!row || !canAccess(auth, row) || !(await canMutateResource(auth, row))) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await db.delete(schema.files).where(eq(schema.files.id, fileId));

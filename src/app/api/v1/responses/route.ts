@@ -1,27 +1,18 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { handleChat } from "@/lib/gateway/handle-chat";
 import { reshapeChatResponse } from "@/lib/gateway/openai-compat";
-import type { ChatMessage, ChatRequest } from "@/lib/gateway/types";
+import { responseFileIds, responsesInputToMessages } from "@/lib/gateway/protocol-input";
+import type { ChatRequest } from "@/lib/gateway/types";
 
 export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
     const body = await req.json();
-    const input = body.input;
-    const messages: ChatMessage[] = Array.isArray(input)
-      ? input.map((item: unknown) => {
-          if (typeof item === "string") return { role: "user" as const, content: item };
-          if (item && typeof item === "object" && "role" in item) return item as ChatMessage;
-          if (item && typeof item === "object" && "content" in item) {
-            const c = item as { type?: string; content?: unknown; text?: string; role?: string };
-            return {
-              role: (c.role as ChatMessage["role"]) ?? "user",
-              content: typeof c.content === "string" ? c.content : (c.text ?? JSON.stringify(c.content ?? "")),
-            };
-          }
-          return { role: "user" as const, content: JSON.stringify(item) };
-        })
-      : [{ role: "user", content: String(input ?? "") }];
+    const messages = responsesInputToMessages(body.input, body.instructions);
+    if (!messages.length) {
+      throw Object.assign(new Error("input is required"), { status: 400, code: "invalid_request" });
+    }
+    const format = body.text?.format;
     const mapped: ChatRequest = {
       ...body,
       model: body.model,
@@ -30,9 +21,17 @@ export async function POST(req: Request) {
       temperature: body.temperature,
       max_tokens: body.max_output_tokens ?? body.max_tokens,
       tools: body.tools,
+      tool_choice: body.tool_choice,
+      response_format: format
+        ? {
+            type: format.type,
+            ...(format.schema ? { json_schema: format.schema } : {}),
+          }
+        : body.response_format,
+      file_ids: [...new Set([...(body.file_ids ?? []), ...responseFileIds(body.input)])],
       provider: body.provider,
     };
-    const res = await handleChat(mapped, auth, req.headers);
+    const res = await handleChat(mapped, auth, req.headers, req.signal);
     return await reshapeChatResponse(res, "response");
   } catch (error) {
     return jsonError(error);

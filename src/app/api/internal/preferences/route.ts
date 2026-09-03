@@ -27,6 +27,21 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json();
+  const threshold =
+    body.autoTopupThresholdUsd != null ? Number(body.autoTopupThresholdUsd) : undefined;
+  const amount = body.autoTopupAmountUsd != null ? Number(body.autoTopupAmountUsd) : undefined;
+  if (
+    (threshold != null && (!Number.isFinite(threshold) || threshold < 1 || threshold > 1_000)) ||
+    (amount != null && (!Number.isFinite(amount) || amount < 10 || amount > 500))
+  ) {
+    return Response.json(
+      { error: "Auto top-up threshold must be $1-$1,000 and amount $10-$500" },
+      { status: 400 },
+    );
+  }
+  if (body.defaultModel != null && (typeof body.defaultModel !== "string" || body.defaultModel.length > 200)) {
+    return Response.json({ error: "Invalid default model" }, { status: 400 });
+  }
   await db
     .update(schema.users)
     .set({
@@ -36,8 +51,8 @@ export async function POST(req: Request) {
       defaultModel: body.defaultModel ?? undefined,
       autoTopupEnabled: body.autoTopupEnabled != null ? Boolean(body.autoTopupEnabled) : undefined,
       autoTopupThresholdUsd:
-        body.autoTopupThresholdUsd != null ? String(body.autoTopupThresholdUsd) : undefined,
-      autoTopupAmountUsd: body.autoTopupAmountUsd != null ? String(body.autoTopupAmountUsd) : undefined,
+        threshold != null ? String(threshold) : undefined,
+      autoTopupAmountUsd: amount != null ? String(amount) : undefined,
       notifyLowBalance: body.notifyLowBalance != null ? Boolean(body.notifyLowBalance) : undefined,
       notifyKeyLimit: body.notifyKeyLimit != null ? Boolean(body.notifyKeyLimit) : undefined,
       notifyOrgInvite: body.notifyOrgInvite != null ? Boolean(body.notifyOrgInvite) : undefined,

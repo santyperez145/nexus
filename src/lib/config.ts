@@ -23,12 +23,19 @@ export const FREE_MODEL_CREDITS_THRESHOLD_USD = 10;
 
 /** Opt-in. Default off: no créditos de bienvenida sin verificación. */
 export function signupBonusMicros() {
-  return process.env.ENABLE_SIGNUP_BONUS === "true" ? 1_000_000 : 0;
+  return process.env.NODE_ENV !== "production" && process.env.ENABLE_SIGNUP_BONUS === "true"
+    ? 1_000_000
+    : 0;
 }
 
 /** Opt-in. Default off: no auto-grant ni top-up de wallet sin Stripe. */
 export function manualCreditsEnabled() {
-  return process.env.ENABLE_MANUAL_CREDITS === "true";
+  return process.env.NODE_ENV !== "production" && process.env.ENABLE_MANUAL_CREDITS === "true";
+}
+
+/** The anonymous echo is a development aid, never a production API surface. */
+export function guestPlaygroundEnabled() {
+  return process.env.NODE_ENV !== "production" && process.env.ENABLE_GUEST_PLAYGROUND !== "false";
 }
 
 export const KEY_PREFIX = "sk-nx-";
@@ -41,3 +48,51 @@ export const CREDIT_PACKS = [
   { id: "100", usd: 100, label: "$100" },
   { id: "500", usd: 500, label: "$500" },
 ] as const;
+
+export const SUBSCRIPTION_PLANS = [
+  {
+    id: "pro",
+    name: "Pro",
+    monthlyUsd: 19,
+    includedCreditsUsd: 5,
+    seats: false,
+    description: "600 RPM, hasta 25 API keys y 5 workspaces para builders.",
+  },
+  {
+    id: "team",
+    name: "Team",
+    monthlyUsd: 49,
+    includedCreditsUsd: 15,
+    seats: true,
+    description: "1.800 RPM, 250 API keys y workspaces compartidos con RBAC.",
+  },
+] as const;
+
+export type SubscriptionPlanId = (typeof SUBSCRIPTION_PLANS)[number]["id"];
+
+export function stripePriceForPlan(planId: SubscriptionPlanId) {
+  return planId === "pro"
+    ? process.env.STRIPE_PRICE_PRO_MONTHLY
+    : process.env.STRIPE_PRICE_TEAM_MONTHLY;
+}
+
+export const PLAN_LIMITS = {
+  guest: { rpm: 8, apiKeys: 0, workspaces: 0, historyDays: 0 },
+  free: { rpm: 60, apiKeys: 3, workspaces: 1, historyDays: 7 },
+  pro: { rpm: 600, apiKeys: 25, workspaces: 5, historyDays: 90 },
+  team: { rpm: 1800, apiKeys: 250, workspaces: 100, historyDays: 365 },
+} as const;
+
+export function limitsForPlan(plan?: string) {
+  return PLAN_LIMITS[plan === "team" || plan === "pro" || plan === "guest" ? plan : "free"];
+}
+
+export function isPlatformAdmin(email?: string | null) {
+  if (process.env.NODE_ENV !== "production") return true;
+  if (!email) return false;
+  const admins = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return admins.includes(email.toLowerCase());
+}

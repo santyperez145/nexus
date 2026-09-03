@@ -76,7 +76,7 @@ export default async function ProviderDetailPage({
     <MarketingShell>
       <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/providers" className="text-amber-700 hover:underline">
+          <Link href="/providers" className="text-violet-700 hover:underline">
             Providers
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -111,7 +111,7 @@ export default async function ProviderDetailPage({
         </div>
 
         <section className="mb-10">
-          <h2 className="mb-3 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+          <h2 className="mb-3 text-lg font-semibold text-zinc-900">
             Cómo pedirlo
           </h2>
           <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
@@ -123,7 +123,7 @@ export default async function ProviderDetailPage({
           <p className="mt-3 text-sm text-zinc-500">
             Env de plataforma: <code className="text-zinc-700">{provider.env}</code>
             {provider.extraEnv?.length ? ` (+ ${provider.extraEnv.join(", ")})` : ""}. BYOK en{" "}
-            <Link href="/settings/byok" className="text-amber-700 hover:underline">
+            <Link href="/settings/byok" className="text-violet-700 hover:underline">
               Settings → BYOK
             </Link>
             .
@@ -132,13 +132,13 @@ export default async function ProviderDetailPage({
 
         <section className="mb-10">
           <div className="mb-3 flex items-end justify-between gap-3">
-            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+            <h2 className="text-lg font-semibold text-zinc-900">
               Modelos ({Math.min(models.length, 24)}
               {models.length > 24 ? ` de ${models.length}` : ""})
             </h2>
             <Link
               href={`/models?lab=${encodeURIComponent(provider.id)}`}
-              className="text-sm text-amber-700 hover:underline"
+              className="text-sm text-violet-700 hover:underline"
             >
               Ver todos →
             </Link>
@@ -148,7 +148,7 @@ export default async function ProviderDetailPage({
               <Link
                 key={m.id}
                 href={`/models/${m.id}`}
-                className={`flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-amber-50/50 ${
+                className={`flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-violet-50/50 ${
                   i ? "border-t border-zinc-100" : ""
                 }`}
               >
@@ -164,7 +164,7 @@ export default async function ProviderDetailPage({
 
         {recent.length ? (
           <section>
-            <h2 className="mb-3 font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+            <h2 className="mb-3 text-lg font-semibold text-zinc-900">
               Actividad reciente (instancia)
             </h2>
             <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
@@ -204,7 +204,7 @@ function Stat({
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
       <div className="text-[11px] uppercase tracking-[0.06em] text-zinc-500">{label}</div>
-      <div className={`mt-1 font-[family-name:var(--font-syne)] text-lg font-semibold ${color}`}>
+      <div className={`mt-1 text-lg font-semibold ${color}`}>
         {value}
       </div>
     </div>

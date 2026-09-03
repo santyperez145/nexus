@@ -1,6 +1,6 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
-import { db, schema } from "@/lib/db";
+import { db, schema, withTransaction } from "@/lib/db";
 import { APP_URL } from "@/lib/config";
 import { sendMail } from "@/lib/email";
 import { id } from "@/lib/ids";
@@ -39,6 +39,25 @@ async function pendingInvites(organizationId: string) {
         isNull(schema.organizationInvites.acceptedAt),
       ),
     );
+}
+
+async function teamSeats(organizationId: string) {
+  const [organization] = await db
+    .select({ ownerId: schema.organizations.ownerId, plan: schema.users.plan })
+    .from(schema.organizations)
+    .innerJoin(schema.users, eq(schema.users.id, schema.organizations.ownerId))
+    .where(eq(schema.organizations.id, organizationId))
+    .limit(1);
+  if (!organization || organization.plan !== "team") return { capacity: 0, used: 0 };
+  const subscriptions = await db
+    .select({ quantity: schema.subscriptions.quantity, status: schema.subscriptions.status })
+    .from(schema.subscriptions)
+    .where(and(eq(schema.subscriptions.userId, organization.ownerId), eq(schema.subscriptions.plan, "team")))
+    .orderBy(desc(schema.subscriptions.updatedAt));
+  const active = subscriptions.find((row) => row.status === "active" || row.status === "trialing");
+  const members = await membersOf(organizationId);
+  const invites = await pendingInvites(organizationId);
+  return { capacity: active?.quantity ?? 0, used: members.length + invites.length };
 }
 
 export async function GET(req: Request) {
@@ -93,16 +112,45 @@ export async function POST(req: Request) {
       if (!user || user.email.toLowerCase() !== invite.email.toLowerCase()) {
         return jsonError(Object.assign(new Error("invite email mismatch"), { status: 403 }));
       }
-      await db.insert(schema.organizationMembers).values({
-        id: id("om"),
-        organizationId: invite.organizationId,
-        userId: auth.userId,
-        role: invite.role,
+      const seats = await teamSeats(invite.organizationId);
+      if (seats.capacity <= 0 || seats.used > seats.capacity) {
+        return jsonError(
+          Object.assign(new Error("The organization does not have an available active Team seat"), {
+            status: 403,
+            code: "plan_limit",
+          }),
+        );
+      }
+      await withTransaction(async (tx) => {
+        const [claimed] = await tx
+          .update(schema.organizationInvites)
+          .set({ acceptedAt: new Date() })
+          .where(
+            and(
+              eq(schema.organizationInvites.id, invite.id),
+              isNull(schema.organizationInvites.acceptedAt),
+              gt(schema.organizationInvites.expiresAt, new Date()),
+            ),
+          )
+          .returning();
+        if (!claimed) {
+          throw Object.assign(new Error("invite invalid or already accepted"), {
+            status: 400,
+            code: "invalid_invite",
+          });
+        }
+        await tx
+          .insert(schema.organizationMembers)
+          .values({
+            id: id("om"),
+            organizationId: invite.organizationId,
+            userId: auth.userId,
+            role: invite.role,
+          })
+          .onConflictDoNothing({
+            target: [schema.organizationMembers.organizationId, schema.organizationMembers.userId],
+          });
       });
-      await db
-        .update(schema.organizationInvites)
-        .set({ acceptedAt: new Date() })
-        .where(eq(schema.organizationInvites.id, invite.id));
       return Response.json({ data: { organization_id: invite.organizationId, role: invite.role } });
     }
 
@@ -129,21 +177,55 @@ export async function POST(req: Request) {
         return jsonError(Object.assign(new Error("not found"), { status: 404 }));
       }
       const email = String(body.invite_email).trim().toLowerCase();
-      const role = normalizeInviteRole(body.role, isOwner);
+      const role = normalizeInviteRole(body.role);
       if (!role) {
         return jsonError(Object.assign(new Error("invalid role"), { status: 400 }));
       }
+      const seats = await teamSeats(org.id);
+      if (seats.capacity <= 0) {
+        return jsonError(
+          Object.assign(new Error("An active Team subscription is required to invite members"), {
+            status: 403,
+            code: "plan_required",
+          }),
+        );
+      }
       const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
       if (user) {
-        await db.insert(schema.organizationMembers).values({
-          id: id("om"),
-          organizationId: org.id,
-          userId: user.id,
-          role,
-        });
+        const [existing] = await db
+          .select()
+          .from(schema.organizationMembers)
+          .where(
+            and(
+              eq(schema.organizationMembers.organizationId, org.id),
+              eq(schema.organizationMembers.userId, user.id),
+            ),
+          )
+          .limit(1);
+        if (existing) {
+          return Response.json({ data: { organization_id: org.id, user_id: user.id, status: "already_member" } });
+        }
+        if (seats.used >= seats.capacity) {
+          return jsonError(Object.assign(new Error("Team seat limit reached; add seats in Billing"), { status: 403, code: "plan_limit" }));
+        }
+        await db.insert(schema.organizationMembers).values({ id: id("om"), organizationId: org.id, userId: user.id, role });
         return Response.json({
           data: { organization_id: org.id, user_id: user.id, email: user.email, status: "joined" },
         });
+      }
+      const [existingInvite] = await db
+        .select()
+        .from(schema.organizationInvites)
+        .where(
+          and(
+            eq(schema.organizationInvites.organizationId, org.id),
+            eq(schema.organizationInvites.email, email),
+            isNull(schema.organizationInvites.acceptedAt),
+          ),
+        )
+        .limit(1);
+      if (!existingInvite && seats.used >= seats.capacity) {
+        return jsonError(Object.assign(new Error("Team seat limit reached; add seats in Billing"), { status: 403, code: "plan_limit" }));
       }
       const token = randomKey("nxi_", 24);
       const invite = {
@@ -155,7 +237,13 @@ export async function POST(req: Request) {
         invitedBy: auth.userId,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       };
-      await db.insert(schema.organizationInvites).values(invite);
+      await db
+        .insert(schema.organizationInvites)
+        .values(invite)
+        .onConflictDoUpdate({
+          target: [schema.organizationInvites.organizationId, schema.organizationInvites.email],
+          set: { role, token, invitedBy: auth.userId, acceptedAt: null, expiresAt: invite.expiresAt },
+        });
       const acceptUrl = `${APP_URL}/settings/organizations?invite=${token}`;
       await sendMail({
         to: email,
@@ -178,6 +266,14 @@ export async function POST(req: Request) {
       });
     }
 
+    if (auth.plan !== "team") {
+      return jsonError(
+        Object.assign(new Error("Team plan required to create organizations"), {
+          status: 403,
+          code: "plan_required",
+        }),
+      );
+    }
     const row = {
       id: id("org"),
       name: body.name ?? "Organization",
@@ -197,12 +293,71 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PATCH(req: Request) {
+  try {
+    const auth = await authenticateRequest(req);
+    const body = await req.json();
+    const orgId = String(body.organization_id ?? "");
+    const memberId = String(body.member_id ?? "");
+    if (!orgId || !memberId) {
+      return jsonError(Object.assign(new Error("organization_id and member_id required"), { status: 400 }));
+    }
+    const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, orgId)).limit(1);
+    const [actor] = org
+      ? await db
+          .select({ role: schema.organizationMembers.role })
+          .from(schema.organizationMembers)
+          .where(and(eq(schema.organizationMembers.organizationId, orgId), eq(schema.organizationMembers.userId, auth.userId)))
+          .limit(1)
+      : [];
+    if (!org || !canManageOrg(org.ownerId === auth.userId, actor?.role)) {
+      return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+    }
+    const [member] = await db
+      .select()
+      .from(schema.organizationMembers)
+      .where(and(eq(schema.organizationMembers.id, memberId), eq(schema.organizationMembers.organizationId, orgId)))
+      .limit(1);
+    if (!member || member.userId === org.ownerId) {
+      return jsonError(Object.assign(new Error("owner role cannot be changed"), { status: 403 }));
+    }
+    const role = normalizeInviteRole(body.role);
+    if (!role) return jsonError(Object.assign(new Error("invalid role"), { status: 400 }));
+    await db.update(schema.organizationMembers).set({ role }).where(eq(schema.organizationMembers.id, member.id));
+    return Response.json({ data: { id: member.id, role } });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
 export async function DELETE(req: Request) {
   try {
     const auth = await authenticateRequest(req);
-    const orgId = new URL(req.url).searchParams.get("id");
+    const url = new URL(req.url);
+    const orgId = url.searchParams.get("organization_id") ?? url.searchParams.get("id");
     if (!orgId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, orgId)).limit(1);
+    const memberId = url.searchParams.get("member_id");
+    if (memberId && org) {
+      const [actor] = await db
+        .select({ role: schema.organizationMembers.role })
+        .from(schema.organizationMembers)
+        .where(and(eq(schema.organizationMembers.organizationId, orgId), eq(schema.organizationMembers.userId, auth.userId)))
+        .limit(1);
+      if (!canManageOrg(org.ownerId === auth.userId, actor?.role)) {
+        return jsonError(Object.assign(new Error("not found"), { status: 404 }));
+      }
+      const [member] = await db
+        .select()
+        .from(schema.organizationMembers)
+        .where(and(eq(schema.organizationMembers.id, memberId), eq(schema.organizationMembers.organizationId, orgId)))
+        .limit(1);
+      if (!member || member.userId === org.ownerId) {
+        return jsonError(Object.assign(new Error("owner cannot be removed"), { status: 403 }));
+      }
+      await db.delete(schema.organizationMembers).where(eq(schema.organizationMembers.id, member.id));
+      return Response.json({ data: { id: member.id, deleted: true } });
+    }
     if (!org || org.ownerId !== auth.userId) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }

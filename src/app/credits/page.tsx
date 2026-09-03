@@ -3,7 +3,7 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { Button } from "@/components/ui/button";
 import { allModels } from "@/lib/catalog";
-import { CREDIT_PACKS, CREDIT_PURCHASE_FEE } from "@/lib/config";
+import { CREDIT_PACKS, CREDIT_PURCHASE_FEE, SUBSCRIPTION_PLANS } from "@/lib/config";
 import { formatUsd } from "@/lib/money";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
 
@@ -33,7 +33,7 @@ export default function PublicCreditsPage() {
             { t: "BYOK first", d: "Tu key, nuestra política. El pool Nexus es opt-in con saldo real." },
           ].map((c) => (
             <div key={c.t} className="rounded-xl border border-zinc-200 bg-white px-4 py-4">
-              <div className="font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900">
+              <div className="text-lg font-semibold text-zinc-900">
                 {c.t}
               </div>
               <p className="mt-1 text-sm text-zinc-500">{c.d}</p>
@@ -56,7 +56,7 @@ export default function PublicCreditsPage() {
                 className={`px-4 py-3 ${i ? "border-t border-zinc-100 sm:border-l sm:border-t-0" : ""}`}
               >
                 <div className="text-[10px] uppercase tracking-wide text-zinc-500">{row.k}</div>
-                <div className="mt-1 font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
+                <div className="mt-1 text-xl font-semibold text-zinc-900">
                   {row.v}
                 </div>
               </div>
@@ -64,7 +64,35 @@ export default function PublicCreditsPage() {
           </div>
         </div>
 
-        <h2 className="mb-3 font-[family-name:var(--font-syne)] text-xl font-semibold text-zinc-900">
+        <h2 className="mb-3 text-xl font-semibold text-zinc-900">Planes de plataforma</h2>
+        <p className="mb-4 text-sm text-zinc-500">
+          Suscripciones para builders y equipos. Cada renovación pagada suma créditos; el consumo de
+          modelos mantiene precio transparente por token.
+        </p>
+        <div className="mb-10 grid gap-3 md:grid-cols-2">
+          {SUBSCRIPTION_PLANS.map((plan) => (
+            <div key={plan.id} className="rounded-2xl border border-zinc-200 bg-white p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xl font-semibold text-zinc-950">{plan.name}</div>
+                  <p className="mt-1 text-sm text-zinc-500">{plan.description}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-semibold text-zinc-950">${plan.monthlyUsd}</div>
+                  <div className="text-xs text-zinc-500">/mes{plan.seats ? " por asiento" : ""}</div>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-zinc-700">
+                ${plan.includedCreditsUsd} de inferencia incluidos por factura pagada.
+              </p>
+              <Button asChild className="mt-4 w-full">
+                <Link href="/settings/credits">Elegir {plan.name}</Link>
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <h2 className="mb-3 text-xl font-semibold text-zinc-900">
           Packs
         </h2>
         <p className="mb-4 text-sm text-zinc-500">
@@ -81,7 +109,7 @@ export default function PublicCreditsPage() {
                 className="flex flex-col justify-between rounded-xl border border-zinc-200 bg-white px-4 py-4"
               >
                 <div>
-                  <div className="font-[family-name:var(--font-syne)] text-2xl font-semibold text-zinc-900">
+                  <div className="text-2xl font-semibold text-zinc-900">
                     {p.label}
                   </div>
                   <p className="mt-1 text-xs text-zinc-500">
@@ -90,13 +118,13 @@ export default function PublicCreditsPage() {
                   </p>
                   <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100">
                     <div
-                      className="h-full rounded-full bg-amber-500/70"
+                      className="h-full rounded-full bg-violet-500/70"
                       style={{ width: `${(p.usd / charge) * 100}%` }}
                       title="crédito neto vs cargo"
                     />
                   </div>
                 </div>
-                <Button asChild className="mt-4 bg-amber-600 text-white hover:bg-amber-700">
+                <Button asChild className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90">
                   <Link href="/settings/credits">Comprar en dashboard</Link>
                 </Button>
               </div>
@@ -113,7 +141,7 @@ export default function PublicCreditsPage() {
           <p className="mt-3">
             Sin Stripe en tu instancia: Settings → Conexiones puede acreditar manual si está
             habilitado. Status público en{" "}
-            <Link href="/status" className="text-amber-700 hover:underline">
+            <Link href="/status" className="text-violet-700 hover:underline">
               /status
             </Link>
             .

@@ -78,7 +78,7 @@ export default async function RankingsPage({
       <div className="relative mx-auto max-w-6xl px-4 py-12 md:py-16">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
         <MarketingPageHeader title="Rankings">
           Popular = tokens reales de esta instancia
@@ -94,7 +94,7 @@ export default async function RankingsPage({
           ].map((s) => (
             <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
               <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
-              <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold text-zinc-900">
+              <div className="mt-1 text-2xl font-semibold text-zinc-900">
                 {s.v}
               </div>
             </div>
@@ -114,7 +114,7 @@ export default async function RankingsPage({
               href={id === "all" ? "/rankings" : `/rankings?window=${id}`}
               className={`rounded-lg border px-3 py-1.5 ${
                 windowKey === id
-                  ? "border-amber-600/40 bg-amber-50 text-amber-900"
+                  ? "border-violet-300 bg-violet-50 text-zinc-900"
                   : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
               }`}
             >

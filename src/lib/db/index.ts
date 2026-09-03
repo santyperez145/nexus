@@ -8,6 +8,7 @@ import * as schema from "./schema";
 import { SCHEMA_SQL } from "./bootstrap-sql";
 
 type Db = ReturnType<typeof drizzlePg<typeof schema>> | ReturnType<typeof drizzlePglite<typeof schema>>;
+export type DbExecutor = Db;
 
 const globalForDb = globalThis as unknown as {
   nexusDb?: Db;
@@ -58,6 +59,13 @@ export const db = new Proxy({} as Db, {
     return typeof value === "function" ? value.bind(real) : value;
   },
 });
+
+export async function withTransaction<T>(work: (tx: DbExecutor) => Promise<T>): Promise<T> {
+  const real = getDb() as unknown as {
+    transaction<R>(callback: (tx: DbExecutor) => Promise<R>): Promise<R>;
+  };
+  return real.transaction(work);
+}
 
 export async function ensureDb() {
   if (isBuildPhase()) return;

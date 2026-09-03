@@ -51,18 +51,18 @@ export function JumpToModel({ models }: { models: Row[] }) {
       {open && hits.length ? (
         <ul className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
           {hits.map((m) => (
-            <li key={m.id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-amber-50">
+            <li key={m.id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-violet-50">
               <button
                 type="button"
                 className="min-w-0 flex-1 text-left"
                 onClick={() => go(m.id, "model")}
               >
-                <div className="truncate font-mono text-xs text-amber-700">{m.id}</div>
+                <div className="truncate font-mono text-xs text-violet-700">{m.id}</div>
                 <div className="truncate text-xs text-zinc-500">{m.name}</div>
               </button>
               <button
                 type="button"
-                className="shrink-0 text-[11px] text-zinc-500 hover:text-amber-700"
+                className="shrink-0 text-[11px] text-zinc-500 hover:text-violet-700"
                 onClick={() => go(m.id, "chat")}
               >
                 chat
@@ -70,7 +70,7 @@ export function JumpToModel({ models }: { models: Row[] }) {
             </li>
           ))}
           <li className="border-t border-zinc-100 px-3 py-2 text-[11px] text-zinc-400">
-            <Link href={`/models?q=${encodeURIComponent(q)}`} className="hover:text-amber-700">
+            <Link href={`/models?q=${encodeURIComponent(q)}`} className="hover:text-violet-700">
               Ver catálogo completo →
             </Link>
           </li>

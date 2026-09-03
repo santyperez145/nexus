@@ -15,8 +15,8 @@ describe("tenant isolation", () => {
     logPrompts: false,
   };
 
-  it("denies another user's row", () => {
-    assert.equal(canAccess(authWs, { userId: "u2", workspaceId: "ws_a" }), false);
+  it("allows a shared row inside the key-scoped workspace", () => {
+    assert.equal(canAccess(authWs, { userId: "u2", workspaceId: "ws_a" }), true);
   });
 
   it("denies same user in another workspace", () => {

@@ -27,7 +27,7 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-2 text-sm text-zinc-500">
-          <Link href="/chat" className="text-amber-700 hover:underline">
+          <Link href="/chat" className="text-violet-700 hover:underline">
             Chat
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -35,13 +35,13 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
           {payload.comparing ? (
             <>
               <span className="mx-2 text-zinc-300">·</span>
-              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">
+              <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-900">
                 compare
               </span>
             </>
           ) : null}
         </p>
-        <h1 className="font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
           {title}
         </h1>
         <p className="mt-2 font-mono text-xs text-zinc-500">
@@ -65,7 +65,7 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
             <div
               key={i}
               className={`rounded-xl px-3 py-2 ${
-                m.role === "assistant" ? "bg-zinc-50" : m.role === "system" ? "bg-amber-50/50" : ""
+                m.role === "assistant" ? "bg-zinc-50" : m.role === "system" ? "bg-violet-50/50" : ""
               }`}
             >
               <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-zinc-400">{m.role}</div>

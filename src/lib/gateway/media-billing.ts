@@ -2,7 +2,13 @@ import { db, schema } from "@/lib/db";
 import { generationId } from "@/lib/ids";
 import { usdToMicros } from "@/lib/money";
 import { dispatchGenerationWebhook } from "@/lib/observability/dispatch";
-import { maybeAutoTopup, releaseReserve, reserveCredits, settleUsage } from "./billing";
+import {
+  maybeAutoTopup,
+  releaseReserve,
+  reserveCredits,
+  settleUsage,
+  type CreditReservation,
+} from "./billing";
 import type { AuthContext } from "./types";
 
 /** Precio flat por modalidad cuando el catálogo no trae request pricing. */
@@ -33,7 +39,8 @@ export async function holdMediaCredits(opts: {
   } else {
     estimated = usdToMicros(opts.usd ?? MEDIA_DEFAULT_USD[opts.modality as keyof typeof MEDIA_DEFAULT_USD] ?? 0);
   }
-  return reserveCredits(opts.auth, estimated, {
+  const genId = generationId();
+  return reserveCredits(opts.auth, genId, estimated, {
     isFree: estimated <= 0,
     byokFeeOnly: opts.isByok && estimated > 0,
   });
@@ -54,15 +61,15 @@ export async function chargeAndRecordMedia(opts: {
   latencyMs?: number;
   finishReason?: string;
   metadata?: Record<string, unknown>;
-  reservedMicros?: number;
+  reservation?: CreditReservation;
 }) {
-  const genId = generationId();
+  const genId = opts.reservation?.generationId ?? generationId();
   const started = Date.now();
   let costMicros = 0;
-  const reserved = opts.reservedMicros ?? 0;
+  const reservation = opts.reservation;
 
   if (opts.local) {
-    if (reserved) await releaseReserve(opts.auth, reserved);
+    if (reservation?.reservedMicros) await releaseReserve(opts.auth, reservation);
   } else if (opts.modality === "embedding" && opts.pricing) {
     const promptTokens = opts.promptTokens ?? 0;
     const settled = await settleUsage({
@@ -73,7 +80,7 @@ export async function chargeAndRecordMedia(opts: {
       pricing: opts.pricing,
       isFree: false,
       isByok: opts.isByok,
-      reservedMicros: reserved,
+      reservation,
     });
     costMicros = settled.micros;
   } else {
@@ -87,11 +94,11 @@ export async function chargeAndRecordMedia(opts: {
         pricing: { prompt: 0, completion: usd },
         isFree: false,
         isByok: opts.isByok,
-        reservedMicros: reserved,
+        reservation,
       });
       costMicros = settled.micros;
-    } else if (reserved) {
-      await releaseReserve(opts.auth, reserved);
+    } else if (reservation?.reservedMicros) {
+      await releaseReserve(opts.auth, reservation);
     }
   }
 

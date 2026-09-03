@@ -57,8 +57,8 @@ export function CostEstimator({
         <h2
           className={
             light
-              ? "font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-900"
-              : "font-[family-name:var(--font-syne)] text-lg font-semibold text-zinc-100"
+              ? "text-lg font-semibold text-zinc-900"
+              : "text-lg font-semibold text-zinc-100"
           }
         >
           Calculadora de costo
@@ -78,8 +78,8 @@ export function CostEstimator({
             className={`rounded-md border px-2.5 py-1 font-mono text-xs ${
               preset === p
                 ? light
-                  ? "border-amber-600/40 bg-amber-50 text-amber-900"
-                  : "border-amber-400/40 bg-amber-400/10 text-amber-200"
+                  ? "border-violet-300 bg-violet-50 text-zinc-900"
+                  : "border-violet-200 bg-violet-50 text-zinc-800"
                 : light
                   ? "border-zinc-200 text-zinc-600 hover:border-zinc-300"
                   : "border-white/10 text-zinc-500 hover:text-zinc-300"
@@ -127,8 +127,8 @@ export function CostEstimator({
           <div
             className={
               light
-                ? "font-[family-name:var(--font-syne)] text-2xl font-semibold tabular-nums text-zinc-900"
-                : "font-[family-name:var(--font-syne)] text-2xl font-semibold tabular-nums text-amber-200"
+                ? "text-2xl font-semibold tabular-nums text-zinc-900"
+                : "text-2xl font-semibold tabular-nums text-zinc-100"
             }
           >
             {free ? "Gratis" : formatUsd(cost, 6)}

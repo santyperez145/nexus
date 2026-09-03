@@ -1,6 +1,5 @@
-import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { canAccess } from "./tenant";
+import { canAccess, userScope } from "./tenant";
 import type { AuthContext, ChatRequest } from "./types";
 
 const INJECTION = [
@@ -24,7 +23,7 @@ export async function enforceGuardrails(
   const rows = await db
     .select()
     .from(schema.guardrails)
-    .where(eq(schema.guardrails.userId, auth.userId));
+    .where(userScope(auth, schema.guardrails.userId, schema.guardrails.workspaceId));
   const scoped = rows.filter((g) => canAccess(auth, g));
   const model = req.model ?? "";
   const prompt = JSON.stringify(req.messages ?? req.prompt ?? "");

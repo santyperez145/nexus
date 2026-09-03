@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
               type="button"
               onClick={() => setDays(r.days)}
               className={`rounded-md px-3 py-1 text-xs ${
-                days === r.days ? "bg-amber-400/20 text-zinc-700" : "text-zinc-500 hover:text-zinc-800"
+                days === r.days ? "bg-violet-100 text-zinc-700" : "text-zinc-500 hover:text-zinc-800"
               }`}
             >
               {r.label}
@@ -84,8 +84,8 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-amber-400/[0.07] to-transparent p-5">
-          <div className="text-[10px] uppercase tracking-[0.14em] text-amber-500/80">Insight {days}d</div>
+        <div className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-violet-500/[0.07] to-transparent p-5">
+          <div className="text-[10px] uppercase tracking-[0.14em] text-violet-700">Insight {days}d</div>
           <div className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950 md:text-4xl">
             {t.requests.toLocaleString()}{" "}
             <span className="text-lg font-medium text-zinc-500">requests</span>
@@ -101,7 +101,7 @@ export default function AnalyticsPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href="/chat"
-                className="rounded-md bg-amber-500/20 px-3 py-1.5 text-sm text-zinc-700 hover:bg-amber-500/30"
+                className="rounded-md bg-violet-500/20 px-3 py-1.5 text-sm text-zinc-700 hover:bg-violet-500/30"
               >
                 Abrir Chat
               </Link>
@@ -183,7 +183,7 @@ export default function AnalyticsPage() {
             <div
               key={data.by_day?.[i]?.day ?? i}
               title={`${data.by_day?.[i]?.day ?? ""}: ${metric === "cost" ? formatUsd(v) : v.toLocaleString()}`}
-              className="min-w-0 flex-1 rounded-t bg-amber-400/45 transition-[height]"
+              className="min-w-0 flex-1 rounded-t bg-violet-400 transition-[height]"
               style={{ height: `${Math.max(v > 0 ? 8 : 2, (v / maxDay) * 100)}%` }}
             />
           ))}

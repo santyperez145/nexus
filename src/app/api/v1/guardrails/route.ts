@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
-import { canAccess, userScope } from "@/lib/gateway/tenant";
+import { assertWorkspaceManager, canAccess, resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
 import { id } from "@/lib/ids";
 import { usdToMicros } from "@/lib/money";
 
@@ -19,10 +19,12 @@ export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
     const body = await req.json();
+    const workspaceId = await resolveOwnedWorkspace(auth, body.workspace_id);
+    await assertWorkspaceManager(auth, workspaceId);
     const row = {
       id: id("grd"),
       userId: auth.userId,
-      workspaceId: body.workspace_id ?? auth.workspaceId,
+      workspaceId,
       name: body.name ?? "Default",
       allowedModels: body.allowed_models ?? null,
       blockedModels: body.blocked_models ?? null,
@@ -46,6 +48,7 @@ export async function DELETE(req: Request) {
     if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
+    await assertWorkspaceManager(auth, row.workspaceId);
     await db.delete(schema.guardrails).where(eq(schema.guardrails.id, idParam));
     return Response.json({ data: { success: true } });
   } catch (error) {

@@ -2,6 +2,7 @@ import { inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { extractFileText } from "@/lib/files/extract";
 import type { AuthContext, ChatMessage, ChatRequest } from "./types";
+import { canAccess } from "./tenant";
 
 type ContentPart = { type: string; text?: string; image_url?: { url: string } };
 
@@ -67,7 +68,7 @@ export async function attachUserFiles(
   if (!unique.length) return messages;
 
   const rows = await db.select().from(schema.files).where(inArray(schema.files.id, unique));
-  const owned = rows.filter((r) => r.userId === auth.userId && (!auth.workspaceId || r.workspaceId === auth.workspaceId));
+  const owned = rows.filter((row) => canAccess(auth, row));
   if (!owned.length) return messages;
 
   const imageFiles = owned.filter((f) => f.content && isImageMime(f.mime, f.filename));

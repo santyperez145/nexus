@@ -7,7 +7,7 @@ export default function ParametersDocsPage() {
     <MarketingShell>
       <div className="mx-auto max-w-3xl px-4 py-12 md:py-16">
         <p className="mb-3 text-sm text-zinc-500">
-          <Link href="/docs" className="text-amber-700 hover:underline">
+          <Link href="/docs" className="text-violet-700 hover:underline">
             Docs
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
@@ -41,7 +41,7 @@ export default function ParametersDocsPage() {
                 i ? "border-t border-zinc-100" : ""
               }`}
             >
-              <code className="text-sm text-amber-800">{k}</code>
+              <code className="text-sm text-violet-800">{k}</code>
               <span className="text-sm text-zinc-600">{v}</span>
             </div>
           ))}
@@ -61,11 +61,11 @@ export default function ParametersDocsPage() {
         </pre>
         <p className="mb-8 text-sm text-zinc-600">
           Visión: adjuntá en{" "}
-          <Link href="/chat" className="text-amber-700 hover:underline">
+          <Link href="/chat" className="text-violet-700 hover:underline">
             Chat
           </Link>{" "}
           o subí a Files (mime image/*) y pasá <code className="text-zinc-800">file_ids</code>. Sin
-          lab vision-capable → eco local puede ignorar pixels.
+          un provider vision-capable, el gateway devuelve provider_unwired.
         </p>
 
         <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">

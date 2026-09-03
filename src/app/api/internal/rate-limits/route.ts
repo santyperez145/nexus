@@ -5,11 +5,10 @@ import {
   FREE_MODEL_RPD_NO_CREDITS,
   FREE_MODEL_RPD_WITH_CREDITS,
 } from "@/lib/config";
+import { limitsForPlan } from "@/lib/config";
 import { db, schema } from "@/lib/db";
 import { microsToUsd } from "@/lib/money";
 import { cache } from "@/lib/redis";
-
-const RPM = 60;
 
 export async function GET() {
   const session = await getSession();
@@ -33,13 +32,14 @@ export async function GET() {
       ),
     );
   const creditUsd = microsToUsd(user?.creditMicros ?? 0);
+  const rpmLimit = limitsForPlan(user?.plan).rpm;
   const hasCredits = creditUsd >= FREE_MODEL_CREDITS_THRESHOLD_USD;
   const freeRpdLimit = hasCredits ? FREE_MODEL_RPD_WITH_CREDITS : FREE_MODEL_RPD_NO_CREDITS;
 
   return Response.json({
     data: {
-      rpm_limit: RPM,
-      rpm_used: Math.min(rpmUsed, RPM + 5),
+      rpm_limit: rpmLimit,
+      rpm_used: Math.min(rpmUsed, rpmLimit + 5),
       rpm_window: "minute",
       free_rpd_limit: freeRpdLimit,
       free_rpd_used: freeRows.length,

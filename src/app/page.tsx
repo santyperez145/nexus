@@ -29,8 +29,8 @@ export default async function HomePage() {
           The unified interface for every model
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-base text-zinc-500 md:text-lg">
-          Better prices, fail-closed ZDR, no subscriptions. Una API OpenAI-compatible con BYOK y
-          routing propio.
+          Precios transparentes, ZDR fail-closed y planes Pro/Team. Una API OpenAI-compatible con
+          BYOK y routing propio.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button asChild size="lg" className="h-10 rounded-full px-5">

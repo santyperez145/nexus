@@ -6,6 +6,7 @@ import { releaseReserve } from "@/lib/gateway/billing";
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { pollVideoJob, startVideoJob } from "@/lib/media/upstream";
+import { canAccess } from "@/lib/gateway/tenant";
 
 export async function POST(req: Request) {
   try {
@@ -13,8 +14,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const prompt = String(body.prompt ?? "");
     const model = body.model ?? "nexus/video";
-    const falKey = await resolveByokKey(auth.userId, "fal");
-    const replicateToken = await resolveByokKey(auth.userId, "replicate");
+    const falKey = await resolveByokKey(auth.userId, "fal", auth);
+    const replicateToken = await resolveByokKey(auth.userId, "replicate", auth);
     const platform = Boolean(process.env.FAL_KEY?.trim() || process.env.REPLICATE_API_TOKEN?.trim());
     const isByok =
       Boolean(falKey || replicateToken) &&
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
         }),
       );
     }
-    const reserved = await holdMediaCredits({
+    const reservation = await holdMediaCredits({
       auth,
       modality: "video",
       isByok,
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     const live = await startVideoJob({ prompt, model, falKey, replicateToken });
     const local = !live || "error" in live;
     if (local) {
-      await releaseReserve(auth, reserved);
+      await releaseReserve(auth, reservation);
       return jsonError(
         Object.assign(new Error(live && "error" in live ? String(live.error) : "Video provider unavailable"), {
           status: 502,
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
     const row = {
       id: id("vid"),
       userId: auth.userId,
+      workspaceId: auth.workspaceId ?? null,
       model,
       prompt,
       status,
@@ -90,7 +92,7 @@ export async function POST(req: Request) {
       latencyMs: Date.now() - started,
       metadata: { video_job_id: row.id },
       finishReason: status === "failed" ? "error" : "stop",
-      reservedMicros: reserved,
+      reservation,
     });
     return Response.json({
       id: row.id,
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
       cost: billed.costMicros / 1_000_000,
     });
     } catch (error) {
-      await releaseReserve(auth, reserved);
+      await releaseReserve(auth, reservation);
       throw error;
     }
   } catch (error) {
@@ -116,12 +118,12 @@ export async function GET(req: Request) {
     const jobId = new URL(req.url).searchParams.get("id");
     if (!jobId) return jsonError(Object.assign(new Error("id required"), { status: 400 }));
     const [row] = await db.select().from(schema.videoJobs).where(eq(schema.videoJobs.id, jobId)).limit(1);
-    if (!row || row.userId !== auth.userId) {
+    if (!row || !canAccess(auth, row)) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     if (row.status === "processing" && row.resultUrl?.startsWith("http")) {
-      const replicateToken = await resolveByokKey(auth.userId, "replicate");
-      const falKey = await resolveByokKey(auth.userId, "fal");
+      const replicateToken = await resolveByokKey(auth.userId, "replicate", auth);
+      const falKey = await resolveByokKey(auth.userId, "fal", auth);
       const polled = await pollVideoJob({
         pollUrl: row.resultUrl,
         falKey,

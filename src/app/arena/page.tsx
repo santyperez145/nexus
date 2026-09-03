@@ -2,6 +2,8 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { ArenaClient } from "@/components/models/arena-client";
 import { allModels } from "@/lib/catalog";
+import { getSession } from "@/lib/auth";
+import { guestPlaygroundEnabled } from "@/lib/config";
 
 export default async function ArenaPage({
   searchParams,
@@ -9,6 +11,8 @@ export default async function ArenaPage({
   searchParams: Promise<{ a?: string; b?: string }>;
 }) {
   const q = await searchParams;
+  const session = await getSession();
+  const guest = !session?.user && guestPlaygroundEnabled();
   const models = allModels()
     .filter((m) => !m.id.startsWith("nexus/") || m.id === "nexus/auto" || m.id === "nexus/free")
     .map((m) => m.id);
@@ -23,13 +27,19 @@ export default async function ArenaPage({
       <div className="relative mx-auto max-w-5xl px-4 py-12 md:py-16">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.1),_transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-6 h-40 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
         />
         <MarketingPageHeader title="Arena">
-          Un prompt, dos modelos, un voto. Guest = eco local; sesión = hops live/BYOK. Los votos viven
-          en tu browser — sin leaderboard inventado.
+          Un prompt, dos modelos, un voto. Sesión = hops live/BYOK; la demo guest aislada existe solo
+          en desarrollo. Los votos viven en tu browser — sin leaderboard inventado.
         </MarketingPageHeader>
-        <ArenaClient defaultA={defaultA} defaultB={defaultB} models={models.slice(0, 200)} />
+        <ArenaClient
+          defaultA={defaultA}
+          defaultB={defaultB}
+          models={models.slice(0, 200)}
+          guest={guest}
+          authenticated={Boolean(session?.user)}
+        />
       </div>
     </MarketingShell>
   );
