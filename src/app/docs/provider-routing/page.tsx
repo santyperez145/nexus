@@ -36,7 +36,7 @@ export default function ProviderRoutingDocsPage() {
           <li>
             <code className="text-zinc-800">zdr</code> /{" "}
             <code className="text-zinc-800">data_collection: &quot;deny&quot;</code> — hard-filter a
-            endpoints ZDR.
+            endpoints con acuerdo ZDR confirmado. Si no hay ninguno, falla sin fallback laxo.
           </li>
           <li>
             <code className="text-zinc-800">max_price</code> — techo por millón de tokens.

@@ -25,9 +25,15 @@ import { applyMiddleOut } from "./middle-out";
 import { applyPreset } from "./presets";
 import { chatChunkPayload, chatCompletionPayload, usagePayload } from "./openai-compat";
 import { dispatchGenerationWebhook } from "@/lib/observability/dispatch";
+import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 export function isZdrRequest(req: ChatRequest, auth: AuthContext) {
   return Boolean(auth.zdr || req.provider?.zdr || req.provider?.data_collection === "deny");
+}
+
+/** BYOK privacy guarantees belong to the credential owner and are not inferred from platform contracts. */
+export function canUseByokForRequest(req: ChatRequest, auth: AuthContext) {
+  return auth.allowTraining && !isZdrRequest(req, auth);
 }
 
 export function assertZdrCompatible(req: ChatRequest, auth: AuthContext) {
@@ -59,7 +65,7 @@ function summarizeRouteHops(plan: ReturnType<typeof resolveRoute>) {
       hops.push({
         model: candidate.model.id,
         adapter: endpoint.adapter,
-        zdr: Boolean(endpoint.zdr),
+        zdr: isEndpointZdrConfirmed(endpoint),
       });
       if (hops.length >= 16) return hops;
     }
@@ -208,15 +214,18 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
 
   await assertRateLimit(auth);
   await checkFreeRateLimit(auth, first.model.free);
-  const byokRows = await db
-    .select({
-      provider: schema.byokCredentials.provider,
-      deleted: schema.byokCredentials.deleted,
-      userId: schema.byokCredentials.userId,
-      workspaceId: schema.byokCredentials.workspaceId,
-    })
-    .from(schema.byokCredentials)
-    .where(userScope(auth, schema.byokCredentials.userId, schema.byokCredentials.workspaceId));
+  const allowByokForRequest = canUseByokForRequest(req, auth);
+  const byokRows = allowByokForRequest
+    ? await db
+        .select({
+          provider: schema.byokCredentials.provider,
+          deleted: schema.byokCredentials.deleted,
+          userId: schema.byokCredentials.userId,
+          workspaceId: schema.byokCredentials.workspaceId,
+        })
+        .from(schema.byokCredentials)
+        .where(userScope(auth, schema.byokCredentials.userId, schema.byokCredentials.workspaceId))
+    : [];
   const byokProviders = new Set(
     byokRows.filter((r) => !r.deleted && r.provider && canAccess(auth, r)).map((r) => r.provider),
   );
@@ -255,8 +264,9 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
         lastError = `Circuit open for ${endpoint.adapter}`;
         continue;
       }
-      const byok =
-        (await byokFor(auth, endpoint.adapter)) ?? (await byokFor(auth, endpoint.name));
+      const byok = allowByokForRequest
+        ? ((await byokFor(auth, endpoint.adapter)) ?? (await byokFor(auth, endpoint.name)))
+        : undefined;
       if (!hasProviderKey(endpoint, byok)) {
         lastError = `No API key for provider ${endpoint.adapter}`;
         lastUnwired = endpoint;

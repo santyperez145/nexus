@@ -8,6 +8,7 @@ import { allModels, findModel, usdPerMillion } from "@/lib/catalog";
 import { db, ensureDb, schema } from "@/lib/db";
 import { formatUsd } from "@/lib/money";
 import { wiredProviders } from "@/lib/providers/registry";
+import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
 
   const maxLat = Math.max(1, ...model.endpoints.map((e) => e.latencyMs || 1));
   const vision = model.architecture.inputModalities.includes("image");
-  const zdrCount = model.endpoints.filter((e) => e.zdr).length;
+  const zdrCount = model.endpoints.filter(isEndpointZdrConfirmed).length;
 
   return (
     <MarketingShell>
@@ -208,7 +209,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                       <div className="truncate font-mono text-[11px] text-zinc-500">{e.providerModel}</div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                      {e.zdr ? (
+                      {isEndpointZdrConfirmed(e) ? (
                         <span className="rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-sky-800">
                           ZDR
                         </span>

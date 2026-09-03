@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { assertZdrCompatible, isZdrRequest, validateChatRequest } from "../src/lib/gateway/handle-chat";
+import {
+  assertZdrCompatible,
+  canUseByokForRequest,
+  isZdrRequest,
+  validateChatRequest,
+} from "../src/lib/gateway/handle-chat";
 import type { AuthContext, ChatRequest } from "../src/lib/gateway/types";
 
 const auth: AuthContext = {
@@ -35,6 +40,12 @@ describe("ZDR fail-closed contract", () => {
         (error: Error & { code?: string }) => error.code === "zdr_incompatible",
       );
     }
+  });
+
+  it("never assumes platform privacy contracts apply to BYOK credentials", () => {
+    assert.equal(canUseByokForRequest({ provider: { zdr: true } }, auth), false);
+    assert.equal(canUseByokForRequest({}, { ...auth, zdr: false, allowTraining: false }), false);
+    assert.equal(canUseByokForRequest({}, { ...auth, zdr: false, allowTraining: true }), true);
   });
 });
 

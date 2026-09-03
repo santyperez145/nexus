@@ -33,6 +33,8 @@ npm run dev
 | `DATABASE_URL` | Postgres/Neon pooled (obligatorio en prod; local: PGlite) |
 | `DATABASE_URL_UNPOOLED` | Conexión directa para `npm run db:migrate` |
 | `REDIS_URL` o Upstash | Rate limit y circuit breaker; obligatorio y fail-closed en prod |
+| `ZDR_PROVIDER_IDS` | Proveedores con capacidad y acuerdo ZDR activo confirmado |
+| `NO_TRAINING_PROVIDER_IDS` | Proveedores cuyo acuerdo activo prohíbe entrenamiento con solicitudes |
 | `GATEWAY_URL` | Data plane Hono aparte (`npm run dev:gateway`) |
 | BYOK en Settings | Keys del cliente, cifradas |
 
@@ -87,6 +89,11 @@ También sirve el SDK de OpenAI con `baseURL: .../api/v1`.
 Las cuentas nuevas verifican su correo antes de crear una sesión en producción; el restablecimiento
 de contraseña revoca sesiones anteriores. Los intentos de acceso, registro y recuperación usan el
 mismo Redis distribuido y fail-closed que el gateway.
+
+ZDR y no-entrenamiento son filtros estrictos. Las marcas del catálogo sólo describen capacidad;
+Nexus no enruta en esos modos hasta que el operador confirme el acuerdo real mediante las allowlists
+de entorno. Si no queda un host elegible, la solicitud falla y nunca relaja privacidad. BYOK se
+excluye de esos modos hasta poder registrar garantías por credencial.
 
 Las API keys pueden limitarse a `inference`, `management:read` y `management:write`. Los presupuestos,
 límites por key, créditos y membresías de workspace se validan en el servidor; no dependen del cliente.

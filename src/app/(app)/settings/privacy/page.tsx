@@ -18,16 +18,15 @@ export default async function PrivacyPage() {
   return (
     <div>
       <AppPageHeader title="Privacy">
-        Controles que el router aplica en cada hop: ZDR hard-filter, logging opcional (−1% lista) y
-        training-safe providers. Mismos flags que marketing promete — sin inventar compliance de
-        terceros.
+        Controles estrictos que el router aplica antes de enviar datos a un proveedor. Una capacidad
+        comercial no se muestra como garantía hasta confirmar el acuerdo activo.
       </AppPageHeader>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
         <Metric
           label="ZDR"
           value={zdr ? "ON" : "OFF"}
-          hint={zdr ? "Solo hosts zero-retention" : "Todos los hosts elegibles"}
+          hint={zdr ? "Sólo acuerdos confirmados" : "Todos los hosts elegibles"}
           on={zdr}
         />
         <Metric
@@ -37,9 +36,9 @@ export default async function PrivacyPage() {
           on={logPrompts}
         />
         <Metric
-          label="Training OK"
+          label="Entrenamiento"
           value={allowTraining ? "permitido" : "bloqueado"}
-          hint={allowTraining ? "Puede incluir labs que entrenan" : "Filtra training-capable"}
+          hint={allowTraining ? "Según política del proveedor" : "Sólo no-entrenamiento confirmado"}
           on={!allowTraining}
         />
       </div>
@@ -50,7 +49,7 @@ export default async function PrivacyPage() {
         <div className="font-medium text-zinc-800">Cómo se aplica</div>
         <ul className="mt-2 list-inside list-disc space-y-1 text-zinc-500">
           <li>
-            ZDR y allowTraining se evalúan en el router antes del hop (preview en{" "}
+            ZDR y no-entrenamiento se evalúan en el router antes de cada envío (preview en{" "}
             <Link href="/chat" className="text-violet-700 hover:underline">
               Chat
             </Link>

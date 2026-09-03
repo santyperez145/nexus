@@ -2,6 +2,7 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { CompareClient } from "@/components/models/compare-client";
 import { allModels } from "@/lib/catalog";
+import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 export default async function ComparePage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function ComparePage({
       adapter: e.adapter,
       latencyMs: e.latencyMs,
       throughputTps: e.throughputTps,
-      zdr: e.zdr,
+      zdr: isEndpointZdrConfirmed(e),
     })),
     output: m.architecture.outputModalities,
   }));

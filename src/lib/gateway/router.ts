@@ -8,6 +8,10 @@ import {
   type ModelEndpoint,
 } from "@/lib/catalog";
 import type { AuthContext, ChatRequest, ProviderPreferences } from "./types";
+import {
+  isEndpointNoTrainingConfirmed,
+  isEndpointZdrConfirmed,
+} from "@/lib/providers/privacy";
 
 export type RoutePlan = {
   requested: string;
@@ -85,12 +89,13 @@ function filterEndpoints(
       return true;
     });
   }
-  if (auth.zdr || prefs?.zdr || prefs?.data_collection === "deny") {
-    list = list.filter((e) => e.zdr);
-  } else if (!auth.allowTraining) {
-    // Preferí hosts ZDR sin vaciar el plan (allowTraining=false no debe romper el routing).
-    const zdrOnly = list.filter((e) => e.zdr);
-    if (zdrOnly.length) list = zdrOnly;
+  if (!auth.guest) {
+    if (auth.zdr || prefs?.zdr || prefs?.data_collection === "deny") {
+      list = list.filter(isEndpointZdrConfirmed);
+    }
+    if (!auth.allowTraining) {
+      list = list.filter(isEndpointNoTrainingConfirmed);
+    }
   }
   if (prefs?.order?.length) {
     const ordered = prefs.order

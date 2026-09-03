@@ -24,7 +24,7 @@ export function PrivacyForm(props: { zdr: boolean; logPrompts: boolean; allowTra
     <div className="grid max-w-2xl gap-3">
       <Row
         title="Zero Data Retention"
-        body="Hard-filter a providers marcados ZDR en el catálogo. Si ningún hop queda, el request falla — no hay fallback silencioso a no-ZDR."
+        body="Usa sólo proveedores cuyo acuerdo ZDR esté confirmado en esta instalación. Si ninguno cumple, la solicitud falla sin relajar la privacidad."
       >
         <Switch checked={state.zdr} onCheckedChange={(zdr) => void update({ zdr })} />
       </Row>
@@ -35,8 +35,8 @@ export function PrivacyForm(props: { zdr: boolean; logPrompts: boolean; allowTra
         <Switch checked={state.logPrompts} onCheckedChange={(logPrompts) => void update({ logPrompts })} />
       </Row>
       <Row
-        title="Providers que pueden entrenar"
-        body="OFF filtra labs que reportan training-capable. Útil junto a ZDR; independiente de Guardrails de contenido."
+        title="Permitir uso para entrenamiento"
+        body="Al desactivarlo, Nexus usa únicamente proveedores confirmados como no-entrenamiento. Las credenciales propias quedan fuera de este modo hasta registrar su garantía."
       >
         <Switch
           checked={state.allowTraining}

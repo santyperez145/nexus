@@ -201,13 +201,12 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
           <li>
             <strong className="font-medium text-zinc-800">ZDR</strong> — Settings → Privacy o{" "}
             <code className="text-zinc-800">provider.data_collection: &quot;deny&quot;</code>. El
-            router prefiere endpoints <code className="text-zinc-800">zdr: true</code> del
-            catálogo.
+            router exige endpoints con capacidad ZDR y acuerdo activo confirmado por la instalación.
           </li>
           <li>
             <strong className="font-medium text-zinc-800">allow_training</strong> — si está en false,
-            se filtran hosts que entrenan; si el plan queda vacío, el chat reintenta en modo laxo
-            para no romper tip-to-tip (eco / BYOK).
+            se exigen hosts confirmados como no-entrenamiento. Si el plan queda vacío, la solicitud
+            falla; nunca se reintenta en modo laxo. BYOK queda excluido de ambos modos estrictos.
           </li>
           <li>
             <strong className="font-medium text-zinc-800">Route Trace</strong> —{" "}

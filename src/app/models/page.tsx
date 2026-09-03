@@ -2,6 +2,7 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { ModelsExplorer } from "@/components/models/models-explorer";
 import { allModels } from "@/lib/catalog";
+import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 const MODS = new Set(["all", "text", "image", "video", "audio", "embeddings"]);
 
@@ -31,7 +32,7 @@ export default async function ModelsPage({
     pricing: { prompt: m.pricing.prompt, completion: m.pricing.completion },
     endpoints: m.endpoints.map((e) => ({
       adapter: e.adapter,
-      zdr: Boolean(e.zdr),
+      zdr: isEndpointZdrConfirmed(e),
       verified: Boolean(m.verified || e.verified),
     })),
   }));

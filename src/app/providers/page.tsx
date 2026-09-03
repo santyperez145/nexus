@@ -4,6 +4,7 @@ import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { allModels } from "@/lib/catalog";
 import { providerSnapshot } from "@/lib/gateway/health";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
+import { isProviderZdrConfirmed } from "@/lib/providers/privacy";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,7 @@ export default async function ProvidersPage() {
             const n = counts.get(p.id) ?? 0;
             const cb = circuitBy.get(p.id);
             const circuit = cb?.circuit ?? "closed";
+            const zdr = isProviderZdrConfirmed(p.id);
             return (
               <Link
                 key={p.id}
@@ -88,12 +90,18 @@ export default async function ProvidersPage() {
                     className={`rounded border px-1.5 py-0.5 ${
                       circuit === "open"
                         ? "border-rose-300 bg-rose-50 text-rose-800"
-                        : p.zdr
+                        : zdr
                           ? "border-violet-200 bg-violet-50 text-violet-800"
                           : "border-zinc-200 text-zinc-500"
                     }`}
                   >
-                    {circuit === "open" ? "Interrupción detectada" : p.zdr ? "Sin retención" : "Estándar"}
+                    {circuit === "open"
+                      ? "Interrupción detectada"
+                      : zdr
+                        ? "ZDR confirmado"
+                        : p.zdr
+                          ? "ZDR sujeto a contrato"
+                          : "Estándar"}
                   </span>
                 </div>
                 <div className="mt-3 text-xs text-violet-700 opacity-0 transition-opacity group-hover:opacity-100">

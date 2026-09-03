@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { providerSnapshot } from "@/lib/gateway/health";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
+import { isProviderZdrConfirmed } from "@/lib/providers/privacy";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export default async function ProviderDetailPage({
 
   const live = new Set(wiredProviders().map((p) => p.id));
   const wired = live.has(provider.id);
+  const zdrConfirmed = isProviderZdrConfirmed(provider.id);
   const models = allModels()
     .filter((m) => m.endpoints.some((e) => e.adapter === provider.id))
     .sort((a, b) => a.id.localeCompare(b.id));
@@ -84,7 +86,11 @@ export default async function ProviderDetailPage({
         </p>
         <MarketingPageHeader title={provider.label}>
           Host de inferencia · kind <code className="text-zinc-800">{provider.kind}</code>
-          {provider.zdr ? " · marcado ZDR cuando el endpoint lo declara" : ""}. Stats de generaciones
+          {zdrConfirmed
+            ? " · acuerdo ZDR confirmado para esta instalación"
+            : provider.zdr
+              ? " · ZDR disponible sólo con acuerdo confirmado"
+              : ""}. Stats de generaciones
           son de esta instancia (no uptime inventado).
         </MarketingPageHeader>
 

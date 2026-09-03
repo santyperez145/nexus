@@ -22,13 +22,13 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: "zdr-route-trace",
-    title: "ZDR suave, Route Trace y tip-to-tip",
+    title: "ZDR estricto, Route Trace y tip-to-tip",
     date: "2026-09-02",
     summary:
-      "Privacy que no vacía el plan, preview de hops y reintento laxo cuando hace falta.",
+      "Privacidad fail-closed con acuerdos confirmados y preview de cada ruta antes de gastar.",
     body: [
-      "ZDR prefiere endpoints marcados en el catálogo. allow_training filtra hosts que entrenan.",
-      "Si el filtro ZDR deja el plan vacío, el gateway corta fail-closed; nunca relaja privacidad para completar.",
+      "ZDR exige capacidad declarada y un acuerdo activo confirmado; una etiqueta comercial no alcanza.",
+      "allow_training=false también es estricto. Si cualquier filtro deja el plan vacío, el gateway corta fail-closed.",
       "POST /api/v1/routing/preview y el playground muestran adapter, wired y zdr antes de gastar.",
     ],
   },

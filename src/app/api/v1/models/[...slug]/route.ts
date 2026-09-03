@@ -1,4 +1,25 @@
 import { findModel } from "@/lib/catalog";
+import { isEndpointNoTrainingConfirmed, isEndpointZdrConfirmed } from "@/lib/providers/privacy";
+
+function publicEndpoint(endpoint: NonNullable<ReturnType<typeof findModel>>["endpoints"][number]) {
+  return {
+    name: endpoint.adapter,
+    tag: endpoint.adapter,
+    provider_name: endpoint.adapter,
+    adapter: endpoint.adapter,
+    provider_model: endpoint.providerModel,
+    pricing: endpoint.pricing,
+    latency_ms: endpoint.latencyMs,
+    throughput_tps: endpoint.throughputTps,
+    zdr: isEndpointZdrConfirmed(endpoint),
+    zdr_capable: Boolean(endpoint.zdr),
+    no_training: isEndpointNoTrainingConfirmed(endpoint),
+    uptime: endpoint.uptime,
+    quantization: endpoint.quantization,
+    verified: Boolean(endpoint.verified),
+    metrics_estimated: endpoint.metricsEstimated !== false,
+  };
+}
 
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await ctx.params;
@@ -11,21 +32,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string[]
       data: {
         id: model.id,
         name: model.name,
-        endpoints: model.endpoints.map((e) => ({
-          name: e.adapter,
-          tag: e.adapter,
-          provider_name: e.adapter,
-          adapter: e.adapter,
-          provider_model: e.providerModel,
-          pricing: e.pricing,
-          latency_ms: e.latencyMs,
-          throughput_tps: e.throughputTps,
-          zdr: e.zdr,
-          uptime: e.uptime,
-          quantization: e.quantization,
-          verified: Boolean(e.verified),
-          metrics_estimated: e.metricsEstimated !== false,
-        })),
+        endpoints: model.endpoints.map(publicEndpoint),
       },
     });
   }
@@ -38,7 +45,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string[]
       pricing: model.pricing,
       architecture: model.architecture,
       supported_parameters: model.supportedParameters,
-      endpoints: model.endpoints,
+      endpoints: model.endpoints.map(publicEndpoint),
     },
   });
 }

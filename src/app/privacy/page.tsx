@@ -49,10 +49,12 @@ export default function PrivacyPublicPage() {
           <section>
             <h2 className="mb-2 text-base font-medium text-zinc-900">ZDR y training</h2>
             <p>
-              Zero Data Retention (ZDR) limita el plan de ruteo a endpoints que el catálogo marca
-              como ZDR. Si el filtro vacía el plan, el gateway falla cerrado y no relaja la política.{" "}
+              Zero Data Retention (ZDR) limita el plan a endpoints cuya capacidad y acuerdo activo
+              fueron confirmados en esta instalación. Si el filtro vacía el plan, el gateway falla
+              cerrado y no relaja la política.{" "}
               <code className="text-zinc-800">allow_training</code> controla si aceptás providers
-              que entrenan con datos. Detalle en Docs → Enterprise / ZDR.
+              que pueden entrenar con datos; también requiere confirmación explícita y falla cerrado.
+              Detalle en Docs → Enterprise / ZDR.
             </p>
           </section>
 

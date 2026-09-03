@@ -7,6 +7,7 @@ export type NexusProvider = {
   baseURL: string;
   modelsPath: string;
   auth: "bearer" | "anthropic" | "google-query";
+  /** Provider can offer ZDR under the right account agreement; not proof it is active. */
   zdr?: boolean;
 };
 

@@ -1,5 +1,6 @@
 import { allModels } from "@/lib/catalog";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
+import { isProviderNoTrainingConfirmed, isProviderZdrConfirmed } from "@/lib/providers/privacy";
 
 export async function GET() {
   const live = new Set(wiredProviders().map((p) => p.id));
@@ -20,7 +21,9 @@ export async function GET() {
       privacy_policy_url: null,
       terms_of_service_url: null,
       status_page_url: null,
-      zdr: Boolean(p.zdr),
+      zdr: isProviderZdrConfirmed(p.id),
+      zdr_capable: Boolean(p.zdr),
+      no_training: isProviderNoTrainingConfirmed(p.id),
     })),
   });
 }

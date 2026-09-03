@@ -4,6 +4,8 @@ import { resolveByokKey } from "@/lib/gateway/byok";
 import { resolveRoute } from "@/lib/gateway/router";
 import { hasAuthCredentials } from "@/lib/gateway/request-credentials";
 import type { ChatRequest } from "@/lib/gateway/types";
+import { canUseByokForRequest } from "@/lib/gateway/handle-chat";
+import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 /** Preview de routing: qué labs se intentarían y si hay key. Público con prefs default. */
 export async function POST(req: Request) {
@@ -20,6 +22,7 @@ export async function POST(req: Request) {
         };
     const body = (await req.json()) as ChatRequest;
     const plan = resolveRoute(body, auth);
+    const allowByokForRequest = canUseByokForRequest(body, auth);
     const adapters = new Set<string>();
     const hops: Array<{
       model: string;
@@ -34,7 +37,7 @@ export async function POST(req: Request) {
         if (adapters.has(`${candidate.model.id}:${endpoint.adapter}`)) continue;
         adapters.add(`${candidate.model.id}:${endpoint.adapter}`);
         const byok =
-          auth.userId !== "guest"
+          auth.userId !== "guest" && allowByokForRequest
             ? ((await resolveByokKey(auth.userId, endpoint.adapter, auth)) ??
               (await resolveByokKey(auth.userId, endpoint.name, auth)) ??
               undefined)
@@ -43,7 +46,7 @@ export async function POST(req: Request) {
           model: candidate.model.id,
           adapter: endpoint.adapter,
           wired: hasProviderKey(endpoint, byok),
-          zdr: Boolean(endpoint.zdr),
+          zdr: isEndpointZdrConfirmed(endpoint),
           pricing: endpoint.pricing,
         });
       }
