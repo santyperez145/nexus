@@ -113,6 +113,16 @@ export function AppNav({ variant = "sidebar" }: { variant?: "sidebar" | "mobile"
             Docs
           </div>
           <Link
+            href="/status"
+            className={`block rounded-md px-2 py-1.5 ${
+              pathname.startsWith("/status")
+                ? "bg-white/[0.06] text-amber-300"
+                : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100"
+            }`}
+          >
+            Status
+          </Link>
+          <Link
             href="/docs"
             className={`block rounded-md px-2 py-1.5 ${
               pathname.startsWith("/docs")
