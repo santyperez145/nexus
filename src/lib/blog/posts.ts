@@ -68,6 +68,19 @@ export const BLOG_POSTS: BlogPost[] = [
       "Arena corre A vs B en modo blind (slugs ocultos hasta votar) y copia resultado local. /api/v1/status expone mode live|echo según labs cableados.",
     ],
   },
+  {
+    slug: "guest-playground-eco",
+    title: "Guest playground: tip-to-tip sin signup",
+    date: "2026-09-03",
+    summary:
+      "X-Nexus-Guest habilita eco local rate-limited. Nunca quema keys de lab; rankings excluyen guest noise.",
+    body: [
+      "OpenRouter exige cuenta para completar. Nexus deja probar Chat y Arena con header X-Nexus-Guest: 1 — el gateway fuerza forceLocal y un throttle de 8 rpm por IP.",
+      "El SDK acepta new Nexus({ guest: true }) sin bearer. Session/API key siempre ganan si están presentes.",
+      "Las generaciones guest no inflan Rankings populares. Para hops live: signup ($1) o BYOK en Settings.",
+      "Docs y /status documentan el path. Prod Railway ya smokea guest → provider local.",
+    ],
+  },
 ];
 
 export function getPost(slug: string) {

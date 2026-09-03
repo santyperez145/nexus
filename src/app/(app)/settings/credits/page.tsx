@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppPageHeader } from "@/components/layout/app-page-header";
-import { CREDIT_PACKS } from "@/lib/config";
+import { CREDIT_PACKS, CREDIT_PURCHASE_FEE } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatUsd } from "@/lib/money";
@@ -17,18 +18,35 @@ type Credits = {
   ledger: Array<{ id: string; type: string; amount: number; note: string | null; created_at: string }>;
 };
 
+type Prefs = {
+  autoTopupEnabled?: boolean;
+  autoTopupThresholdUsd?: string | null;
+  autoTopupAmountUsd?: string | null;
+};
+
+type Analytics = {
+  totals: { cost: number; requests: number };
+  by_day: Array<{ day: string; cost: number; requests: number }>;
+};
+
 function CreditsInner() {
   const params = useSearchParams();
   const checkoutOk = params.get("ok") === "1";
   const canceled = params.get("canceled") === "1";
   const [credits, reload] = useRemoteData<Credits>("/api/v1/credits");
+  const [prefs, reloadPrefs] = useRemoteData<Prefs>("/api/internal/preferences");
+  const [analytics] = useRemoteData<Analytics>("/api/v1/analytics?days=7");
   const [msg, setMsg] = useState<string | null>(
     canceled ? "Checkout cancelado." : checkoutOk ? "Confirmando pago con Stripe…" : null,
   );
-  const [threshold, setThreshold] = useState("5");
-  const [amount, setAmount] = useState("25");
+  const [threshold, setThreshold] = useState<string | null>(null);
+  const [amount, setAmount] = useState<string | null>(null);
+  const [ledgerFilter, setLedgerFilter] = useState<"all" | "in" | "out">("all");
   const baseline = useRef<number | null>(null);
   const polls = useRef(0);
+  const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
+  const thresholdValue = threshold ?? String(prefs?.autoTopupThresholdUsd ?? "5");
+  const amountValue = amount ?? String(prefs?.autoTopupAmountUsd ?? "25");
 
   useEffect(() => {
     if (!checkoutOk) return;
@@ -53,6 +71,26 @@ function CreditsInner() {
     }
   }, [checkoutOk, credits]);
 
+  const burn7d = analytics?.totals.cost ?? 0;
+  const dailyBurn = burn7d / 7;
+  const runway =
+    credits && dailyBurn > 0.0001
+      ? Math.floor(credits.remaining / dailyBurn)
+      : credits && analytics && analytics.totals.requests === 0
+        ? null
+        : credits
+          ? Infinity
+          : null;
+
+  const maxDayCost = Math.max(1, ...(analytics?.by_day.map((d) => d.cost) ?? [1]));
+
+  const ledger = useMemo(() => {
+    const rows = credits?.ledger ?? [];
+    if (ledgerFilter === "in") return rows.filter((l) => l.amount > 0);
+    if (ledgerFilter === "out") return rows.filter((l) => l.amount < 0);
+    return rows;
+  }, [credits?.ledger, ledgerFilter]);
+
   async function buy(packId: string) {
     setMsg(null);
     const res = await fetch("/api/internal/checkout", {
@@ -69,63 +107,124 @@ function CreditsInner() {
     reload();
   }
 
-  async function saveTopup() {
+  async function saveTopup(enabled: boolean) {
     const res = await fetch("/api/internal/preferences", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        autoTopupEnabled: true,
-        autoTopupThresholdUsd: Number(threshold),
-        autoTopupAmountUsd: Number(amount),
+        autoTopupEnabled: enabled,
+        autoTopupThresholdUsd: Number(thresholdValue),
+        autoTopupAmountUsd: Number(amountValue),
       }),
     });
     const json = await res.json();
-    setMsg(json.ok ? "Auto top-up guardado" : json.error);
+    setMsg(json.ok ? (enabled ? "Auto top-up activado" : "Auto top-up desactivado") : json.error);
+    reloadPrefs();
   }
 
   return (
     <div>
       <AppPageHeader title="Credits">
-        Pass-through del precio del laboratorio. Fee 4.9% al cargar con Stripe.
+        Pass-through del precio del laboratorio. Fee {feePct}% al cargar con Stripe · 0% markup en
+        inferencia.
       </AppPageHeader>
+
       {credits ? (
-        <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Saldo</div>
-              <div className="mt-1 font-[family-name:var(--font-syne)] text-3xl font-semibold text-amber-300">
-                {formatUsd(credits.remaining, 2)}
+        <div className="mb-6 grid gap-3 lg:grid-cols-[1.2fr_1fr]">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Saldo</div>
+                <div className="mt-1 font-[family-name:var(--font-syne)] text-3xl font-semibold text-amber-300">
+                  {formatUsd(credits.remaining, 2)}
+                </div>
+              </div>
+              <div className="text-right text-xs text-zinc-500">
+                <div>cargado {formatUsd(credits.total_credits, 2)}</div>
+                <div>usado {formatUsd(credits.total_usage, 2)}</div>
               </div>
             </div>
-            <div className="text-right text-xs text-zinc-500">
-              <div>cargado {formatUsd(credits.total_credits, 2)}</div>
-              <div>usado {formatUsd(credits.total_usage, 2)}</div>
+            {credits.total_credits > 0 ? (
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-amber-400/70"
+                  style={{
+                    width: `${Math.min(100, (credits.remaining / credits.total_credits) * 100)}%`,
+                  }}
+                />
+              </div>
+            ) : null}
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border border-white/10 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-zinc-500">Burn 7d</div>
+                <div className="mt-0.5 font-[family-name:var(--font-syne)] text-lg text-zinc-100">
+                  {formatUsd(burn7d, 2)}
+                </div>
+                <div className="text-[11px] text-zinc-500">~{formatUsd(dailyBurn, 4)}/día</div>
+              </div>
+              <div className="rounded-xl border border-white/10 px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-zinc-500">Runway</div>
+                <div className="mt-0.5 font-[family-name:var(--font-syne)] text-lg text-zinc-100">
+                  {runway == null
+                    ? "n/d"
+                    : runway === Infinity
+                      ? "∞"
+                      : `${runway}d`}
+                </div>
+                <div className="text-[11px] text-zinc-500">saldo ÷ burn diario</div>
+              </div>
             </div>
           </div>
-          {credits.total_credits > 0 ? (
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-amber-400/70"
-                style={{
-                  width: `${Math.min(100, (credits.remaining / credits.total_credits) * 100)}%`,
-                }}
-              />
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                Burn diario · 7d
+              </div>
+              <Link href="/analytics" className="text-[11px] text-amber-400 hover:underline">
+                Analytics →
+              </Link>
             </div>
-          ) : null}
-          <p className="mt-2 text-xs text-zinc-600">
-            Fee 4.9% solo al cargar. Overview muestra runway (saldo ÷ burn 7d).
-          </p>
+            {analytics?.by_day?.length ? (
+              <div className="flex h-24 items-end gap-1">
+                {analytics.by_day.map((d) => (
+                  <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
+                    <div
+                      className="w-full rounded-sm bg-amber-400/60"
+                      style={{ height: `${Math.max(4, (d.cost / maxDayCost) * 100)}%` }}
+                      title={`${d.day}: ${formatUsd(d.cost, 4)}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-zinc-500">Sin burn aún esta semana.</p>
+            )}
+          </div>
         </div>
       ) : null}
-      <div className="grid gap-3 md:grid-cols-3">
-        {CREDIT_PACKS.map((p) => (
-          <div key={p.id} className="rounded-xl border border-white/10 p-4">
-            <div className="text-2xl font-semibold">{p.label}</div>
-            <p className="mb-4 text-sm text-zinc-500">Saldo de inferencia + 4.9%</p>
-            <Button onClick={() => void buy(p.id)}>Comprar</Button>
-          </div>
-        ))}
+
+      <h2 className="mb-3 font-[family-name:var(--font-syne)] text-lg font-medium">Packs</h2>
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {CREDIT_PACKS.map((p) => {
+          const charge = p.usd * (1 + CREDIT_PURCHASE_FEE);
+          const fee = charge - p.usd;
+          return (
+            <div key={p.id} className="rounded-xl border border-white/10 p-4">
+              <div className="font-[family-name:var(--font-syne)] text-2xl font-semibold">
+                {p.label}
+              </div>
+              <p className="mt-1 text-xs text-zinc-500">
+                Cargo ~{formatUsd(charge, 2)} · fee {formatUsd(fee, 2)}
+              </p>
+              <Button className="mt-4 w-full" onClick={() => void buy(p.id)}>
+                Comprar
+              </Button>
+            </div>
+          );
+        })}
       </div>
+
       {credits?.manual_credits ? (
         <p className="mt-4 text-sm text-zinc-500">
           Stripe no es obligatorio en este entorno.{" "}
@@ -147,37 +246,93 @@ function CreditsInner() {
           </button>
         </p>
       ) : null}
-      <h2 className="mt-10 mb-3 text-lg font-medium">Auto top-up</h2>
+
+      <h2 className="mt-10 mb-3 font-[family-name:var(--font-syne)] text-lg font-medium">
+        Auto top-up
+      </h2>
       <p className="mb-3 max-w-xl text-sm text-zinc-500">
-        Con wallet manual acredita saldo al pasar el umbral. En prod (Stripe) cobra la tarjeta
-        guardada del customer tras un checkout con{" "}
-        <code className="text-zinc-300">setup_future_usage</code>.
+        Estado:{" "}
+        <span className={prefs?.autoTopupEnabled ? "text-emerald-400" : "text-zinc-400"}>
+          {prefs?.autoTopupEnabled ? "activo" : "apagado"}
+        </span>
+        . Con wallet manual acredita al pasar el umbral. En prod (Stripe) cobra la tarjeta
+        guardada tras un checkout con setup_future_usage.
       </p>
-      <div className="grid max-w-xl gap-2 md:grid-cols-3">
-        <Input value={threshold} onChange={(e) => setThreshold(e.target.value)} aria-label="Umbral USD" />
-        <Input value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Monto USD" />
-        <Button variant="outline" onClick={() => void saveTopup()}>
+      <div className="grid max-w-xl gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+        <Input
+          value={thresholdValue}
+          onChange={(e) => setThreshold(e.target.value)}
+          aria-label="Umbral USD"
+          placeholder="Umbral"
+        />
+        <Input
+          value={amountValue}
+          onChange={(e) => setAmount(e.target.value)}
+          aria-label="Monto USD"
+          placeholder="Monto"
+        />
+        <Button variant="outline" onClick={() => void saveTopup(true)}>
           Activar
         </Button>
+        <Button
+          variant="outline"
+          disabled={!prefs?.autoTopupEnabled}
+          onClick={() => void saveTopup(false)}
+        >
+          Apagar
+        </Button>
       </div>
+
       {msg ? <p className="mt-4 text-sm text-amber-300">{msg}</p> : null}
+
       {credits?.ledger?.length ? (
         <>
-          <h2 className="mt-10 mb-3 text-lg font-medium">Ledger</h2>
+          <div className="mt-10 mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-[family-name:var(--font-syne)] text-lg font-medium">Ledger</h2>
+            <div className="flex gap-1 rounded-lg border border-white/10 p-0.5">
+              {(
+                [
+                  ["all", "All"],
+                  ["in", "In"],
+                  ["out", "Out"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setLedgerFilter(id)}
+                  className={`rounded-md px-2.5 py-1 text-xs ${
+                    ledgerFilter === id
+                      ? "bg-white/10 text-zinc-100"
+                      : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid gap-2">
-            {credits.ledger.map((l) => (
+            {ledger.map((l) => (
               <div
                 key={l.id}
-                className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm"
+                className="flex justify-between gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm"
               >
-                <span>
-                  {l.type} {l.note ? <span className="text-zinc-500">· {l.note}</span> : null}
-                </span>
+                <div className="min-w-0">
+                  <span className="font-mono text-xs text-zinc-400">{l.type}</span>
+                  {l.note ? <span className="text-zinc-500"> · {l.note}</span> : null}
+                  <div className="text-[11px] text-zinc-600">
+                    {new Date(l.created_at).toISOString().slice(0, 19)}Z
+                  </div>
+                </div>
                 <span className={l.amount < 0 ? "text-zinc-400" : "text-amber-300"}>
                   {formatUsd(l.amount)}
                 </span>
               </div>
             ))}
+            {!ledger.length ? (
+              <p className="text-sm text-zinc-500">Sin filas para este filtro.</p>
+            ) : null}
           </div>
         </>
       ) : null}
