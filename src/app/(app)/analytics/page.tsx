@@ -1,15 +1,37 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Sparkline } from "@/components/charts/sparkline";
 import { formatUsd } from "@/lib/money";
 import { useRemoteData } from "@/lib/use-remote-data";
 
 type Analytics = {
-  totals: { requests: number; tokens: number; cost: number };
+  totals: {
+    requests: number;
+    tokens: number;
+    cost: number;
+    errors?: number;
+    error_rate?: number;
+    avg_latency_ms?: number | null;
+    local_pct?: number;
+    byok_pct?: number;
+  };
   by_day?: Array<{ day: string; requests: number; tokens: number; cost: number }>;
   by_model: Array<{ model: string; tokens: number; cost: number; requests: number }>;
   by_provider: Array<{ provider: string; tokens: number; cost: number; requests: number }>;
+  by_key?: Array<{ key: string; tokens: number; cost: number; requests: number }>;
+  by_app?: Array<{ app: string; tokens: number; cost: number; requests: number }>;
+  recent?: Array<{
+    id: string;
+    model: string;
+    provider: string;
+    tokens: number;
+    cost: number;
+    latency_ms: number | null;
+    error: string | null;
+    created_at: string;
+  }>;
   window_days: number;
 };
 
@@ -32,6 +54,8 @@ export default function AnalyticsPage() {
   const maxDay = Math.max(1, ...series);
 
   if (!data) return <p className="text-sm text-zinc-500">Cargando analytics…</p>;
+
+  const t = data.totals;
 
   return (
     <div>
@@ -60,19 +84,31 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="mb-8 grid gap-6 md:grid-cols-3">
-        <div>
-          <div className="text-xs text-zinc-500">Requests</div>
-          <div className="text-2xl font-semibold">{data.totals.requests}</div>
-        </div>
-        <div>
-          <div className="text-xs text-zinc-500">Tokens</div>
-          <div className="text-2xl font-semibold">{data.totals.tokens.toLocaleString()}</div>
-        </div>
-        <div>
-          <div className="text-xs text-zinc-500">Costo</div>
-          <div className="text-2xl font-semibold">{formatUsd(data.totals.cost)}</div>
-        </div>
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {[
+          { k: "Requests", v: String(t.requests) },
+          { k: "Tokens", v: t.tokens.toLocaleString() },
+          { k: "Costo", v: formatUsd(t.cost) },
+          {
+            k: "Latencia avg",
+            v: t.avg_latency_ms != null ? `${t.avg_latency_ms} ms` : "—",
+          },
+          {
+            k: "Error rate",
+            v: `${Math.round((t.error_rate ?? 0) * 100)}%`,
+          },
+          {
+            k: "Local / BYOK",
+            v: `${Math.round((t.local_pct ?? 0) * 100)}% · ${Math.round((t.byok_pct ?? 0) * 100)}%`,
+          },
+        ].map((c) => (
+          <div key={c.k} className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-3">
+            <div className="text-[10px] uppercase tracking-wide text-zinc-500">{c.k}</div>
+            <div className="mt-1 font-[family-name:var(--font-syne)] text-xl font-semibold tabular-nums">
+              {c.v}
+            </div>
+          </div>
+        ))}
       </div>
 
       <section className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
@@ -110,35 +146,61 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      <h2 className="mb-3 text-sm font-medium text-zinc-300">Por provider</h2>
-      <div className="mb-8 grid gap-2">
-        {(data.by_provider ?? [])
-          .slice()
-          .sort((a, b) => b.requests - a.requests)
-          .map((row) => (
-            <div
-              key={row.provider}
-              className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm"
-            >
-              <span className="font-mono text-zinc-200">{row.provider}</span>
-              <span className="text-zinc-500">
-                {row.requests} req · {row.tokens.toLocaleString()} tok · {formatUsd(row.cost)}
-              </span>
-            </div>
-          ))}
-        {!data.by_provider?.length ? (
-          <p className="text-sm text-zinc-600">Sin generaciones en esta ventana.</p>
-        ) : null}
+      <div className="mb-8 grid gap-6 lg:grid-cols-2">
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-zinc-300">Por provider</h2>
+          <div className="grid gap-2">
+            {(data.by_provider ?? [])
+              .slice()
+              .sort((a, b) => b.requests - a.requests)
+              .map((row) => (
+                <div
+                  key={row.provider}
+                  className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm"
+                >
+                  <span className="font-mono text-zinc-200">{row.provider}</span>
+                  <span className="text-zinc-500">
+                    {row.requests} · {row.tokens.toLocaleString()} · {formatUsd(row.cost)}
+                  </span>
+                </div>
+              ))}
+            {!data.by_provider?.length ? (
+              <p className="text-sm text-zinc-600">Sin generaciones en esta ventana.</p>
+            ) : null}
+          </div>
+        </section>
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-zinc-300">Por app (X-Title)</h2>
+          <div className="grid gap-2">
+            {(data.by_app ?? []).map((row) => (
+              <div
+                key={row.app}
+                className="flex justify-between rounded-lg border border-white/10 px-3 py-2 text-sm"
+              >
+                <span className="truncate text-zinc-200">{row.app}</span>
+                <span className="shrink-0 text-zinc-500">
+                  {row.requests} · {formatUsd(row.cost)}
+                </span>
+              </div>
+            ))}
+            {!data.by_app?.length ? (
+              <p className="text-sm text-zinc-600">Sin atribución aún.</p>
+            ) : null}
+          </div>
+        </section>
       </div>
+
       <h2 className="mb-3 text-sm font-medium text-zinc-300">Por modelo</h2>
-      <div className="grid gap-2">
+      <div className="mb-8 grid gap-2">
         {data.by_model
           .slice()
           .sort((a, b) => b.tokens - a.tokens)
           .map((row) => (
             <div key={row.model} className="rounded-lg border border-white/10 px-3 py-2 text-sm">
               <div className="mb-1.5 flex justify-between gap-2">
-                <span className="font-mono text-amber-400/80">{row.model}</span>
+                <Link href={`/models/${row.model}`} className="font-mono text-amber-400/80 hover:underline">
+                  {row.model}
+                </Link>
                 <span className="shrink-0 text-zinc-500">
                   {row.requests} · {row.tokens.toLocaleString()} · {formatUsd(row.cost)}
                 </span>
@@ -152,6 +214,59 @@ export default function AnalyticsPage() {
             </div>
           ))}
       </div>
+
+      {data.by_key?.length ? (
+        <>
+          <h2 className="mb-3 text-sm font-medium text-zinc-300">Por API key</h2>
+          <div className="mb-8 grid gap-2">
+            {data.by_key.map((row) => (
+              <div
+                key={row.key}
+                className="flex justify-between rounded-lg border border-white/10 px-3 py-2 font-mono text-xs text-zinc-400"
+              >
+                <span className="truncate">{row.key}</span>
+                <span>
+                  {row.requests} · {formatUsd(row.cost)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {data.recent?.length ? (
+        <>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-sm font-medium text-zinc-300">Reciente</h2>
+            <Link href="/activity" className="text-xs text-amber-400 hover:underline">
+              Activity →
+            </Link>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-white/10">
+            {data.recent.map((r, i) => (
+              <Link
+                key={r.id}
+                href={`/activity/${r.id}`}
+                className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm hover:bg-white/[0.03] ${
+                  i ? "border-t border-white/5" : ""
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-mono text-amber-400/85">{r.model}</div>
+                  <div className="text-xs text-zinc-600">
+                    {r.provider}
+                    {r.error ? " · err" : ""}
+                    {r.latency_ms != null ? ` · ${r.latency_ms} ms` : ""}
+                  </div>
+                </div>
+                <div className="text-right text-xs text-zinc-500">
+                  {r.tokens.toLocaleString()} tok · {formatUsd(r.cost)}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

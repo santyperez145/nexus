@@ -178,4 +178,30 @@ describe("nexus-sdk", () => {
     assert.equal(res.data.requested, "nexus/auto");
     assert.equal(res.data.hops.length, 1);
   });
+
+  it("lists datasets models and auth key", async () => {
+    const calls: string[] = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url) => {
+        calls.push(String(url));
+        if (String(url).includes("/datasets/models")) {
+          return Response.json({
+            data: [{ model: "openai/gpt-4o", tokens: 10, requests: 2, avg_latency_ms: 120 }],
+            window: "7d",
+          });
+        }
+        return Response.json({
+          data: { label: "main", is_management: false, limit: 10, usage: 1, limit_remaining: 9 },
+        });
+      },
+    });
+    const ds = await nexus.datasets.models({ window: "7d" });
+    assert.equal(ds.data[0]?.avg_latency_ms, 120);
+    const key = await nexus.auth.key();
+    assert.equal(key.data.label, "main");
+    assert.ok(calls[0].includes("window=7d"));
+    assert.ok(calls[1].endsWith("/auth/key"));
+  });
 });

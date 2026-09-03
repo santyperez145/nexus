@@ -19,6 +19,8 @@ type Row = {
   created_at: number;
   is_byok: boolean;
   error: string | null;
+  finish_reason?: string | null;
+  origin?: string | null;
 };
 
 function shortId(id: string) {
@@ -85,6 +87,8 @@ export default function ActivityPage() {
                   "tokens_completion",
                   "cost",
                   "latency_ms",
+                  "finish_reason",
+                  "origin",
                   "created_at",
                   "is_byok",
                   "error",
@@ -98,6 +102,8 @@ export default function ActivityPage() {
                     r.tokens_completion,
                     r.total_cost,
                     r.generation_time ?? "",
+                    r.finish_reason ?? "",
+                    JSON.stringify(r.origin ?? ""),
                     new Date(r.created_at * 1000).toISOString(),
                     r.is_byok ? "1" : "0",
                     JSON.stringify(r.error ?? ""),
@@ -115,6 +121,24 @@ export default function ActivityPage() {
               }}
             >
               Export CSV
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!list.length}
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(list, null, 2)], {
+                  type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `nexus-activity-${days === "0" ? "all" : days + "d"}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Export JSON
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link href="/chat">Nuevo chat</Link>
@@ -167,7 +191,7 @@ export default function ActivityPage() {
 
       <div className="overflow-hidden rounded-2xl border border-white/10">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 text-[11px] uppercase tracking-[0.08em] text-zinc-500 backdrop-blur">
               <tr>
                 <th className="px-3 py-2.5 font-medium">Cuando</th>
@@ -175,6 +199,8 @@ export default function ActivityPage() {
                 <th className="px-3 py-2.5 font-medium">ID</th>
                 <th className="px-3 py-2.5 font-medium">Modelo</th>
                 <th className="px-3 py-2.5 font-medium">Provider</th>
+                <th className="px-3 py-2.5 font-medium">Finish</th>
+                <th className="px-3 py-2.5 font-medium">App</th>
                 <th className="px-3 py-2.5 font-medium text-right">Prompt</th>
                 <th className="px-3 py-2.5 font-medium text-right">Out</th>
                 <th className="px-3 py-2.5 font-medium text-right">Costo</th>
@@ -184,7 +210,7 @@ export default function ActivityPage() {
             <tbody>
               {rows != null && list.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-12 text-center text-zinc-500" colSpan={9}>
+                  <td className="px-4 py-12 text-center text-zinc-500" colSpan={11}>
                     Sin generaciones.{" "}
                     <Link href="/chat" className="text-amber-400 hover:underline">
                       Abrí el chat
@@ -221,10 +247,22 @@ export default function ActivityPage() {
                         {shortId(r.id)}
                       </Link>
                     </td>
-                    <td className="max-w-[200px] truncate px-3 py-2.5 font-mono text-[13px] text-amber-300/80">
-                      {r.model}
+                    <td className="max-w-[200px] truncate px-3 py-2.5 font-mono text-[13px]">
+                      <Link
+                        href={`/models/${r.model}`}
+                        className="text-amber-300/80 hover:underline"
+                        title={r.model}
+                      >
+                        {r.model}
+                      </Link>
                     </td>
                     <td className="px-3 py-2.5 text-zinc-400">{r.provider_name}</td>
+                    <td className="px-3 py-2.5 font-mono text-[11px] text-zinc-500">
+                      {r.finish_reason ?? "—"}
+                    </td>
+                    <td className="max-w-[120px] truncate px-3 py-2.5 text-xs text-zinc-500" title={r.origin ?? ""}>
+                      {r.origin ?? "—"}
+                    </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-zinc-400">
                       {r.tokens_prompt.toLocaleString()}
                     </td>

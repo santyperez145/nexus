@@ -43,6 +43,8 @@ export class Nexus {
   readonly routing: RoutingResource;
   readonly status: StatusResource;
   readonly shares: SharesResource;
+  readonly datasets: DatasetsResource;
+  readonly auth: AuthResource;
   #fetch: typeof fetch;
   #defaultHeaders: Record<string, string>;
 
@@ -77,6 +79,8 @@ export class Nexus {
     this.routing = new RoutingResource(this);
     this.status = new StatusResource(this);
     this.shares = new SharesResource(this);
+    this.datasets = new DatasetsResource(this);
+    this.auth = new AuthResource(this);
   }
 
   async request<T>(
@@ -499,5 +503,36 @@ class SharesResource {
         payload: { model: string; messages: Array<{ role: string; content: string }> };
       };
     }>("/shares", { query: { id } });
+  }
+}
+
+class DatasetsResource {
+  constructor(private readonly client: Nexus) {}
+  models(opts?: { window?: "7d" | "30d" | "all" }) {
+    const window = opts?.window && opts.window !== "all" ? opts.window : undefined;
+    return this.client.request<{
+      data: Array<{
+        model: string;
+        tokens: number;
+        requests: number;
+        avg_latency_ms: number | null;
+      }>;
+      window: string;
+    }>("/datasets/models", { query: window ? { window } : undefined });
+  }
+}
+
+class AuthResource {
+  constructor(private readonly client: Nexus) {}
+  key() {
+    return this.client.request<{
+      data: {
+        label?: string | null;
+        is_management?: boolean;
+        limit?: number | null;
+        usage?: number;
+        limit_remaining?: number | null;
+      };
+    }>("/auth/key");
   }
 }

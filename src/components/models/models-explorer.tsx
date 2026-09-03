@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatUsd } from "@/lib/money";
@@ -44,21 +44,41 @@ export function ModelsExplorer({
   initialFree = false,
   initialAuthor = "all",
   initialLab = "all",
+  initialSort = "new",
 }: {
   models: Row[];
   initialMod?: (typeof MODALITIES)[number]["id"];
   initialFree?: boolean;
   initialAuthor?: string;
   initialLab?: string;
+  initialSort?: "new" | "price" | "context" | "latency";
 }) {
   const [q, setQ] = useState("");
   const [lab, setLab] = useState(initialLab);
   const [mod, setMod] = useState<(typeof MODALITIES)[number]["id"]>(initialMod);
   const [freeOnly, setFreeOnly] = useState(initialFree);
   const [author, setAuthor] = useState(initialAuthor);
-  const [sort, setSort] = useState<"new" | "price" | "context">("new");
+  const [sort, setSort] = useState<"new" | "price" | "context" | "latency">(initialSort);
   const [table, setTable] = useState(true);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [latencyByModel, setLatencyByModel] = useState<Map<string, number>>(new Map());
   const router = useRouter();
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetch("/api/v1/datasets/models?window=30d", { signal: ac.signal })
+      .then((r) => r.json())
+      .then((json: { data?: Array<{ model: string; avg_latency_ms: number | null }> }) => {
+        const map = new Map<string, number>();
+        for (const row of json.data ?? []) {
+          if (row.avg_latency_ms != null) map.set(row.model, row.avg_latency_ms);
+        }
+        setLatencyByModel(map);
+      })
+      .catch(() => undefined);
+    return () => ac.abort();
+  }, []);
+
   const labs = useMemo(() => {
     const set = new Set<string>();
     for (const m of models) for (const e of m.endpoints) set.add(e.adapter);
@@ -85,18 +105,29 @@ export function ModelsExplorer({
     free?: boolean;
     author?: string;
     lab?: string;
+    sort?: string;
   }) {
     const params = new URLSearchParams();
     const m = next.mod ?? mod;
     const f = next.free ?? freeOnly;
     const a = next.author ?? author;
     const l = next.lab ?? lab;
+    const s = next.sort ?? sort;
     if (m !== "all") params.set("mod", m);
     if (f) params.set("free", "1");
     if (a !== "all") params.set("author", a);
     if (l !== "all") params.set("lab", l);
+    if (s !== "new") params.set("sort", s);
     const qs = params.toString();
     router.replace(qs ? `/models?${qs}` : "/models", { scroll: false });
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return [prev[1], id];
+      return [...prev, id];
+    });
   }
 
   const filtered = models
@@ -118,6 +149,12 @@ export function ModelsExplorer({
         return a.pricing.prompt + a.pricing.completion - (b.pricing.prompt + b.pricing.completion);
       }
       if (sort === "context") return b.contextLength - a.contextLength;
+      if (sort === "latency") {
+        const la = latencyByModel.get(a.id) ?? Number.POSITIVE_INFINITY;
+        const lb = latencyByModel.get(b.id) ?? Number.POSITIVE_INFINITY;
+        if (la !== lb) return la - lb;
+        return a.pricing.prompt - b.pricing.prompt;
+      }
       return b.created - a.created;
     });
 
@@ -206,13 +243,18 @@ export function ModelsExplorer({
           </select>
           <select
             value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
+            onChange={(e) => {
+              const next = e.target.value as typeof sort;
+              setSort(next);
+              syncUrl({ sort: next });
+            }}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
             aria-label="Ordenar"
           >
             <option value="new">Más nuevos</option>
             <option value="price">Más baratos</option>
             <option value="context">Más contexto</option>
+            <option value="latency">Latencia medida</option>
           </select>
           <button
             type="button"
@@ -222,64 +264,113 @@ export function ModelsExplorer({
             {table ? "Vista lista" : "Vista tabla"}
           </button>
         </div>
-        <p className="text-xs text-zinc-500">
-          <span className="font-medium text-zinc-700">{filtered.length}</span> modelos · catálogo vivo
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
+          <p>
+            <span className="font-medium text-zinc-700">{filtered.length}</span> modelos · catálogo vivo
+            {sort === "latency" ? " · latencia de generations 30d" : ""}
+          </p>
+          {selected.length ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-zinc-600">{selected.join(" · ")}</span>
+              {selected.length === 2 ? (
+                <Link
+                  href={`/compare?a=${encodeURIComponent(selected[0])}&b=${encodeURIComponent(selected[1])}`}
+                  className="rounded-md border border-amber-600/40 bg-amber-50 px-2 py-1 text-amber-900 hover:underline"
+                >
+                  Compare
+                </Link>
+              ) : (
+                <span className="text-zinc-400">Elegí 2 para compare</span>
+              )}
+              <button type="button" className="text-zinc-500 hover:text-zinc-800" onClick={() => setSelected([])}>
+                Limpiar
+              </button>
+            </div>
+          ) : (
+            <span className="text-zinc-400">Marcá 2 modelos para compare</span>
+          )}
+        </div>
       </div>
 
       {table ? (
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="border-b border-zinc-200 bg-zinc-50/80 text-[11px] uppercase tracking-[0.06em] text-zinc-500">
                 <tr>
+                  <th className="w-8 px-2 py-2.5" />
                   <th className="px-3 py-2.5 font-medium">Modelo</th>
+                  <th className="px-3 py-2.5 font-medium">Mod</th>
                   <th className="px-3 py-2.5 font-medium">Contexto</th>
                   <th className="px-3 py-2.5 font-medium">Prompt / 1M</th>
-                  <th className="px-3 py-2.5 font-medium">Completion / 1M</th>
+                  <th className="px-3 py-2.5 font-medium">Lat 30d</th>
                   <th className="px-3 py-2.5 font-medium">Labs</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m, i) => (
-                  <tr
-                    key={m.id}
-                    className={`border-t border-zinc-100 hover:bg-amber-50/40 ${i % 2 ? "bg-zinc-50/40" : ""}`}
-                  >
-                    <td className="px-3 py-2.5">
-                      <Link href={`/models/${m.id}`} className="font-mono text-[13px] text-amber-700 hover:underline">
-                        {m.id}
-                      </Link>
-                      <div className="mt-0.5 text-xs text-zinc-500">{m.name}</div>
-                    </td>
-                    <td className="px-3 py-2.5 tabular-nums text-zinc-600">
-                      {(m.contextLength / 1000).toFixed(0)}k
-                    </td>
-                    <td className="px-3 py-2.5 tabular-nums text-zinc-600">
-                      {m.free ? "Gratis" : formatUsd(usdPerMillion(m.pricing.prompt), 2)}
-                    </td>
-                    <td className="px-3 py-2.5 tabular-nums text-zinc-600">
-                      {m.free ? "—" : formatUsd(usdPerMillion(m.pricing.completion), 2)}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex flex-wrap gap-1">
-                        {(m.endpoints.map((e) => e.adapter).length
-                          ? m.endpoints.map((e) => e.adapter)
-                          : ["nexus"]
-                        )
-                          .slice(0, 4)
-                          .map((a) => (
+                {filtered.map((m, i) => {
+                  const on = selected.includes(m.id);
+                  const lat = latencyByModel.get(m.id);
+                  return (
+                    <tr
+                      key={m.id}
+                      className={`border-t border-zinc-100 hover:bg-amber-50/40 ${i % 2 ? "bg-zinc-50/40" : ""}`}
+                    >
+                      <td className="px-2 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => toggleSelect(m.id)}
+                          aria-label={`Seleccionar ${m.id}`}
+                        />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Link href={`/models/${m.id}`} className="font-mono text-[13px] text-amber-700 hover:underline">
+                          {m.id}
+                        </Link>
+                        <div className="mt-0.5 text-xs text-zinc-500">{m.name}</div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-wrap gap-1">
+                          {m.output.slice(0, 3).map((o) => (
                             <span
-                              key={`${m.id}-${a}`}
-                              className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500"
+                              key={o}
+                              className="rounded border border-zinc-200 px-1 py-0.5 font-mono text-[10px] text-zinc-500"
                             >
-                              {a}
+                              {o}
                             </span>
                           ))}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-zinc-600">
+                        {(m.contextLength / 1000).toFixed(0)}k
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-zinc-600">
+                        {m.free ? "Gratis" : formatUsd(usdPerMillion(m.pricing.prompt), 2)}
+                      </td>
+                      <td className="px-3 py-2.5 tabular-nums text-zinc-500">
+                        {lat != null ? `${lat} ms` : "—"}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-wrap gap-1">
+                          {(m.endpoints.map((e) => e.adapter).length
+                            ? m.endpoints.map((e) => e.adapter)
+                            : ["nexus"]
+                          )
+                            .slice(0, 4)
+                            .map((a) => (
+                              <span
+                                key={`${m.id}-${a}`}
+                                className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-500"
+                              >
+                                {a}
+                              </span>
+                            ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

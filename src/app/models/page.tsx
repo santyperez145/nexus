@@ -8,12 +8,16 @@ const MODS = new Set(["all", "text", "image", "video", "audio", "embeddings"]);
 export default async function ModelsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mod?: string; free?: string; author?: string; lab?: string }>;
+  searchParams: Promise<{ mod?: string; free?: string; author?: string; lab?: string; sort?: string }>;
 }) {
   const q = await searchParams;
   const initialMod = MODS.has(q.mod ?? "")
     ? (q.mod as "all" | "text" | "image" | "video" | "audio" | "embeddings")
     : "all";
+  const sortOk = new Set(["new", "price", "context", "latency"]);
+  const initialSort = sortOk.has(q.sort ?? "")
+    ? (q.sort as "new" | "price" | "context" | "latency")
+    : "new";
   const models = allModels().map((m) => ({
     id: m.id,
     name: m.name,
@@ -30,12 +34,8 @@ export default async function ModelsPage({
     <MarketingShell>
       <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
         <MarketingPageHeader title="Models">
-          Un slug, varios labs. Filtrá por modalidad, free, autor o host; el gateway elige por precio,
-          latencia o <code className="text-zinc-700">provider.only</code>. Media en{" "}
-          <a href="/studio" className="text-amber-700 hover:underline">
-            Studio
-          </a>
-          .
+          Un slug, varios labs. Filtrá por modalidad, free, autor o host; ordená por precio, contexto o
+          latencia medida. Marcá 2 para Compare.
         </MarketingPageHeader>
         <ModelsExplorer
           models={models}
@@ -43,6 +43,7 @@ export default async function ModelsPage({
           initialFree={q.free === "1" || q.free === "true"}
           initialAuthor={q.author ?? "all"}
           initialLab={q.lab ?? "all"}
+          initialSort={initialSort}
         />
       </div>
     </MarketingShell>

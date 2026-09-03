@@ -28,7 +28,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell title="Entrar">
+    <AuthShell title="Entrar" subtitle="Accedé al dashboard, keys sk-nx- y el playground.">
       <form onSubmit={onSubmit} className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="email" className="text-zinc-700">
