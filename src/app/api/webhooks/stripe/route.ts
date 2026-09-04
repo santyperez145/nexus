@@ -40,36 +40,19 @@ async function creditCheckout(stripe: Stripe, session: Stripe.Checkout.Session) 
 async function creditSubscriptionInvoice(invoice: Stripe.Invoice) {
   if (invoice.status !== "paid") return;
   const raw = invoice as unknown as Record<string, unknown>;
-  const parent = raw.parent as
-    | { subscription_details?: { subscription?: unknown; metadata?: Record<string, string> } }
-    | undefined;
   const subscriptionId = subscriptionIdFromInvoice(invoice);
   const customerId = objectId(raw.customer);
-  const metadata = parent?.subscription_details?.metadata ?? {};
-  let userId = metadata.userId;
-  let planId = metadata.planId;
-  if (subscriptionId) {
-    const [subscription] = await db
-      .select({ userId: schema.subscriptions.userId, plan: schema.subscriptions.plan })
-      .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.id, subscriptionId))
-      .limit(1);
-    userId ||= subscription?.userId;
-    planId ||= subscription?.plan;
-  }
-  if (!userId && customerId) {
-    const [user] = await db
-      .select({ id: schema.users.id, plan: schema.users.plan })
-      .from(schema.users)
-      .where(eq(schema.users.stripeCustomerId, customerId))
-      .limit(1);
-    userId = user?.id;
-    planId ||= user?.plan;
-  }
-  const plan = SUBSCRIPTION_PLANS.find((candidate) => candidate.id === planId);
-  if (!userId || !plan || plan.includedCreditsUsd <= 0) return;
+  if (!subscriptionId) return;
+  const [subscription] = await db
+    .select({ userId: schema.subscriptions.userId, plan: schema.subscriptions.plan })
+    .from(schema.subscriptions)
+    .where(eq(schema.subscriptions.id, subscriptionId))
+    .limit(1);
+  if (!subscription) return;
+  const plan = SUBSCRIPTION_PLANS.find((candidate) => candidate.id === subscription.plan);
+  if (!plan || plan.includedCreditsUsd <= 0) return;
   await creditPurchaseOnce({
-    userId,
+    userId: subscription.userId,
     creditsUsd: plan.includedCreditsUsd,
     stripeSessionId: invoice.id,
     ledgerType: "subscription_credit",

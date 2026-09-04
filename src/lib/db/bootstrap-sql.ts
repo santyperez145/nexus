@@ -18,6 +18,7 @@ export const SCHEMA_SQL = [
     stripe_customer_id text
   )`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS stripe_customer_id text`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS user_stripe_customer_id_idx ON "user"(stripe_customer_id) WHERE stripe_customer_id IS NOT NULL`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'free'`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS subscription_status text NOT NULL DEFAULT 'inactive'`,
   `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_low_balance boolean NOT NULL DEFAULT true`,

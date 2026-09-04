@@ -9,6 +9,8 @@ import type Stripe from "stripe";
 const dataDir = mkdtempSync(join(tmpdir(), "nexus-stripe-subscription-test-"));
 process.env.ENABLE_PGLITE = "true";
 process.env.PGLITE_DATA_DIR = dataDir;
+process.env.STRIPE_PRICE_PRO_MONTHLY = "price_pro";
+process.env.STRIPE_PRICE_TEAM_MONTHLY = "price_team";
 delete process.env.DATABASE_URL;
 delete process.env.POSTGRES_URL;
 delete process.env.POSTGRES_PRISMA_URL;
@@ -23,17 +25,20 @@ function subscription(input: {
   plan: "pro" | "team";
   status: string;
   customerId?: string;
+  userId?: string;
+  pricePlan?: "pro" | "team";
+  priceId?: string;
 }) {
   return {
     id: input.id,
     customer: input.customerId ?? "cus_reconcile",
     status: input.status,
-    metadata: { userId: "usr_reconcile", planId: input.plan },
+    metadata: { userId: input.userId ?? "usr_reconcile", planId: input.plan },
     items: {
       data: [
         {
-          price: { id: `price_${input.plan}` },
-          quantity: input.plan === "team" ? 5 : 1,
+          price: { id: input.priceId ?? `price_${input.pricePlan ?? input.plan}` },
+          quantity: (input.pricePlan ?? input.plan) === "team" ? 5 : 1,
           current_period_start: 1_788_000_000,
           current_period_end: 1_790_000_000,
         },
@@ -217,6 +222,97 @@ describe("Stripe subscription reconciliation", () => {
     assert.equal(rows.find((row) => row.id === "sub_pro")?.status, "active");
     assert.equal(user.plan, "pro");
     assert.equal(user.subscriptionStatus, "active");
+  });
+
+  it("derives portal plan changes from the billed Price instead of stale metadata", async () => {
+    await reconciliation.syncStripeSubscription(
+      subscription({
+        id: "sub_portal_upgrade",
+        plan: "pro",
+        pricePlan: "team",
+        status: "active",
+      }),
+    );
+    const [stored] = await database.db
+      .select()
+      .from(database.schema.subscriptions)
+      .where(eq(database.schema.subscriptions.id, "sub_portal_upgrade"));
+    assert.equal(stored.plan, "team");
+    assert.equal(stored.priceId, "price_team");
+    assert.equal(stored.quantity, 5);
+  });
+
+  it("does not grant an entitlement for an unknown Price even when metadata names a plan", async () => {
+    const result = await reconciliation.syncStripeSubscription(
+      subscription({
+        id: "sub_unknown_price",
+        plan: "team",
+        priceId: "price_untrusted",
+        status: "active",
+      }),
+    );
+    assert.equal(result, null);
+    const rows = await database.db
+      .select()
+      .from(database.schema.subscriptions)
+      .where(eq(database.schema.subscriptions.id, "sub_unknown_price"));
+    assert.equal(rows.length, 0);
+  });
+
+  it("revokes a prior entitlement when Stripe changes it to an unknown Price", async () => {
+    await database.db.insert(database.schema.users).values({
+      id: "usr_price_revoked",
+      name: "Revoked Price Customer",
+      email: "stripe-revoked@nexus.test",
+    });
+    await reconciliation.syncStripeSubscription(
+      subscription({
+        id: "sub_price_revoked",
+        plan: "pro",
+        status: "active",
+        customerId: "cus_price_revoked",
+        userId: "usr_price_revoked",
+      }),
+    );
+    await reconciliation.syncStripeSubscription(
+      subscription({
+        id: "sub_price_revoked",
+        plan: "pro",
+        priceId: "price_untrusted",
+        status: "active",
+        customerId: "cus_price_revoked",
+        userId: "usr_price_revoked",
+      }),
+    );
+    const [stored] = await database.db
+      .select()
+      .from(database.schema.subscriptions)
+      .where(eq(database.schema.subscriptions.id, "sub_price_revoked"));
+    const [user] = await database.db
+      .select()
+      .from(database.schema.users)
+      .where(eq(database.schema.users.id, "usr_price_revoked"));
+    assert.equal(stored.status, "unmapped_price");
+    assert.equal(stored.priceId, "price_untrusted");
+    assert.equal(user.plan, "free");
+    assert.equal(user.subscriptionStatus, "unmapped_price");
+  });
+
+  it("enforces one Stripe customer owner at the database boundary", async () => {
+    await database.db.insert(database.schema.users).values({
+      id: "usr_customer_owner",
+      name: "Stripe Customer Owner",
+      email: "stripe-owner@nexus.test",
+      stripeCustomerId: "cus_unique_owner",
+    });
+    await assert.rejects(
+      database.db.insert(database.schema.users).values({
+        id: "usr_duplicate_customer",
+        name: "Duplicate Stripe Customer",
+        email: "stripe-duplicate@nexus.test",
+        stripeCustomerId: "cus_unique_owner",
+      }),
+    );
   });
 
   it("extracts current and legacy invoice subscription references", () => {

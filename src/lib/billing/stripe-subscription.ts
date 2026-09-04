@@ -78,23 +78,61 @@ export async function syncStripeSubscription(subscription: Stripe.Subscription) 
   const priceId = price?.id ?? null;
   const metadata = (raw.metadata ?? {}) as Record<string, string>;
   const customerId = objectId(raw.customer);
-  let userId = metadata.userId;
-  if (!userId && customerId) {
-    const [user] = await db
+  let userId: string | undefined;
+  if (customerId) {
+    const [customerOwner] = await db
       .select({ id: schema.users.id })
       .from(schema.users)
       .where(eq(schema.users.stripeCustomerId, customerId))
       .limit(1);
-    userId = user?.id;
+    userId = customerOwner?.id;
+  }
+  if (!userId && metadata.userId) {
+    const [metadataUser] = await db
+      .select({ id: schema.users.id, stripeCustomerId: schema.users.stripeCustomerId })
+      .from(schema.users)
+      .where(eq(schema.users.id, metadata.userId))
+      .limit(1);
+    if (
+      metadataUser &&
+      (!metadataUser.stripeCustomerId || metadataUser.stripeCustomerId === customerId)
+    ) {
+      userId = metadataUser.id;
+    }
   }
   if (!userId || !customerId) return null;
 
-  const plan = metadata.planId || planFromPrice(priceId);
-  if (!plan || !SUBSCRIPTION_PLANS.some((candidate) => candidate.id === plan)) return null;
   const status = String(raw.status ?? "inactive");
   const periodStart = fromUnix(raw.current_period_start ?? firstItem?.current_period_start);
   const periodEnd = fromUnix(raw.current_period_end ?? firstItem?.current_period_end);
   const quantity = Math.max(1, Number(firstItem?.quantity ?? 1));
+  const plan = items.length === 1 ? planFromPrice(priceId) : null;
+
+  if (!plan) {
+    await withTransaction(async (tx) => {
+      await lockTeamSeatAccount(tx, userId);
+      const [existing] = await tx
+        .select({ id: schema.subscriptions.id })
+        .from(schema.subscriptions)
+        .where(eq(schema.subscriptions.id, subscription.id))
+        .limit(1);
+      if (!existing) return;
+      await tx
+        .update(schema.subscriptions)
+        .set({
+          status: "unmapped_price",
+          priceId,
+          quantity,
+          currentPeriodStart: periodStart,
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd: Boolean(raw.cancel_at_period_end),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.subscriptions.id, subscription.id));
+      await recomputeUserEntitlements(tx, userId, customerId);
+    });
+    return null;
+  }
 
   await withTransaction(async (tx) => {
     await lockTeamSeatAccount(tx, userId);
