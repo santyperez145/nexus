@@ -5,6 +5,10 @@ import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { assertPublicHttpUrl } from "@/lib/net/public-url";
 import { newWebhookSecret, pingWebhookDestination } from "@/lib/observability/dispatch";
+import { enforceControlPlaneOperationRateLimit } from "@/lib/control-plane/operation-rate-limit";
+
+const MAX_DESTINATION_NAME_LENGTH = 80;
+const MAX_DESTINATION_URL_LENGTH = 2_048;
 
 export async function GET(req: Request) {
   try {
@@ -43,16 +47,16 @@ export async function GET(req: Request) {
     return Response.json({
       data: rows
         .filter((r) => !r.deleted)
-        .map((r) => ({
-          ...r,
-          config: {
-            ...((r.config ?? {}) as object),
-            secret: (r.config as { secret?: string } | null)?.secret
-              ? `${String((r.config as { secret?: string }).secret).slice(0, 8)}…`
-              : undefined,
-            has_secret: Boolean((r.config as { secret?: string } | null)?.secret),
-          },
-        })),
+        .map((r) => {
+          const config = (r.config ?? {}) as { url?: string; secret?: string };
+          return {
+            ...r,
+            config: {
+              url: config.url,
+              has_secret: Boolean(config.secret),
+            },
+          };
+        }),
     });
   } catch (error) {
     return jsonError(error);
@@ -74,36 +78,75 @@ export async function POST(req: Request) {
         return jsonError(Object.assign(new Error("not found"), { status: 404 }));
       }
       await assertWorkspaceManager(auth, row.workspaceId);
+      const limited = await enforceControlPlaneOperationRateLimit(
+        `${auth.userId}:${row.id}`,
+        "observability_ping",
+      );
+      if (limited) return limited;
       const config = (row.config ?? {}) as { url?: string; secret?: string };
       if (!config.url) return jsonError(Object.assign(new Error("url missing"), { status: 400 }));
       const result = await pingWebhookDestination({ url: config.url, secret: config.secret });
       return Response.json({ data: result });
     }
 
-    const secret = body.secret === false ? undefined : newWebhookSecret();
-    const url = String(body.url ?? body.config?.url ?? "");
-    assertPublicHttpUrl(url);
+    const rawUrl = String(body.url ?? body.config?.url ?? "").trim();
+    if (!rawUrl || rawUrl.length > MAX_DESTINATION_URL_LENGTH) {
+      return jsonError(
+        Object.assign(new Error("Ingresá una URL válida para el destino"), {
+          status: 400,
+          code: "invalid_url",
+        }),
+      );
+    }
+    const parsedUrl = assertPublicHttpUrl(rawUrl);
+    if (parsedUrl.protocol !== "https:") {
+      return jsonError(
+        Object.assign(new Error("El destino debe usar HTTPS"), {
+          status: 400,
+          code: "https_required",
+        }),
+      );
+    }
+    const destinationUrl = parsedUrl.toString();
+    const name = String(body.name ?? "Webhook").trim() || "Webhook";
+    if (name.length > MAX_DESTINATION_NAME_LENGTH) {
+      return jsonError(
+        Object.assign(new Error("El nombre puede tener hasta 80 caracteres"), {
+          status: 400,
+          code: "invalid_name",
+        }),
+      );
+    }
     const workspaceId = await resolveOwnedWorkspace(auth, body.workspace_id);
     await assertWorkspaceManager(auth, workspaceId);
+    const limited = await enforceControlPlaneOperationRateLimit(
+      auth.userId,
+      "observability_destination",
+    );
+    if (limited) return limited;
+    const secret = newWebhookSecret();
     const row = {
       id: id("obs"),
       userId: auth.userId,
       workspaceId,
-      type: body.type ?? "webhook",
-      name: body.name ?? "Webhook",
+      type: "webhook",
+      name,
       config: {
-        url,
-        ...(secret ? { secret } : {}),
+        url: destinationUrl,
+        secret,
       },
     };
     await db.insert(schema.observabilityDestinations).values(row);
     return Response.json({
       data: {
-        ...row,
-        revealed_secret: secret ?? null,
-        note: secret
-          ? "Copiá el secret ahora: se firma cada delivery en x-nexus-signature (HMAC-SHA256)."
-          : undefined,
+        id: row.id,
+        userId: row.userId,
+        workspaceId: row.workspaceId,
+        type: row.type,
+        name: row.name,
+        config: { url: destinationUrl, has_secret: true },
+        revealed_secret: secret,
+        note: "Copiá el secreto ahora. No volverá a mostrarse.",
       },
     });
   } catch (error) {
@@ -125,9 +168,10 @@ export async function DELETE(req: Request) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
     await assertWorkspaceManager(auth, row.workspaceId);
+    const config = (row.config ?? {}) as { url?: string };
     await db
       .update(schema.observabilityDestinations)
-      .set({ deleted: true })
+      .set({ deleted: true, config: { url: config.url } })
       .where(eq(schema.observabilityDestinations.id, idParam));
     return Response.json({ data: { success: true } });
   } catch (error) {

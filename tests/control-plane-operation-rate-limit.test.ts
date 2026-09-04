@@ -43,6 +43,16 @@ describe("costly control-plane operation rate limits", () => {
       "organization_invite_recipient",
       { now: 86_401_000, counterFactory },
     );
+    const ping = await consumeControlPlaneOperationRateLimit(
+      "operator_1:destination_1",
+      "observability_ping",
+      { now: 601_000, counterFactory },
+    );
+    const destination = await consumeControlPlaneOperationRateLimit(
+      "operator_1",
+      "observability_destination",
+      { now: 3_601_000, counterFactory },
+    );
 
     assert.equal(email.limit, 3);
     assert.equal(email.remaining, 2);
@@ -51,12 +61,16 @@ describe("costly control-plane operation rate limits", () => {
     assert.equal(otherOperator.remaining, 2);
     assert.equal(invitation.limit, 20);
     assert.equal(recipient.limit, 3);
+    assert.equal(ping.limit, 20);
+    assert.equal(destination.limit, 10);
     assert.deepEqual(keys, [
       "rl:control:notification_test:operator_1:1",
       "rl:control:connection_probe:operator_1:1",
       "rl:control:notification_test:operator_2:1",
       "rl:control:organization_invite:operator_1:1",
       "rl:control:organization_invite_recipient:recipient_hash:1",
+      "rl:control:observability_ping:operator_1:destination_1:1",
+      "rl:control:observability_destination:operator_1:1",
     ]);
   });
 
