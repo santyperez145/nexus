@@ -93,6 +93,10 @@ parciales y disputas se convierten en débitos o retenciones transaccionales e i
 exposición combinada nunca revierte más crédito que la compra y una disputa ganada libera sólo lo
 que ya no sigue reembolsado. Si el saldo fue consumido antes del refund, queda deuda auditable y la
 inferencia paga permanece bloqueada hasta regularizarla.
+El inbox de Stripe es idempotente y conserva estado, intentos y error sin duplicar el payload. Un
+superadmin puede reprocesar un evento fallido desde `/admin/operations`; Nexus recupera el evento
+canónico con la API de Stripe, valida su tipo, reutiliza el mismo procesador del webhook y registra la
+acción del operador en el audit log.
 CI aplica todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build; una
 migración inválida bloquea el merge.
 

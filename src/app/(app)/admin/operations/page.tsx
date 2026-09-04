@@ -1,5 +1,6 @@
 import { count, desc, eq } from "drizzle-orm";
 import { OperationsActions } from "@/components/admin/operations-actions";
+import { StripeEventReplayButton } from "@/components/admin/stripe-event-replay-button";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { connectionStatus } from "@/lib/connections";
 import { db, ensureDb, schema } from "@/lib/db";
@@ -79,7 +80,7 @@ export default async function AdminOperationsPage() {
                 {Number(stripeProcessing[0]?.count ?? 0)} procesando · {Number(stripeFailed[0]?.count ?? 0)} fallidos
               </span>
             </div>
-            <p className="mt-1 text-[11px] text-zinc-500">Inbox idempotente; Stripe reintenta los eventos fallidos.</p>
+            <p className="mt-1 text-[11px] text-zinc-500">Inbox idempotente. Un evento fallido se recupera desde Stripe y vuelve a pasar por el procesador canónico.</p>
           </div>
           <div className="divide-y divide-zinc-100">
             {stripeEvents.map((event) => (
@@ -92,6 +93,10 @@ export default async function AdminOperationsPage() {
                 </div>
                 <div className="mt-1 truncate font-mono text-[10px] text-zinc-400">{event.id}</div>
                 {event.lastError ? <p className="mt-1 line-clamp-2 text-[10px] text-rose-700">{event.lastError}</p> : null}
+                <div className="mt-1 text-[10px] text-zinc-400">
+                  Último intento {new Date(event.lastAttemptAt).toLocaleString("es-AR")}
+                </div>
+                {event.status === "failed" ? <StripeEventReplayButton eventId={event.id} /> : null}
               </div>
             ))}
             {!stripeEvents.length ? <p className="px-4 py-8 text-center text-sm text-zinc-500">Sin eventos recibidos.</p> : null}

@@ -18,6 +18,7 @@ delete process.env.POSTGRES_PRISMA_URL;
 let database: typeof import("../src/lib/db");
 let reconciliation: typeof import("../src/lib/billing/stripe-subscription");
 let webhookEvents: typeof import("../src/lib/billing/stripe-webhook-event");
+let stripeEventProcessor: typeof import("../src/lib/billing/stripe-event-processor");
 let stripeCredit: typeof import("../src/lib/billing/stripe-credit");
 
 function subscription(input: {
@@ -52,6 +53,7 @@ before(async () => {
   database = await import("../src/lib/db");
   reconciliation = await import("../src/lib/billing/stripe-subscription");
   webhookEvents = await import("../src/lib/billing/stripe-webhook-event");
+  stripeEventProcessor = await import("../src/lib/billing/stripe-event-processor");
   stripeCredit = await import("../src/lib/billing/stripe-credit");
   await database.ensureDb();
   await database.db.insert(database.schema.users).values({
@@ -64,6 +66,27 @@ before(async () => {
 after(() => rmSync(dataDir, { recursive: true, force: true }));
 
 describe("Stripe webhook inbox", () => {
+  it("shares one idempotent processor between delivery and operator replay", async () => {
+    const event = {
+      id: "evt_shared_processor",
+      type: "checkout.session.async_payment_failed",
+      created: 1_788_500_000,
+      data: { object: {} },
+    } as unknown as Stripe.Event;
+    const stripe = {} as Stripe;
+    assert.equal(await stripeEventProcessor.processStripeEventOnce(stripe, event), "processed");
+    assert.equal(
+      await stripeEventProcessor.processStripeEventOnce(stripe, event),
+      "already_processed",
+    );
+    const [stored] = await database.db
+      .select()
+      .from(database.schema.stripeWebhookEvents)
+      .where(eq(database.schema.stripeWebhookEvents.id, event.id));
+    assert.equal(stored.status, "processed");
+    assert.equal(stored.attempts, 1);
+  });
+
   it("classifies included plan credits separately from paid wallet top-ups", async () => {
     assert.deepEqual(
       await stripeCredit.creditPurchaseOnce({
