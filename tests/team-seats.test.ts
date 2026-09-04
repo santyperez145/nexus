@@ -16,6 +16,7 @@ let database: typeof import("../src/lib/db");
 let seats: typeof import("../src/lib/orgs/seats");
 const ownerToken = "sk-nx-mgmt-team-owner-test";
 const staleToken = "sk-nx-mgmt-team-stale-test";
+const inviteOwnerToken = "sk-nx-mgmt-team-invite-test";
 
 before(async () => {
   database = await import("../src/lib/db");
@@ -26,15 +27,26 @@ before(async () => {
     { id: "usr_seat_owner", name: "Owner", email: "owner@seats.test", plan: "team" },
     { id: "usr_seat_member", name: "Member", email: "member@seats.test" },
     { id: "usr_stale_team", name: "Stale", email: "stale@seats.test", plan: "team" },
+    { id: "usr_invite_owner", name: "Invite owner", email: "invite-owner@seats.test", plan: "team" },
   ]);
-  await database.db.insert(database.schema.subscriptions).values({
-    id: "sub_seat_team",
-    userId: "usr_seat_owner",
-    customerId: "cus_seat_owner",
-    plan: "team",
-    status: "active",
-    quantity: 2,
-  });
+  await database.db.insert(database.schema.subscriptions).values([
+    {
+      id: "sub_seat_team",
+      userId: "usr_seat_owner",
+      customerId: "cus_seat_owner",
+      plan: "team",
+      status: "active",
+      quantity: 2,
+    },
+    {
+      id: "sub_invite_team",
+      userId: "usr_invite_owner",
+      customerId: "cus_invite_owner",
+      plan: "team",
+      status: "active",
+      quantity: 2,
+    },
+  ]);
   await database.db.insert(database.schema.apiKeys).values([
     {
       id: "key_seat_owner",
@@ -52,16 +64,26 @@ before(async () => {
       keyPrefix: "sk-nx-mgmt-team-stale",
       isManagement: true,
     },
+    {
+      id: "key_invite_owner",
+      userId: "usr_invite_owner",
+      name: "Invite owner",
+      keyHash: sha256(inviteOwnerToken),
+      keyPrefix: "sk-nx-mgmt-team-invite",
+      isManagement: true,
+    },
   ]);
   await database.db.insert(database.schema.organizations).values([
     { id: "org_seat_a", name: "A", slug: "seat-a", ownerId: "usr_seat_owner" },
     { id: "org_seat_b", name: "B", slug: "seat-b", ownerId: "usr_seat_owner" },
+    { id: "org_invite", name: "Invite org", slug: "invite-org", ownerId: "usr_invite_owner" },
   ]);
   await database.db.insert(database.schema.organizationMembers).values([
     { id: "om_owner_a", organizationId: "org_seat_a", userId: "usr_seat_owner", role: "owner" },
     { id: "om_owner_b", organizationId: "org_seat_b", userId: "usr_seat_owner", role: "owner" },
     { id: "om_member_a", organizationId: "org_seat_a", userId: "usr_seat_member", role: "member" },
     { id: "om_member_b", organizationId: "org_seat_b", userId: "usr_seat_member", role: "admin" },
+    { id: "om_invite_owner", organizationId: "org_invite", userId: "usr_invite_owner", role: "owner" },
   ]);
 });
 
@@ -167,5 +189,57 @@ describe("Team seat pool", () => {
       .where(eq(database.schema.organizations.slug, "no-subscription"))
       .limit(1);
     assert.equal(organization, undefined);
+  });
+
+  it("keeps an invitation usable and reports when email delivery is unavailable", async () => {
+    const { POST } = await import("../src/app/api/v1/organization/route");
+    const env = process.env as Record<string, string | undefined>;
+    const previousKey = env.RESEND_API_KEY;
+    const previousFrom = env.EMAIL_FROM;
+    delete env.RESEND_API_KEY;
+    delete env.EMAIL_FROM;
+    try {
+      const response = await POST(
+        new Request("https://nexus.test/api/v1/organization", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${inviteOwnerToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            organization_id: "org_invite",
+            invite_email: "pending-invite@seats.test",
+            role: "member",
+          }),
+        }),
+      );
+      assert.equal(response.status, 200);
+      const payload = (await response.json()) as {
+        data: {
+          status: string;
+          email_delivery: string;
+          accept_url: string;
+        };
+      };
+      assert.equal(payload.data.status, "pending");
+      assert.equal(payload.data.email_delivery, "unavailable");
+      assert.match(payload.data.accept_url, /\/settings\/organizations\?invite=nxi_/);
+    } finally {
+      if (previousKey === undefined) delete env.RESEND_API_KEY;
+      else env.RESEND_API_KEY = previousKey;
+      if (previousFrom === undefined) delete env.EMAIL_FROM;
+      else env.EMAIL_FROM = previousFrom;
+    }
+    const [pending] = await database.db
+      .select()
+      .from(database.schema.organizationInvites)
+      .where(
+        and(
+          eq(database.schema.organizationInvites.organizationId, "org_invite"),
+          eq(database.schema.organizationInvites.email, "pending-invite@seats.test"),
+        ),
+      )
+      .limit(1);
+    assert.equal(pending?.acceptedAt, null);
   });
 });

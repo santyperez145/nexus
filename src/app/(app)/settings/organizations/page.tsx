@@ -80,7 +80,9 @@ export default function OrgsPage() {
     if (json.data?.accept_url) setLastAcceptUrl(json.data.accept_url);
     setMsg(
       json.data?.status === "pending"
-        ? `Invite pendiente a ${json.data.email}`
+        ? json.data.email_delivery === "sent"
+          ? `Invitación enviada a ${json.data.email}`
+          : "Invitación creada. El correo no está disponible; copiá el enlace para compartirlo."
         : json.data
           ? `Unido ${json.data.email}`
           : (json.error?.message ?? "error"),
@@ -171,7 +173,7 @@ export default function OrgsPage() {
         </div>
       </div>
 
-      {msg ? <p className="mb-4 text-sm text-zinc-950">{msg}</p> : null}
+      {msg ? <p role="status" className="mb-4 text-sm text-zinc-950">{msg}</p> : null}
       {lastAcceptUrl ? (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-500/5 px-3 py-2 text-xs">
           <span className="text-zinc-600">Enlace de invitación:</span>

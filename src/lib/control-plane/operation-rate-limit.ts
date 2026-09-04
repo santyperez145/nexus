@@ -12,6 +12,8 @@ export type ControlPlaneOperation =
   | "connection_probe"
   | "credit_adjustment"
   | "notification_test"
+  | "organization_invite"
+  | "organization_invite_recipient"
   | "stripe_event_replay";
 
 const CONTROL_PLANE_OPERATION_LIMITS: Record<
@@ -23,6 +25,8 @@ const CONTROL_PLANE_OPERATION_LIMITS: Record<
   connection_probe: { limit: 6, windowSeconds: 10 * 60 },
   credit_adjustment: { limit: 30, windowSeconds: 10 * 60 },
   notification_test: { limit: 3, windowSeconds: 60 * 60 },
+  organization_invite: { limit: 20, windowSeconds: 60 * 60 },
+  organization_invite_recipient: { limit: 3, windowSeconds: 24 * 60 * 60 },
   stripe_event_replay: { limit: 10, windowSeconds: 10 * 60 },
 };
 

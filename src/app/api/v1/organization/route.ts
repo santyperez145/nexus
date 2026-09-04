@@ -2,7 +2,7 @@ import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { db, schema, withTransaction } from "@/lib/db";
 import { APP_URL } from "@/lib/config";
-import { sendMail } from "@/lib/email";
+import { emailDeliveryConfigured, sendMail } from "@/lib/email";
 import { id } from "@/lib/ids";
 import { canManageOrg, normalizeInviteRole } from "@/lib/orgs/acl";
 import {
@@ -11,7 +11,10 @@ import {
   teamSeatUsageForOwner,
 } from "@/lib/orgs/seats";
 import { slugify } from "@/lib/slug";
-import { randomKey } from "@/lib/crypto";
+import { randomKey, sha256 } from "@/lib/crypto";
+import { enforceControlPlaneOperationRateLimit } from "@/lib/control-plane/operation-rate-limit";
+
+const INVITE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function membersOf(organizationId: string) {
   const rows = await db
@@ -204,6 +207,14 @@ export async function POST(req: Request) {
         return jsonError(Object.assign(new Error("not found"), { status: 404 }));
       }
       const email = String(body.invite_email).trim().toLowerCase();
+      if (!INVITE_EMAIL_PATTERN.test(email) || email.length > 320) {
+        return jsonError(
+          Object.assign(new Error("Ingresá un correo válido para la invitación"), {
+            status: 400,
+            code: "invalid_email",
+          }),
+        );
+      }
       const role = normalizeInviteRole(body.role);
       if (!role) {
         return jsonError(Object.assign(new Error("invalid role"), { status: 400 }));
@@ -282,6 +293,16 @@ export async function POST(req: Request) {
           data: { organization_id: org.id, user_id: user.id, email: user.email, status: "joined" },
         });
       }
+      const operatorLimited = await enforceControlPlaneOperationRateLimit(
+        auth.userId,
+        "organization_invite",
+      );
+      if (operatorLimited) return operatorLimited;
+      const recipientLimited = await enforceControlPlaneOperationRateLimit(
+        `${auth.userId}:${sha256(email)}`,
+        "organization_invite_recipient",
+      );
+      if (recipientLimited) return recipientLimited;
       const token = randomKey("nxi_", 24);
       const invite = {
         id: id("oi"),
@@ -316,21 +337,35 @@ export async function POST(req: Request) {
           });
       });
       const acceptUrl = `${APP_URL}/settings/organizations?invite=${token}`;
-      await sendMail({
-        to: email,
-        subject: `Invitación a ${org.name} · Nexus`,
-        text: [
-          `Te invitaron a la org "${org.name}" en Nexus.`,
-          `Registrate o iniciá sesión con ${email} y abrí:`,
-          acceptUrl,
-          `O aceptá con POST /api/v1/organization { "accept_token": "${token}" }`,
-        ].join("\n"),
-      });
+      let emailDelivery: "sent" | "unavailable" | "failed" = "unavailable";
+      if (emailDeliveryConfigured()) {
+        try {
+          const delivery = await sendMail({
+            to: email,
+            subject: `Invitación a ${org.name} · Nexus`,
+            text: [
+              `Te invitaron a la organización "${org.name}" en Nexus.`,
+              `Registrate o iniciá sesión con ${email} y abrí:`,
+              acceptUrl,
+            ].join("\n"),
+          });
+          emailDelivery = delivery.ok ? "sent" : "failed";
+        } catch (error) {
+          emailDelivery = "failed";
+          console.error("Organization invitation email failed", {
+            organizationId: org.id,
+            invitedBy: auth.userId,
+            recipientHash: sha256(email),
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        }
+      }
       return Response.json({
         data: {
           organization_id: org.id,
           email,
           status: "pending",
+          email_delivery: emailDelivery,
           expires_at: invite.expiresAt.toISOString(),
           accept_url: acceptUrl,
         },

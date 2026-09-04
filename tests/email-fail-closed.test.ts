@@ -34,4 +34,28 @@ describe("production transactional email", () => {
       else env.EMAIL_FROM = previousFrom;
     }
   });
+
+  it("reports a configured provider rejection instead of a false success", async () => {
+    const env = process.env as Record<string, string | undefined>;
+    const previousKey = env.RESEND_API_KEY;
+    const previousFrom = env.EMAIL_FROM;
+    const previousFetch = globalThis.fetch;
+    env.RESEND_API_KEY = "re_test";
+    env.EMAIL_FROM = "Nexus <noreply@example.com>";
+    globalThis.fetch = async () => new Response("provider rejected", { status: 422 });
+    try {
+      const delivery = await sendMail({
+        to: "customer@nexus.test",
+        subject: "Verify",
+        text: "Verification body",
+      });
+      assert.deepEqual(delivery, { ok: false, mode: "resend" });
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete env.RESEND_API_KEY;
+      else env.RESEND_API_KEY = previousKey;
+      if (previousFrom === undefined) delete env.EMAIL_FROM;
+      else env.EMAIL_FROM = previousFrom;
+    }
+  });
 });
