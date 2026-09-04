@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import {
@@ -54,7 +54,8 @@ type Analytics = {
 
 function CreditsInner() {
   const params = useSearchParams();
-  const checkoutOk = params.get("ok") === "1";
+  const checkoutSessionId = params.get("checkout_session");
+  const legacyCheckoutOk = params.get("ok") === "1";
   const canceled = params.get("canceled") === "1";
   const subscriptionResult = params.get("subscription");
   const [credits, reload] = useRemoteData<Credits>("/api/v1/credits");
@@ -65,9 +66,11 @@ function CreditsInner() {
   const [msg, setMsg] = useState<string | null>(
     subscriptionResult === "canceled" || canceled
       ? "Checkout cancelado."
-      : checkoutOk
+      : checkoutSessionId
         ? "Confirmando pago con Stripe…"
-        : null,
+        : legacyCheckoutOk
+          ? "Pago completado. Actualizando el saldo…"
+          : null,
   );
   const [settledSubscriptionNotice, setSettledSubscriptionNotice] = useState<
     string | null
@@ -83,38 +86,67 @@ function CreditsInner() {
   );
   const displayMessage =
     settledSubscriptionNotice ?? subscriptionReturn.notice ?? msg;
-  const baseline = useRef<number | null>(null);
-  const polls = useRef(0);
   const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
   const thresholdValue =
     threshold ?? String(prefs?.autoTopupThresholdUsd ?? "5");
   const amountValue = amount ?? String(prefs?.autoTopupAmountUsd ?? "25");
 
   useEffect(() => {
-    if (!checkoutOk) return;
-    if (credits && baseline.current == null)
-      baseline.current = credits.remaining;
-    const timer = window.setInterval(() => {
-      polls.current += 1;
-      reload();
-      if (polls.current >= 12) {
-        window.clearInterval(timer);
-        setMsg(
-          "Si el saldo no cambió, el webhook puede demorar unos segundos. Refrescá.",
-        );
-        window.history.replaceState({}, "", "/settings/credits");
+    if (!checkoutSessionId) return;
+    let active = true;
+    let timer: number | undefined;
+    let attempts = 0;
+
+    async function reconcile() {
+      attempts += 1;
+      try {
+        const response = await fetch("/api/internal/checkout", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: checkoutSessionId }),
+        });
+        const json = await response.json();
+        if (!active) return;
+        if (!response.ok) {
+          setMsg(json.error?.message ?? "No se pudo verificar el pago.");
+          window.history.replaceState({}, "", "/settings/credits");
+          return;
+        }
+        if (json.data?.settled) {
+          setMsg(
+            `Se acreditaron ${formatUsd(Number(json.data.creditsUsd), 2)} al saldo.`,
+          );
+          reload();
+          window.history.replaceState({}, "", "/settings/credits");
+          return;
+        }
+      } catch {
+        if (!active) return;
       }
-    }, 1500);
-    return () => window.clearInterval(timer);
-  }, [checkoutOk, reload, credits]);
+      if (attempts >= 12) {
+        setMsg(
+          "Stripe todavía está procesando el pago. Refrescá en unos segundos.",
+        );
+        return;
+      }
+      timer = window.setTimeout(reconcile, 1500);
+    }
+
+    void reconcile();
+    return () => {
+      active = false;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [checkoutSessionId, reload]);
 
   useEffect(() => {
-    if (!checkoutOk || credits == null || baseline.current == null) return;
-    if (credits.remaining > baseline.current) {
-      setMsg(`Créditos acreditados. Saldo ${formatUsd(credits.remaining, 2)}.`);
+    if (!legacyCheckoutOk) return;
+    const finish = window.setTimeout(() => {
+      reload();
       window.history.replaceState({}, "", "/settings/credits");
-    }
-  }, [checkoutOk, credits]);
+    }, 0);
+    return () => window.clearTimeout(finish);
+  }, [legacyCheckoutOk, reload]);
 
   useEffect(() => {
     if (subscriptionReturn.state === "confirmed") {
