@@ -34,7 +34,7 @@ type Row = {
   output: string[];
   input: string[];
   pricing: { prompt: number; completion: number; image: number; request: number };
-  endpoints: Array<{ adapter: string; zdr?: boolean; verified?: boolean }>;
+  endpoints: Array<{ adapter: string; zdr?: boolean }>;
 };
 
 function matchesMod(m: Row, mod: string) {
@@ -496,7 +496,6 @@ export function ModelsExplorer({
                     : { href: `/models/${m.id}`, label: "Ver ficha" };
                   const vision = m.input?.includes("image");
                   const zdr = m.endpoints.some((e) => e.zdr);
-                  const verified = m.endpoints.some((e) => e.verified);
                   return (
                     <tr
                       key={m.id}
@@ -531,7 +530,7 @@ export function ModelsExplorer({
                               privacidad
                             </span>
                           ) : null}
-                          {supported && verified ? (
+                          {supported ? (
                             <span className="rounded border border-zinc-200 bg-zinc-50 px-1 text-[10px] text-zinc-700">
                               ejecutable
                             </span>
@@ -614,7 +613,6 @@ export function ModelsExplorer({
               : { href: `/models/${m.id}`, label: "Ver ficha" };
             const vision = m.input?.includes("image");
             const zdr = m.endpoints.some((e) => e.zdr);
-            const verified = m.endpoints.some((e) => e.verified);
             return (
               <div
                 key={m.id}
@@ -673,7 +671,7 @@ export function ModelsExplorer({
                         Privacidad
                       </span>
                     ) : null}
-                    {supported && verified ? (
+                    {supported ? (
                       <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-700">
                         Ejecutable
                       </span>

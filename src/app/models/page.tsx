@@ -50,7 +50,6 @@ export default async function ModelsPage({
     endpoints: m.endpoints.map((e) => ({
       adapter: e.adapter,
       zdr: isEndpointZdrConfirmed(e),
-      verified: Boolean(m.verified || e.verified),
     })),
   }));
   return (
