@@ -23,6 +23,7 @@ type Credits = {
   total_usage: number;
   manual_credits?: boolean;
   billing_mode: "test" | "live" | "unconfigured" | "unknown";
+  has_billing_profile: boolean;
   plan: string;
   subscription_status: string;
   subscription?: {
@@ -51,6 +52,27 @@ type Analytics = {
   totals: { cost: number; requests: number };
   by_day: Array<{ day: string; cost: number; requests: number }>;
 };
+
+type ApiEnvelope = {
+  ok?: boolean;
+  url?: string | null;
+  error?: string | { message?: string };
+};
+
+const BLOCKING_SUBSCRIPTION_STATUSES = new Set([
+  "incomplete",
+  "trialing",
+  "active",
+  "past_due",
+  "unpaid",
+  "paused",
+]);
+
+function apiMessage(value: ApiEnvelope, fallback: string) {
+  return typeof value.error === "string"
+    ? value.error
+    : value.error?.message || fallback;
+}
 
 const LEDGER_TYPE_LABELS: Record<string, string> = {
   purchase: "Carga de saldo",
@@ -81,11 +103,11 @@ function CreditsInner() {
   const legacyCheckoutOk = params.get("ok") === "1";
   const canceled = params.get("canceled") === "1";
   const subscriptionResult = params.get("subscription");
-  const [credits, reload] = useRemoteData<Credits>("/api/v1/credits");
-  const [prefs, reloadPrefs] = useRemoteData<Prefs>(
+  const [credits, reload, creditsError] = useRemoteData<Credits>("/api/v1/credits");
+  const [prefs, reloadPrefs, prefsError] = useRemoteData<Prefs>(
     "/api/internal/preferences",
   );
-  const [analytics] = useRemoteData<Analytics>("/api/v1/analytics?days=7");
+  const [analytics, , analyticsError] = useRemoteData<Analytics>("/api/v1/analytics?days=7");
   const [msg, setMsg] = useState<string | null>(
     subscriptionResult === "canceled" || canceled
       ? "Checkout cancelado."
@@ -102,6 +124,7 @@ function CreditsInner() {
   const [amount, setAmount] = useState<string | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "in" | "out">("all");
   const [teamSeats, setTeamSeats] = useState("5");
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const subscriptionReturn = resolveSubscriptionReturn(
     subscriptionResult,
     credits?.subscription_status,
@@ -113,6 +136,12 @@ function CreditsInner() {
   const thresholdValue =
     threshold ?? String(prefs?.autoTopupThresholdUsd ?? "5");
   const amountValue = amount ?? String(prefs?.autoTopupAmountUsd ?? "25");
+  const canCheckout =
+    credits?.billing_mode === "test" || credits?.billing_mode === "live";
+  const hasBlockingSubscription = Boolean(
+    credits?.subscription &&
+      BLOCKING_SUBSCRIPTION_STATUSES.has(credits.subscription.status),
+  );
 
   useEffect(() => {
     if (!checkoutSessionId) return;
@@ -217,60 +246,105 @@ function CreditsInner() {
   }, [credits?.ledger, ledgerFilter]);
 
   async function buy(packId: string) {
+    if (!canCheckout || pendingAction) return;
+    setPendingAction(`pack:${packId}`);
     setMsg(null);
-    const res = await fetch("/api/internal/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ packId }),
-    });
-    const data = await res.json();
-    if (data.url) {
-      window.location.assign(data.url);
-      return;
+    try {
+      const res = await fetch("/api/internal/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as ApiEnvelope;
+      if (res.ok && data.url) {
+        window.location.assign(data.url);
+        return;
+      }
+      setMsg(apiMessage(data, "No se pudo iniciar la carga de saldo."));
+    } catch {
+      setMsg("No se pudo iniciar la carga de saldo. Revisá tu conexión.");
+    } finally {
+      setPendingAction(null);
     }
-    setMsg(data.error ?? "No se pudo iniciar el checkout");
-    reload();
   }
 
   async function subscribe(planId: string, seats = 1) {
+    if (!canCheckout || pendingAction) return;
+    setPendingAction(`plan:${planId}`);
     setMsg(null);
-    const res = await fetch("/api/internal/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planId, seats }),
-    });
-    const data = await res.json();
-    if (data.url) return window.location.assign(data.url);
-    setMsg(data.error ?? "No se pudo iniciar la suscripción");
+    try {
+      const res = await fetch("/api/internal/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId, seats }),
+      });
+      const data = (await res.json().catch(() => ({}))) as ApiEnvelope;
+      if (res.ok && data.url) return window.location.assign(data.url);
+      setMsg(apiMessage(data, "No se pudo iniciar la suscripción."));
+    } catch {
+      setMsg("No se pudo iniciar la suscripción. Revisá tu conexión.");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function manageSubscription() {
+    if (!credits?.has_billing_profile || pendingAction) return;
+    setPendingAction("portal");
     setMsg(null);
-    const res = await fetch("/api/internal/checkout", { method: "PATCH" });
-    const data = await res.json();
-    if (data.url) return window.location.assign(data.url);
-    setMsg(data.error ?? "No se pudo abrir el portal de facturación");
+    try {
+      const res = await fetch("/api/internal/checkout", { method: "PATCH" });
+      const data = (await res.json().catch(() => ({}))) as ApiEnvelope;
+      if (res.ok && data.url) return window.location.assign(data.url);
+      setMsg(apiMessage(data, "No se pudo abrir el portal de facturación."));
+    } catch {
+      setMsg("No se pudo abrir el portal de facturación. Revisá tu conexión.");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function saveTopup(enabled: boolean) {
-    const res = await fetch("/api/internal/preferences", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        autoTopupEnabled: enabled,
-        autoTopupThresholdUsd: Number(thresholdValue),
-        autoTopupAmountUsd: Number(amountValue),
-      }),
-    });
-    const json = await res.json();
-    setMsg(
-      json.ok
-        ? enabled
-          ? "Recarga automática activada"
-          : "Recarga automática desactivada"
-        : json.error,
-    );
-    reloadPrefs();
+    if (pendingAction) return;
+    const parsedThreshold = Number(thresholdValue);
+    const parsedAmount = Number(amountValue);
+    if (
+      !Number.isFinite(parsedThreshold) ||
+      parsedThreshold < 1 ||
+      parsedThreshold > 1_000 ||
+      !Number.isFinite(parsedAmount) ||
+      parsedAmount < 10 ||
+      parsedAmount > 500
+    ) {
+      setMsg("Usá un umbral de $1 a $1.000 y una recarga de $10 a $500.");
+      return;
+    }
+    setPendingAction("auto-topup");
+    setMsg(null);
+    try {
+      const res = await fetch("/api/internal/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          autoTopupEnabled: enabled,
+          autoTopupThresholdUsd: parsedThreshold,
+          autoTopupAmountUsd: parsedAmount,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as ApiEnvelope;
+      setMsg(
+        res.ok && json.ok
+          ? enabled
+            ? "Recarga automática activada."
+            : "Recarga automática desactivada."
+          : apiMessage(json, "No pudimos guardar la recarga automática."),
+      );
+      if (res.ok) reloadPrefs();
+    } catch {
+      setMsg("No pudimos guardar la recarga automática. Revisá tu conexión.");
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   return (
@@ -281,6 +355,15 @@ function CreditsInner() {
         {formatUsd(CREDIT_PURCHASE_MIN_FEE_USD, 2)}) y no agrega margen al uso
         de modelos.
       </AppPageHeader>
+
+      {creditsError ? (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span>No pudimos cargar tu saldo: {creditsError}</span>
+          <Button variant="outline" size="sm" onClick={reload}>
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
 
       {credits?.billing_mode === "test" ? (
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -313,7 +396,7 @@ function CreditsInner() {
               </div>
             </div>
             {credits.total_credits > 0 ? (
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100">
                 <div
                   className="h-full rounded-full bg-violet-500"
                   style={{
@@ -364,7 +447,11 @@ function CreditsInner() {
                 Métricas →
               </Link>
             </div>
-            {analytics?.by_day?.length ? (
+            {analyticsError ? (
+              <p className="py-8 text-center text-sm text-red-700">
+                No pudimos cargar el consumo reciente.
+              </p>
+            ) : analytics?.by_day?.length ? (
               <div className="flex h-24 items-end gap-1">
                 {analytics.by_day.map((d) => (
                   <div
@@ -388,6 +475,11 @@ function CreditsInner() {
             )}
           </div>
         </div>
+      ) : !creditsError ? (
+        <div className="mb-6 grid animate-pulse gap-3 lg:grid-cols-[1.2fr_1fr]">
+          <div className="h-52 rounded-2xl bg-zinc-100" />
+          <div className="h-52 rounded-2xl bg-zinc-100" />
+        </div>
       ) : null}
 
       <div className="mb-3 mt-8 flex flex-wrap items-end justify-between gap-3">
@@ -398,9 +490,13 @@ function CreditsInner() {
             descontándose del saldo.
           </p>
         </div>
-        {credits?.subscription ? (
-          <Button variant="outline" onClick={() => void manageSubscription()}>
-            Gestionar suscripción
+        {credits?.has_billing_profile ? (
+          <Button
+            variant="outline"
+            disabled={!canCheckout || Boolean(pendingAction)}
+            onClick={() => void manageSubscription()}
+          >
+            {pendingAction === "portal" ? "Abriendo…" : "Gestionar facturación"}
           </Button>
         ) : null}
       </div>
@@ -409,6 +505,7 @@ function CreditsInner() {
           const current =
             credits?.plan === plan.id &&
             ["active", "trialing"].includes(credits.subscription_status);
+          const actionPending = pendingAction === `plan:${plan.id}`;
           return (
             <div
               key={plan.id}
@@ -436,7 +533,7 @@ function CreditsInner() {
                 Incluye ${plan.includedCreditsUsd} en créditos de inferencia por
                 factura pagada.
               </p>
-              {plan.seats && !credits?.subscription ? (
+              {plan.seats && !hasBlockingSubscription ? (
                 <label className="mt-4 block text-xs text-zinc-600">
                   Asientos Team
                   <Input
@@ -451,9 +548,14 @@ function CreditsInner() {
               ) : null}
               <Button
                 className="mt-4 w-full"
-                variant={credits?.subscription ? "outline" : "default"}
+                variant={hasBlockingSubscription ? "outline" : "default"}
+                disabled={
+                  !canCheckout ||
+                  Boolean(pendingAction) ||
+                  (hasBlockingSubscription && !credits?.has_billing_profile)
+                }
                 onClick={() =>
-                  credits?.subscription
+                  hasBlockingSubscription
                     ? void manageSubscription()
                     : void subscribe(
                         plan.id,
@@ -461,9 +563,11 @@ function CreditsInner() {
                       )
                 }
               >
-                {current
+                {actionPending
+                  ? "Abriendo…"
+                  : current
                   ? "Gestionar plan actual"
-                  : credits?.subscription
+                  : hasBlockingSubscription
                     ? "Cambiar en portal"
                     : credits?.billing_mode === "test"
                       ? `Probar ${plan.name}`
@@ -489,8 +593,16 @@ function CreditsInner() {
               <p className="mt-1 text-xs text-zinc-500">
                 Cargo ~{formatUsd(charge, 2)} · comisión {formatUsd(fee, 2)}
               </p>
-              <Button className="mt-4 w-full" onClick={() => void buy(p.id)}>
-                {credits?.billing_mode === "test" ? "Probar" : "Comprar"}
+              <Button
+                className="mt-4 w-full"
+                disabled={!canCheckout || Boolean(pendingAction)}
+                onClick={() => void buy(p.id)}
+              >
+                {pendingAction === `pack:${p.id}`
+                  ? "Abriendo…"
+                  : credits?.billing_mode === "test"
+                    ? "Probar"
+                    : "Comprar"}
               </Button>
             </div>
           );
@@ -509,9 +621,11 @@ function CreditsInner() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ usd: 10 }),
               });
-              const json = await res.json();
+              const json = (await res.json().catch(() => ({}))) as ApiEnvelope;
               setMsg(
-                json.ok ? "Se acreditaron $10 (saldo manual)" : json.error,
+                json.ok
+                  ? "Se acreditaron $10 (saldo manual)."
+                  : apiMessage(json, "No se pudo acreditar el saldo manual."),
               );
               reload();
             }}
@@ -526,34 +640,59 @@ function CreditsInner() {
         Estado:{" "}
         <span
           className={
-            prefs?.autoTopupEnabled ? "text-emerald-400" : "text-zinc-400"
+            prefs?.autoTopupEnabled ? "text-emerald-700" : "text-zinc-500"
           }
         >
           {prefs?.autoTopupEnabled ? "activo" : "apagado"}
         </span>
-        . Con saldo manual acredita al pasar el umbral. En producción cobra
-        únicamente el método predeterminado guardado después de un checkout
-        compatible.
+        . {credits?.manual_credits
+          ? "En este entorno de desarrollo, acredita saldo manual al pasar el umbral."
+          : "Cuando está activa, cobra únicamente el medio de pago predeterminado guardado después de una compra compatible."}
       </p>
-      <div className="grid max-w-xl gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
-        <Input
-          value={thresholdValue}
-          onChange={(e) => setThreshold(e.target.value)}
-          aria-label="Umbral USD"
-          placeholder="Umbral"
-        />
-        <Input
-          value={amountValue}
-          onChange={(e) => setAmount(e.target.value)}
-          aria-label="Monto USD"
-          placeholder="Monto"
-        />
-        <Button variant="outline" onClick={() => void saveTopup(true)}>
-          Activar
+      {prefsError ? (
+        <p className="mb-3 text-sm text-red-700">
+          No pudimos cargar la configuración de recarga automática.
+        </p>
+      ) : null}
+      <div className="grid max-w-2xl gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:grid-cols-[1fr_1fr_auto_auto] md:items-end">
+        <label className="text-xs text-zinc-600">
+          Recargar cuando baje de
+          <Input
+            className="mt-1.5"
+            type="number"
+            min={1}
+            max={1000}
+            step="0.01"
+            value={thresholdValue}
+            onChange={(e) => setThreshold(e.target.value)}
+            aria-label="Umbral de recarga en dólares"
+            disabled={!prefs || Boolean(pendingAction)}
+          />
+        </label>
+        <label className="text-xs text-zinc-600">
+          Importe a cargar
+          <Input
+            className="mt-1.5"
+            type="number"
+            min={10}
+            max={500}
+            step="0.01"
+            value={amountValue}
+            onChange={(e) => setAmount(e.target.value)}
+            aria-label="Importe de recarga en dólares"
+            disabled={!prefs || Boolean(pendingAction)}
+          />
+        </label>
+        <Button
+          variant="outline"
+          disabled={!prefs || !canCheckout || Boolean(pendingAction)}
+          onClick={() => void saveTopup(true)}
+        >
+          {pendingAction === "auto-topup" ? "Guardando…" : "Activar"}
         </Button>
         <Button
           variant="outline"
-          disabled={!prefs?.autoTopupEnabled}
+          disabled={!prefs?.autoTopupEnabled || Boolean(pendingAction)}
           onClick={() => void saveTopup(false)}
         >
           Apagar
@@ -561,7 +700,9 @@ function CreditsInner() {
       </div>
 
       {displayMessage ? (
-        <p className="mt-4 text-sm text-zinc-950">{displayMessage}</p>
+        <p role="status" aria-live="polite" className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-800">
+          {displayMessage}
+        </p>
       ) : null}
 
       {credits?.ledger?.length ? (
@@ -582,7 +723,7 @@ function CreditsInner() {
                   onClick={() => setLedgerFilter(id)}
                   className={`rounded-md px-2.5 py-1 text-xs ${
                     ledgerFilter === id
-                      ? "bg-white/10 text-zinc-900"
+                      ? "bg-zinc-100 text-zinc-900"
                       : "text-zinc-500 hover:text-zinc-800"
                   }`}
                 >

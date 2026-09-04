@@ -114,6 +114,64 @@ describe("Stripe webhook inbox", () => {
     assert.equal(stored.type, "subscription_credit");
   });
 
+  it("grants funded subscription credits and rejects underfunded invoices", async () => {
+    await database.db.insert(database.schema.users).values({
+      id: "usr_invoice_credit",
+      name: "Funded invoice customer",
+      email: "funded-invoice@nexus.test",
+    });
+    const canonical = subscription({
+      id: "sub_invoice_credit",
+      plan: "pro",
+      status: "active",
+      customerId: "cus_invoice_credit",
+      userId: "usr_invoice_credit",
+    });
+    await reconciliation.syncStripeSubscription(canonical);
+    const stripe = {
+      subscriptions: { retrieve: async () => canonical },
+    } as unknown as Stripe;
+    const invoice = (id: string, amountPaid: number) =>
+      ({
+        id,
+        status: "paid",
+        billing_reason: "subscription_cycle",
+        currency: "usd",
+        amount_paid: amountPaid,
+        customer: "cus_invoice_credit",
+        parent: {
+          subscription_details: { subscription: "sub_invoice_credit" },
+        },
+      }) as unknown as Stripe.Invoice;
+
+    await stripeEventProcessor.processStripeEvent(
+      stripe,
+      {
+        type: "invoice.paid",
+        data: { object: invoice("in_funded_credit", 580) },
+      } as Stripe.Event,
+    );
+    await stripeEventProcessor.processStripeEvent(
+      stripe,
+      {
+        type: "invoice.paid",
+        data: { object: invoice("in_underfunded_credit", 579) },
+      } as Stripe.Event,
+    );
+
+    const funded = await database.db
+      .select()
+      .from(database.schema.creditLedger)
+      .where(eq(database.schema.creditLedger.stripeSessionId, "in_funded_credit"));
+    const underfunded = await database.db
+      .select()
+      .from(database.schema.creditLedger)
+      .where(eq(database.schema.creditLedger.stripeSessionId, "in_underfunded_credit"));
+    assert.equal(funded.length, 1);
+    assert.equal(funded[0]?.micros, 5_000_000);
+    assert.equal(underfunded.length, 0);
+  });
+
   it("backfills historical included credits without reclassifying top-ups", async () => {
     await database.db.insert(database.schema.creditLedger).values([
       {
@@ -372,6 +430,37 @@ describe("Stripe subscription reconciliation", () => {
     );
     assert.equal(
       reconciliation.invoiceGrantsIncludedCredits({} as Stripe.Invoice),
+      false,
+    );
+  });
+
+  it("requires enough paid USD funds before granting included credits", () => {
+    const funded = {
+      status: "paid",
+      billing_reason: "subscription_cycle",
+      currency: "usd",
+      amount_paid: 580,
+    } as Stripe.Invoice;
+    assert.equal(reconciliation.invoiceFundsIncludedCredits(funded, 5), true);
+    assert.equal(
+      reconciliation.invoiceFundsIncludedCredits(
+        { ...funded, amount_paid: 579 } as Stripe.Invoice,
+        5,
+      ),
+      false,
+    );
+    assert.equal(
+      reconciliation.invoiceFundsIncludedCredits(
+        { ...funded, currency: "eur" } as Stripe.Invoice,
+        5,
+      ),
+      false,
+    );
+    assert.equal(
+      reconciliation.invoiceFundsIncludedCredits(
+        { ...funded, status: "open" } as Stripe.Invoice,
+        5,
+      ),
       false,
     );
   });

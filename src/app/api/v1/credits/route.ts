@@ -44,6 +44,7 @@ export async function GET(req: Request) {
         remaining: microsToUsd(user?.creditMicros ?? 0),
         manual_credits: manualCreditsEnabled(),
         billing_mode: stripeMode(),
+        has_billing_profile: Boolean(user?.stripeCustomerId),
         plan: user?.plan ?? "free",
         subscription_status: user?.subscriptionStatus ?? "inactive",
         subscription: subscription

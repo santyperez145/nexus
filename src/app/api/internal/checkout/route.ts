@@ -60,7 +60,25 @@ export async function POST(req: Request) {
     "checkout_create",
   );
   if (limited) return limited;
-  const { packId, planId, seats: rawSeats } = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("invalid body");
+    }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return Response.json({ error: "Ingresá una solicitud de compra válida" }, { status: 400 });
+  }
+  const packId = typeof body.packId === "string" ? body.packId : "";
+  const planId = typeof body.planId === "string" ? body.planId : "";
+  const rawSeats = body.seats;
+  if (Boolean(packId) === Boolean(planId)) {
+    return Response.json(
+      { error: "Elegí una carga de saldo o un plan" },
+      { status: 400 },
+    );
+  }
   const stripe = getStripe();
   if (!stripe) {
     return Response.json(
@@ -111,73 +129,104 @@ export async function POST(req: Request) {
         { status: 409 },
       );
     }
-    const seats = plan.seats
-      ? Math.min(250, Math.max(1, Math.floor(Number(rawSeats) || 1)))
-      : 1;
+    const seatsNumber = rawSeats == null ? 1 : Number(rawSeats);
+    if (plan.seats && (!Number.isInteger(seatsNumber) || seatsNumber < 1 || seatsNumber > 250)) {
+      return Response.json(
+        { error: "La cantidad de asientos debe estar entre 1 y 250" },
+        { status: 400 },
+      );
+    }
+    const seats = plan.seats ? seatsNumber : 1;
+    try {
+      const checkout = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        integration_identifier: checkoutIntegrationId(`subscription_${plan.id}`),
+        ...(user?.stripeCustomerId
+          ? { customer: user.stripeCustomerId }
+          : { customer_email: session.user.email }),
+        client_reference_id: session.user.id,
+        line_items: [{ price, quantity: seats }],
+        metadata: { userId: session.user.id, planId: plan.id },
+        subscription_data: {
+          metadata: { userId: session.user.id, planId: plan.id },
+        },
+        success_url: `${APP_URL}/settings/credits?subscription=ok`,
+        cancel_url: `${APP_URL}/settings/credits?subscription=canceled`,
+        billing_address_collection: "auto",
+        automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
+        ...(user?.stripeCustomerId
+          ? { customer_update: { address: "auto" as const } }
+          : {}),
+        allow_promotion_codes: false,
+      });
+      if (!checkout.url) throw new Error("Stripe Checkout returned no URL");
+      return Response.json({ url: checkout.url });
+    } catch (error) {
+      console.error("Stripe subscription checkout creation failed", {
+        userId: session.user.id,
+        planId: plan.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+      return Response.json(
+        { error: "No se pudo iniciar la suscripción con Stripe" },
+        { status: 502 },
+      );
+    }
+  }
+
+  const pack = CREDIT_PACKS.find((p) => p.id === packId);
+  if (!pack) return Response.json({ error: "Invalid pack" }, { status: 400 });
+  try {
     const checkout = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      integration_identifier: checkoutIntegrationId(`subscription_${plan.id}`),
+      mode: "payment",
+      integration_identifier: checkoutIntegrationId("credits"),
+      client_reference_id: session.user.id,
       ...(user?.stripeCustomerId
         ? { customer: user.stripeCustomerId }
-        : { customer_email: session.user.email }),
-      client_reference_id: session.user.id,
-      line_items: [{ price, quantity: seats }],
-      metadata: { userId: session.user.id, planId: plan.id },
-      subscription_data: {
-        metadata: { userId: session.user.id, planId: plan.id },
-      },
-      success_url: `${APP_URL}/settings/credits?subscription=ok`,
-      cancel_url: `${APP_URL}/settings/credits?subscription=canceled`,
+        : {
+            customer_email: session.user.email,
+            customer_creation: "always" as const,
+          }),
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: chargeAmountCents(pack.usd),
+            product_data: {
+              name: `Créditos Nexus ${pack.label}`,
+              description: `Saldo de inferencia ${pack.label} + comisión USD ${creditPurchaseFeeUsd(pack.usd).toFixed(2)}`,
+            },
+          },
+        },
+      ],
+      metadata: { userId: session.user.id, creditsUsd: String(pack.usd) },
+      success_url: `${APP_URL}/settings/credits?checkout_session={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${APP_URL}/settings/credits?canceled=1`,
       billing_address_collection: "auto",
       automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
       ...(user?.stripeCustomerId
         ? { customer_update: { address: "auto" as const } }
         : {}),
-      allow_promotion_codes: true,
-    });
-    return Response.json({ url: checkout.url });
-  }
-
-  const pack = CREDIT_PACKS.find((p) => p.id === packId);
-  if (!pack) return Response.json({ error: "Invalid pack" }, { status: 400 });
-  const checkout = await stripe.checkout.sessions.create({
-    mode: "payment",
-    integration_identifier: checkoutIntegrationId("credits"),
-    client_reference_id: session.user.id,
-    ...(user?.stripeCustomerId
-      ? { customer: user.stripeCustomerId }
-      : {
-          customer_email: session.user.email,
-          customer_creation: "always" as const,
-        }),
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: chargeAmountCents(pack.usd),
-          product_data: {
-            name: `Créditos Nexus ${pack.label}`,
-            description: `Saldo de inferencia ${pack.label} + comisión USD ${creditPurchaseFeeUsd(pack.usd).toFixed(2)}`,
-          },
-        },
+      allow_promotion_codes: false,
+      payment_intent_data: {
+        setup_future_usage: "off_session",
+        metadata: { userId: session.user.id, creditsUsd: String(pack.usd) },
       },
-    ],
-    metadata: { userId: session.user.id, creditsUsd: String(pack.usd) },
-    success_url: `${APP_URL}/settings/credits?checkout_session={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${APP_URL}/settings/credits?canceled=1`,
-    billing_address_collection: "auto",
-    automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
-    ...(user?.stripeCustomerId
-      ? { customer_update: { address: "auto" as const } }
-      : {}),
-    allow_promotion_codes: false,
-    payment_intent_data: {
-      setup_future_usage: "off_session",
-      metadata: { userId: session.user.id, creditsUsd: String(pack.usd) },
-    },
-  });
-  return Response.json({ url: checkout.url });
+    });
+    if (!checkout.url) throw new Error("Stripe Checkout returned no URL");
+    return Response.json({ url: checkout.url });
+  } catch (error) {
+    console.error("Stripe wallet checkout creation failed", {
+      userId: session.user.id,
+      packId: pack.id,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return Response.json(
+      { error: "No se pudo iniciar la carga de saldo con Stripe" },
+      { status: 502 },
+    );
+  }
 }
 
 export async function PUT(req: Request) {
@@ -289,10 +338,22 @@ export async function PATCH() {
     return Response.json({ error: "No billing profile yet" }, { status: 404 });
   }
   const portalConfiguration = stripePortalConfigurationId();
-  const portal = await stripe.billingPortal.sessions.create({
-    customer: user.stripeCustomerId,
-    ...(portalConfiguration ? { configuration: portalConfiguration } : {}),
-    return_url: `${APP_URL}/settings/credits`,
-  });
-  return Response.json({ url: portal.url });
+  try {
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: user.stripeCustomerId,
+      ...(portalConfiguration ? { configuration: portalConfiguration } : {}),
+      return_url: `${APP_URL}/settings/credits`,
+    });
+    if (!portal.url) throw new Error("Stripe Billing Portal returned no URL");
+    return Response.json({ url: portal.url });
+  } catch (error) {
+    console.error("Stripe billing portal creation failed", {
+      userId: session.user.id,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return Response.json(
+      { error: "No se pudo abrir el portal de facturación" },
+      { status: 502 },
+    );
+  }
 }

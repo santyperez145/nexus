@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { SUBSCRIPTION_PLANS, stripePriceForPlan } from "@/lib/config";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import { lockTeamSeatAccount } from "@/lib/orgs/seats";
+import { chargeAmountCents } from "@/lib/stripe";
 
 function objectId(value: unknown): string | null {
   if (typeof value === "string") return value;
@@ -202,4 +203,18 @@ export function subscriptionIdFromInvoice(invoice: Stripe.Invoice) {
 
 export function invoiceGrantsIncludedCredits(invoice: Stripe.Invoice) {
   return invoice.billing_reason === "subscription_create" || invoice.billing_reason === "subscription_cycle";
+}
+
+export function invoiceFundsIncludedCredits(
+  invoice: Stripe.Invoice,
+  includedCreditsUsd: number,
+) {
+  const amountPaid = Number(invoice.amount_paid);
+  return (
+    invoice.status === "paid" &&
+    invoiceGrantsIncludedCredits(invoice) &&
+    invoice.currency?.toLowerCase() === "usd" &&
+    Number.isSafeInteger(amountPaid) &&
+    amountPaid >= chargeAmountCents(includedCreditsUsd)
+  );
 }

@@ -14,8 +14,10 @@ import {
 } from "@/lib/billing/stripe-credit";
 import { ensureAutoTopupPaymentMethod } from "@/lib/billing/stripe-payment-method";
 import { walletCheckoutPaymentMatches } from "@/lib/billing/checkout-return";
+import { chargeAmountCents } from "@/lib/stripe";
 import {
   invoiceGrantsIncludedCredits,
+  invoiceFundsIncludedCredits,
   reconcileStripeSubscription,
   reconcileStripeSubscriptionById,
   subscriptionIdFromInvoice,
@@ -168,8 +170,7 @@ async function reconcileDispute(stripe: Stripe, snapshot: Stripe.Dispute) {
 }
 
 async function creditSubscriptionInvoice(invoice: Stripe.Invoice) {
-  if (invoice.status !== "paid" || !invoiceGrantsIncludedCredits(invoice))
-    return;
+  if (!invoiceGrantsIncludedCredits(invoice)) return;
   const raw = invoice as unknown as Record<string, unknown>;
   const subscriptionId = subscriptionIdFromInvoice(invoice);
   const customerId = objectId(raw.customer);
@@ -187,6 +188,17 @@ async function creditSubscriptionInvoice(invoice: Stripe.Invoice) {
     (candidate) => candidate.id === subscription.plan,
   );
   if (!plan || plan.includedCreditsUsd <= 0) return;
+  if (!invoiceFundsIncludedCredits(invoice, plan.includedCreditsUsd)) {
+    console.warn("Subscription invoice did not fund included credits", {
+      invoiceId: invoice.id,
+      subscriptionId,
+      plan: plan.id,
+      currency: invoice.currency,
+      amountPaid: invoice.amount_paid,
+      requiredAmount: chargeAmountCents(plan.includedCreditsUsd),
+    });
+    return;
+  }
   await creditPurchaseOnce({
     userId: subscription.userId,
     creditsUsd: plan.includedCreditsUsd,
