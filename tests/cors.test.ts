@@ -5,6 +5,7 @@ import { corsModeForPath, isTrustedOrigin, publicCorsHeaders } from "../src/lib/
 describe("cors", () => {
   it("treats /api/v1 as public bearer CORS", () => {
     assert.equal(corsModeForPath("/api/v1/chat/completions"), "public");
+    assert.equal(corsModeForPath("/v1/chat/completions"), "public");
     assert.equal(corsModeForPath("/api/auth/ok"), "credentialed");
     assert.equal(corsModeForPath("/api/webhooks/stripe"), "skip");
   });

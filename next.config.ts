@@ -28,16 +28,21 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   async rewrites() {
-    if (!gateway) return [];
+    const rootAlias = { source: "/v1/:path*", destination: "/api/v1/:path*" };
+    if (!gateway) return [rootAlias];
+    const protocols = ["chat", "completions", "embeddings", "responses", "messages"] as const;
     return [
-      {
-        source: `/api${DATA_PLANE_PROTOCOL_ROUTES.chat}`,
-        destination: `${gateway}${DATA_PLANE_PROTOCOL_ROUTES.chat}`,
-      },
-      ...(["completions", "embeddings", "responses", "messages"] as const).map((protocol) => ({
-        source: `/api${DATA_PLANE_PROTOCOL_ROUTES[protocol]}`,
-        destination: `${gateway}${DATA_PLANE_PROTOCOL_ROUTES[protocol]}`,
-      })),
+      ...protocols.flatMap((protocol) => [
+        {
+          source: `/api${DATA_PLANE_PROTOCOL_ROUTES[protocol]}`,
+          destination: `${gateway}${DATA_PLANE_PROTOCOL_ROUTES[protocol]}`,
+        },
+        {
+          source: DATA_PLANE_PROTOCOL_ROUTES[protocol],
+          destination: `${gateway}${DATA_PLANE_PROTOCOL_ROUTES[protocol]}`,
+        },
+      ]),
+      rootAlias,
     ];
   },
 };

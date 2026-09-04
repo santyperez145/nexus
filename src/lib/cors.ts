@@ -97,7 +97,9 @@ export function credentialCorsHeaders(req: Request, appUrl: string) {
 
 export function corsModeForPath(pathname: string): "public" | "credentialed" | "skip" {
   if (pathname.startsWith("/api/webhooks")) return "skip";
-  if (pathname.startsWith("/api/v1")) return "public";
+  if (pathname.startsWith("/api/v1") || pathname === "/v1" || pathname.startsWith("/v1/")) {
+    return "public";
+  }
   if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/internal")) return "credentialed";
   if (pathname.startsWith("/api/")) return "public";
   return "skip";
