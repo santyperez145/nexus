@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatUsd } from "@/lib/money";
 
 export type RankingRow = {
@@ -19,17 +20,28 @@ export type RankingRow = {
 
 type Sort = "popular" | "price" | "latency";
 type Modality = "all" | "text" | "vision";
+const PAGE_SIZE = 25;
 
 export function RankingsClient({
   rows,
   windowKey = "all",
+  initialPage = 1,
+  initialSort = "popular",
+  initialFree = false,
+  initialModality = "all",
 }: {
   rows: RankingRow[];
   windowKey?: string;
+  initialPage?: number;
+  initialSort?: Sort;
+  initialFree?: boolean;
+  initialModality?: Modality;
 }) {
-  const [sort, setSort] = useState<Sort>("popular");
-  const [freeOnly, setFreeOnly] = useState(false);
-  const [modality, setModality] = useState<Modality>("all");
+  const router = useRouter();
+  const [sort, setSort] = useState<Sort>(initialSort);
+  const [freeOnly, setFreeOnly] = useState(initialFree);
+  const [modality, setModality] = useState<Modality>(initialModality);
+  const [page, setPage] = useState(initialPage);
 
   const ranked = useMemo(() => {
     const list = rows.filter((r) => {
@@ -56,8 +68,52 @@ export function RankingsClient({
         return a.promptPerM - b.promptPerM;
       });
     }
-    return list.slice(0, 80);
+    return list;
   }, [rows, sort, freeOnly, modality]);
+
+  const pageCount = Math.max(1, Math.ceil(ranked.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const visible = ranked.slice(start, start + PAGE_SIZE);
+
+  function syncUrl(next: { page?: number; sort?: Sort; free?: boolean; modality?: Modality }) {
+    const params = new URLSearchParams();
+    const nextPage = next.page ?? page;
+    const nextSort = next.sort ?? sort;
+    const nextFree = next.free ?? freeOnly;
+    const nextModality = next.modality ?? modality;
+    if (windowKey !== "all") params.set("window", windowKey);
+    if (nextSort !== "popular") params.set("sort", nextSort);
+    if (nextFree) params.set("free", "1");
+    if (nextModality !== "all") params.set("modality", nextModality);
+    if (nextPage > 1) params.set("page", String(nextPage));
+    const query = params.toString();
+    router.replace(query ? `/rankings?${query}` : "/rankings", { scroll: false });
+  }
+
+  function goToPage(nextPage: number) {
+    setPage(nextPage);
+    syncUrl({ page: nextPage });
+    document.getElementById("ranking-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function changeSort(next: Sort) {
+    setSort(next);
+    setPage(1);
+    syncUrl({ sort: next, page: 1 });
+  }
+
+  function changeFree(next: boolean) {
+    setFreeOnly(next);
+    setPage(1);
+    syncUrl({ free: next, page: 1 });
+  }
+
+  function changeModality(next: Modality) {
+    setModality(next);
+    setPage(1);
+    syncUrl({ modality: next, page: 1 });
+  }
 
   const maxBar = Math.max(
     1,
@@ -90,11 +146,11 @@ export function RankingsClient({
         <Toolbar
           tabs={tabs}
           sort={sort}
-          setSort={setSort}
+          setSort={changeSort}
           freeOnly={freeOnly}
-          setFreeOnly={setFreeOnly}
+          setFreeOnly={changeFree}
           modality={modality}
-          setModality={setModality}
+          setModality={changeModality}
         />
         <p className="rounded-xl border border-dashed border-zinc-200 bg-white px-4 py-10 text-center text-sm text-zinc-500">
           No encontramos modelos para este criterio.{" "}
@@ -112,11 +168,11 @@ export function RankingsClient({
       <Toolbar
         tabs={tabs}
         sort={sort}
-        setSort={setSort}
+        setSort={changeSort}
         freeOnly={freeOnly}
-        setFreeOnly={setFreeOnly}
+        setFreeOnly={changeFree}
         modality={modality}
-        setModality={setModality}
+        setModality={changeModality}
       />
       <p className="mb-4 text-sm text-zinc-500">{tabs.find((t) => t.id === sort)?.blurb}</p>
 
@@ -130,7 +186,7 @@ export function RankingsClient({
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div id="ranking-results" className="scroll-mt-20 overflow-hidden rounded-xl border border-zinc-200 bg-white">
         <div className="grid grid-cols-[2.5rem_1fr_7rem_7rem] gap-3 border-b border-zinc-200 bg-zinc-50/80 px-4 py-2.5 text-[11px] uppercase tracking-[0.06em] text-zinc-500 md:grid-cols-[2.5rem_1fr_8rem_7rem_7rem_6rem]">
           <span>#</span>
           <span>Modelo</span>
@@ -142,7 +198,7 @@ export function RankingsClient({
           <span className="hidden text-right md:block">Proveedores</span>
         </div>
         <ol>
-          {ranked.map((m, i) => {
+          {visible.map((m, i) => {
             const bar =
               sort === "popular"
                 ? m.tokens / maxBar
@@ -156,7 +212,7 @@ export function RankingsClient({
                   i ? "border-t border-zinc-100" : ""
                 } ${i % 2 ? "bg-zinc-50/40" : ""}`}
               >
-                <span className="font-mono text-xs text-zinc-400">{i + 1}</span>
+                <span className="font-mono text-xs text-zinc-400">{start + i + 1}</span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
@@ -207,6 +263,34 @@ export function RankingsClient({
             );
           })}
         </ol>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-500">
+        <span>
+          {ranked.length
+            ? `${start + 1}–${Math.min(start + PAGE_SIZE, ranked.length)} de ${ranked.length}`
+            : "0 resultados"}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={currentPage <= 1}
+            onClick={() => goToPage(currentPage - 1)}
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Anterior
+          </button>
+          <span className="min-w-20 text-center tabular-nums">
+            {currentPage} / {pageCount}
+          </span>
+          <button
+            type="button"
+            disabled={currentPage >= pageCount}
+            onClick={() => goToPage(currentPage + 1)}
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Siguiente
+          </button>
+        </div>
       </div>
       {sort === "latency" ? (
         <p className="mt-2 text-xs text-zinc-500">

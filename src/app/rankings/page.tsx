@@ -17,10 +17,13 @@ function rankingWindowStart(windowKey: "7d" | "30d"): Date {
 export default async function RankingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ window?: string }>;
+  searchParams: Promise<{ window?: string; page?: string; sort?: string; free?: string; modality?: string }>;
 }) {
   const sp = await searchParams;
   const windowKey = sp.window === "7d" || sp.window === "30d" ? sp.window : "all";
+  const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
+  const sort = sp.sort === "price" || sp.sort === "latency" ? sp.sort : "popular";
+  const modality = sp.modality === "text" || sp.modality === "vision" ? sp.modality : "all";
   await ensureDb();
 
   const since =
@@ -121,7 +124,14 @@ export default async function RankingsPage({
             </Link>
           ))}
         </div>
-        <RankingsClient rows={rows} windowKey={windowKey} />
+        <RankingsClient
+          rows={rows}
+          windowKey={windowKey}
+          initialPage={page}
+          initialSort={sort}
+          initialFree={sp.free === "1"}
+          initialModality={modality}
+        />
       </div>
     </MarketingShell>
   );
