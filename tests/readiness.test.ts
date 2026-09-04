@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   commercialLaunchReady,
   configuredCapabilities,
+  inferencePlaneReady,
   productionConfigIssues,
 } from "../src/lib/health/readiness";
 
@@ -63,13 +64,62 @@ describe("production readiness configuration", () => {
         database: { ok: true, latencyMs: 1 },
         redis: { ok: true, latencyMs: 1 },
       },
-      capabilities: { inferenceConfigured: false, commerceConfigured: false },
+      capabilities: {
+        inferenceConfigured: false,
+        inferenceOperational: false,
+        commerceConfigured: false,
+        commerceOperational: false,
+      },
     };
     assert.equal(commercialLaunchReady(snapshot), false);
     assert.equal(
       commercialLaunchReady({
         ...snapshot,
-        capabilities: { inferenceConfigured: true, commerceConfigured: true },
+        capabilities: {
+          inferenceConfigured: true,
+          inferenceOperational: true,
+          commerceConfigured: true,
+          commerceOperational: true,
+        },
+      }),
+      true,
+    );
+    assert.equal(
+      commercialLaunchReady({
+        ...snapshot,
+        capabilities: {
+          inferenceConfigured: true,
+          inferenceOperational: false,
+          commerceConfigured: true,
+          commerceOperational: true,
+        },
+      }),
+      false,
+    );
+  });
+
+  it("keeps the data plane closed without a recent executable provider probe", () => {
+    const snapshot = {
+      ok: true,
+      service: "nexus-control-plane" as const,
+      checkedAt: new Date(0).toISOString(),
+      checks: {
+        configuration: { ok: true, latencyMs: 0 },
+        database: { ok: true, latencyMs: 1 },
+        redis: { ok: true, latencyMs: 1 },
+      },
+      capabilities: {
+        inferenceConfigured: true,
+        inferenceOperational: false,
+        commerceConfigured: true,
+        commerceOperational: true,
+      },
+    };
+    assert.equal(inferencePlaneReady(snapshot), false);
+    assert.equal(
+      inferencePlaneReady({
+        ...snapshot,
+        capabilities: { ...snapshot.capabilities, inferenceOperational: true },
       }),
       true,
     );

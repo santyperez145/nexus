@@ -9,9 +9,9 @@ import { ensureDb } from "../src/lib/db";
 import { authenticateRequest, jsonError } from "../src/lib/gateway/api-auth";
 import { handleChat } from "../src/lib/gateway/handle-chat";
 import type { ChatRequest } from "../src/lib/gateway/types";
-import { allModels } from "../src/lib/catalog";
-import { readinessSnapshot } from "../src/lib/health/readiness";
+import { inferencePlaneReady, readinessSnapshot } from "../src/lib/health/readiness";
 import { POST as embeddingsPost } from "../src/app/api/v1/embeddings/route";
+import { GET as modelsGet } from "../src/app/api/v1/models/route";
 import { POST as responsesPost } from "../src/app/api/v1/responses/route";
 import { POST as messagesPost } from "../src/app/api/v1/messages/route";
 import { DATA_PLANE_PROTOCOL_ROUTES } from "../src/lib/gateway/data-plane";
@@ -46,10 +46,14 @@ app.get("/healthz", (c) => {
 
 app.get("/readyz", async (c) => {
   const snapshot = await readinessSnapshot();
-  return c.json({ ...snapshot, service: "nexus-gateway" }, snapshot.ok ? 200 : 503);
+  const ready = inferencePlaneReady(snapshot);
+  return c.json(
+    { ...snapshot, infrastructureOk: snapshot.ok, ok: ready, service: "nexus-gateway" },
+    ready ? 200 : 503,
+  );
 });
 
-app.get("/v1/models", (c) => c.json({ data: allModels() }));
+app.get("/v1/models", (c) => modelsGet(c.req.raw));
 
 // Keep the independently-scaled data plane on the exact same auth, rate-limit,
 // billing and protocol code paths as the Next.js control plane.

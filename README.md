@@ -90,10 +90,11 @@ migración inválida bloquea el merge.
 Railway usa `GET /api/internal/health/live` para confirmar que una nueva revisión inició sin convertir
 credenciales externas pendientes en un bucle de rollback. El monitor operativo y la apertura de tráfico
 comercial deben usar `GET /api/internal/health/ready`. Readiness prueba una consulta real a Postgres, una
-escritura/lectura efímera en Redis y la configuración crítica de producción; responde `503` cuando
-alguna falla. El data plane expone los equivalentes `/healthz` y `/readyz`. Las capacidades de
-inferencia y comercio se informan por separado para que una caída upstream no provoque un bucle de
-reinicios de instancias sanas.
+escritura/lectura efímera en Redis, la configuración crítica, una sonda reciente de un proveedor con
+tarifa ejecutable y Stripe configurado y verificado; responde `503` cuando alguna falla. El data plane
+expone `/healthz` para liveness y `/readyz` para infraestructura más inferencia operativa, sin depender
+de Stripe. Las capacidades se informan por separado y Railway nunca usa estos gates para reiniciar una
+instancia cuyo proceso sigue sano.
 
 Producción: [https://web-production-ef6b3.up.railway.app](https://web-production-ef6b3.up.railway.app) (Railway + Neon + Stripe Checkout/Link).
 

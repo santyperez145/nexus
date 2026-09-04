@@ -52,7 +52,7 @@ export default async function AdminOperationsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-zinc-950">Readiness del control plane</h2>
-          <p className="mt-1 text-xs text-zinc-600">Prueba viva de configuración, Postgres y Redis. Railway retira la instancia si responde 503.</p>
+          <p className="mt-1 text-xs text-zinc-600">Prueba viva de configuración, Postgres y Redis. Railway usa liveness; el ingreso comercial usa el gate de readiness.</p>
         </div>
         <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${readiness.ok ? "border-emerald-300 text-emerald-800" : "border-rose-300 text-rose-800"}`}>{readiness.ok ? "Control plane sano" : "Control plane no listo"}</span>
       </div>
@@ -61,7 +61,9 @@ export default async function AdminOperationsPage() {
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-zinc-600">
         <span className="rounded-full border border-zinc-200 bg-white px-2 py-1">Inferencia configurada: {readiness.capabilities.inferenceConfigured ? "sí" : "no"}</span>
+        <span className="rounded-full border border-zinc-200 bg-white px-2 py-1">Inferencia operativa: {readiness.capabilities.inferenceOperational ? "sí" : "no"}</span>
         <span className="rounded-full border border-zinc-200 bg-white px-2 py-1">Comercio configurado: {readiness.capabilities.commerceConfigured ? "sí" : "no"}</span>
+        <span className="rounded-full border border-zinc-200 bg-white px-2 py-1">Comercio operativo: {readiness.capabilities.commerceOperational ? "sí" : "no"}</span>
       </div>
     </section>
     <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{infrastructure.map((item)=><section key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-4"><div className="flex items-center justify-between gap-2"><div className="font-medium">{item.label}</div><span className={`size-2.5 rounded-full ${item.wired ? "bg-emerald-500" : "bg-zinc-300"}`} /></div><p className="mt-2 text-xs leading-5 text-zinc-500">{item.hint}</p></section>)}</div>

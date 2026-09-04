@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
+import { allModels, isExecutableEndpoint, isTokenGatewayModel } from "@/lib/catalog";
 import { db, ensureDb } from "@/lib/db";
 import { NEXUS_PROVIDERS } from "@/lib/providers/registry";
+import {
+  isStripeOperational,
+  recentOperationalProviderIds,
+} from "@/lib/providers/health-store";
 import { cache } from "@/lib/redis";
 
 type RuntimeEnv = Record<string, string | undefined>;
@@ -23,7 +28,9 @@ export type ReadinessSnapshot = {
   };
   capabilities: {
     inferenceConfigured: boolean;
+    inferenceOperational: boolean;
     commerceConfigured: boolean;
+    commerceOperational: boolean;
   };
 };
 
@@ -31,7 +38,17 @@ export function commercialLaunchReady(snapshot: ReadinessSnapshot) {
   return (
     snapshot.ok &&
     snapshot.capabilities.inferenceConfigured &&
-    snapshot.capabilities.commerceConfigured
+    snapshot.capabilities.inferenceOperational &&
+    snapshot.capabilities.commerceConfigured &&
+    snapshot.capabilities.commerceOperational
+  );
+}
+
+export function inferencePlaneReady(snapshot: ReadinessSnapshot) {
+  return (
+    snapshot.ok &&
+    snapshot.capabilities.inferenceConfigured &&
+    snapshot.capabilities.inferenceOperational
   );
 }
 
@@ -138,11 +155,39 @@ export async function readinessSnapshot(): Promise<ReadinessSnapshot> {
     }),
   ]);
   const checks = { configuration, database, redis };
+  const configured = configuredCapabilities();
+  let operationalProviders = new Set<string>();
+  let stripeOperational = false;
+  if (database.ok) {
+    try {
+      [operationalProviders, stripeOperational] = await Promise.all([
+        recentOperationalProviderIds(),
+        isStripeOperational(),
+      ]);
+    } catch {
+      operationalProviders = new Set();
+      stripeOperational = false;
+    }
+  }
+  const executableProviderIds = new Set(
+    allModels().flatMap((model) =>
+      isTokenGatewayModel(model)
+        ? model.endpoints.filter(isExecutableEndpoint).map((endpoint) => endpoint.adapter)
+        : [],
+    ),
+  );
+  const inferenceOperational = [...operationalProviders].some((provider) =>
+    executableProviderIds.has(provider),
+  );
   return {
     ok: Object.values(checks).every((check) => check.ok),
     service: "nexus-control-plane",
     checkedAt: new Date().toISOString(),
     checks,
-    capabilities: configuredCapabilities(),
+    capabilities: {
+      ...configured,
+      inferenceOperational,
+      commerceOperational: configured.commerceConfigured && stripeOperational,
+    },
   };
 }
