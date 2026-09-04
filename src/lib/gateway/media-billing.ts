@@ -90,7 +90,7 @@ export async function chargeAndRecordMedia(opts: {
       promptTokens,
       completionTokens: opts.completionTokens ?? 0,
       pricing: opts.pricing,
-      isFree: false,
+      isFree: opts.pricing.prompt === 0 && opts.pricing.completion === 0,
       isByok: opts.isByok,
       reservation,
     });

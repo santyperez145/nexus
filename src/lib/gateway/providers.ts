@@ -6,6 +6,7 @@ import { createMistral } from "@ai-sdk/mistral";
 import type { ModelEndpoint } from "@/lib/catalog";
 import { envFor, liveBaseURL, providerById } from "@/lib/providers/registry";
 import { loadActiveProviderCredential } from "@/lib/providers/onboarding";
+import { fetchPublicUrlLimited } from "@/lib/net/public-url";
 import type { ChatMessage } from "./types";
 
 function envKey(adapter: string, override?: string) {
@@ -135,24 +136,56 @@ type ProviderAccess = {
   baseUrl?: string;
 };
 
+const MANAGED_PROVIDER_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
+const MANAGED_PROVIDER_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
+
+const managedProviderFetch: typeof globalThis.fetch = async (input, init) => {
+  const request = input instanceof Request ? input : null;
+  const raw = typeof input === "string"
+    ? input
+    : input instanceof URL
+      ? input.toString()
+      : input.url;
+  const method = init?.method ?? request?.method;
+  const inheritedSignal = init?.signal ?? request?.signal;
+  const signal = inheritedSignal
+    ? AbortSignal.any([inheritedSignal, AbortSignal.timeout(MANAGED_PROVIDER_REQUEST_TIMEOUT_MS)])
+    : AbortSignal.timeout(MANAGED_PROVIDER_REQUEST_TIMEOUT_MS);
+  return fetchPublicUrlLimited(
+    raw,
+    {
+      ...init,
+      ...(method ? { method } : {}),
+      ...(init?.headers ? {} : request?.headers ? { headers: request.headers } : {}),
+      ...(init?.body || !request || method === "GET" || method === "HEAD"
+        ? {}
+        : { body: request.body }),
+      signal,
+    },
+    MANAGED_PROVIDER_RESPONSE_MAX_BYTES,
+    { status: 502, code: "provider_invalid_response" },
+  );
+};
+
 function languageModel(endpoint: ModelEndpoint, access: ProviderAccess) {
   const model = endpoint.providerModel;
   const spec = providerById(endpoint.adapter);
   const kind = access.protocol ?? endpoint.runtimeProtocol ?? spec?.kind ?? "openai";
   const baseURL = access.baseUrl ?? endpoint.runtimeBaseUrl ?? (spec ? liveBaseURL(spec) : undefined);
   const apiKey = access.apiKey;
+  const providerFetch = endpoint.providerConnectionId ? managedProviderFetch : undefined;
 
   if (kind === "anthropic") {
-    return createAnthropic({ apiKey, ...(baseURL ? { baseURL } : {}) })(model);
+    return createAnthropic({ apiKey, ...(baseURL ? { baseURL } : {}), ...(providerFetch ? { fetch: providerFetch } : {}) })(model);
   }
   if (kind === "google") {
-    return createGoogleGenerativeAI({ apiKey, ...(baseURL ? { baseURL } : {}) })(model);
+    return createGoogleGenerativeAI({ apiKey, ...(baseURL ? { baseURL } : {}), ...(providerFetch ? { fetch: providerFetch } : {}) })(model);
   }
   if (kind === "mistral") {
-    return createMistral({ apiKey, ...(baseURL ? { baseURL } : {}) })(model);
+    return createMistral({ apiKey, ...(baseURL ? { baseURL } : {}), ...(providerFetch ? { fetch: providerFetch } : {}) })(model);
   }
 
-  return createOpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })(model);
+  return createOpenAI({ apiKey, ...(baseURL ? { baseURL } : {}), ...(providerFetch ? { fetch: providerFetch } : {}) })(model);
 }
 
 export function hasProviderKey(endpoint: ModelEndpoint, byok?: string) {
@@ -300,23 +333,66 @@ export async function streamChat(opts: {
   };
 }
 
-export async function embedTexts(texts: string[], modelId: string, byok?: string) {
-  const apiKey = envKey("openai", byok) ?? process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw Object.assign(new Error("No provider credentials for embeddings. Configure OPENAI_API_KEY or BYOK."), {
+export async function embedTexts(opts: {
+  texts: string[];
+  endpoint: ModelEndpoint;
+  byok?: string;
+  dimensions?: number;
+  user?: string;
+  signal?: AbortSignal;
+}) {
+  const access = await runtimeProviderAccess(opts.endpoint, opts.byok);
+  if (!access) {
+    throw Object.assign(new Error("No provider credentials for this embedding route."), {
       status: 503,
       code: "provider_unwired",
     });
   }
-  const openai = createOpenAI({ apiKey });
-  const slug = modelId.includes("/") ? modelId.split("/").pop()! : modelId;
-  const model = openai.embedding(slug);
-  if (texts.length === 1) {
-    const result = await embed({ model, value: texts[0] });
-    return [result.embedding];
+  const kind = access.protocol ?? opts.endpoint.runtimeProtocol ?? providerById(opts.endpoint.adapter)?.kind ?? "openai";
+  const baseURL = access.baseUrl ?? opts.endpoint.runtimeBaseUrl ?? (() => {
+    const spec = providerById(opts.endpoint.adapter);
+    return spec ? liveBaseURL(spec) : undefined;
+  })();
+  const modelId = opts.endpoint.providerModel;
+  const providerFetch = opts.endpoint.providerConnectionId ? managedProviderFetch : undefined;
+  const model = kind === "google"
+    ? createGoogleGenerativeAI({ apiKey: access.apiKey, ...(baseURL ? { baseURL } : {}), ...(providerFetch ? { fetch: providerFetch } : {}) }).embeddingModel(modelId)
+    : kind === "mistral"
+      ? createMistral({ apiKey: access.apiKey, ...(baseURL ? { baseURL } : {}), ...(providerFetch ? { fetch: providerFetch } : {}) }).embeddingModel(modelId)
+      : kind === "openai"
+        ? createOpenAI({ apiKey: access.apiKey, ...(baseURL ? { baseURL } : {}), ...(providerFetch ? { fetch: providerFetch } : {}) }).embeddingModel(modelId)
+        : null;
+  if (!model) {
+    throw Object.assign(new Error("Provider protocol does not support embeddings"), {
+      status: 503,
+      code: "provider_unsupported",
+    });
   }
-  const result = await embedMany({ model, values: texts });
-  return result.embeddings;
+  const providerOptions = opts.dimensions
+    ? kind === "google"
+      ? { google: { outputDimensionality: opts.dimensions } }
+      : kind === "mistral"
+        ? { mistral: { outputDimension: opts.dimensions } }
+        : { openai: { dimensions: opts.dimensions, ...(opts.user ? { user: opts.user } : {}) } }
+    : kind === "openai" && opts.user
+      ? { openai: { user: opts.user } }
+      : undefined;
+  if (opts.texts.length === 1) {
+    const result = await embed({
+      model,
+      value: opts.texts[0],
+      abortSignal: opts.signal,
+      ...(providerOptions ? { providerOptions: providerOptions as never } : {}),
+    });
+    return { embeddings: [result.embedding], tokens: result.usage.tokens };
+  }
+  const result = await embedMany({
+    model,
+    values: opts.texts,
+    abortSignal: opts.signal,
+    ...(providerOptions ? { providerOptions: providerOptions as never } : {}),
+  });
+  return { embeddings: result.embeddings, tokens: result.usage.tokens };
 }
 
 async function localComplete(messages: ChatMessage[], endpoint: ModelEndpoint) {

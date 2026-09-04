@@ -57,6 +57,12 @@ type Recent = {
   tokens: number;
 };
 
+type EmbeddingCatalogModel = {
+  id: string;
+  name: string;
+  nexus?: { providers?: string[] };
+};
+
 export function MediaStudio({
   initialTab = "image",
   initialModel,
@@ -64,7 +70,7 @@ export function MediaStudio({
   initialTab?: Tab;
   initialModel?: string;
 }) {
-  const requestedModel = initialModel?.startsWith("openai/") ? initialModel : undefined;
+  const requestedModel = initialModel?.trim() || undefined;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +91,7 @@ export function MediaStudio({
   );
   const [embed, setEmbed] = useState("gateway de modelos OpenAI-compatible");
   const [embedModel, setEmbedModel] = useState(
-    requestedModel && EMBED_MODELS.includes(requestedModel) ? requestedModel : EMBED_MODELS[0],
+    initialTab === "embeddings" && requestedModel ? requestedModel : EMBED_MODELS[0],
   );
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -99,6 +105,9 @@ export function MediaStudio({
   const [genId, setGenId] = useState<string | null>(null);
   const [analytics, , analyticsError] = useRemoteData<{ recent?: Recent[]; totals?: { local_pct?: number } }>(
     "/api/v1/analytics?days=7",
+  );
+  const [embeddingCatalog] = useRemoteData<EmbeddingCatalogModel[]>(
+    "/api/v1/models?output_modalities=embeddings&limit=200",
   );
 
   useEffect(() => {
@@ -236,6 +245,11 @@ export function MediaStudio({
   }
 
   const localPct = Math.round((analytics?.totals?.local_pct ?? 0) * 100);
+  const embeddingOptions = embeddingCatalog?.length
+    ? embeddingCatalog.some((model) => model.id === embedModel)
+      ? embeddingCatalog
+      : [{ id: embedModel, name: embedModel }, ...embeddingCatalog]
+    : EMBED_MODELS.map((id) => ({ id, name: id }));
 
   return (
     <div className="grid gap-6">
@@ -459,9 +473,9 @@ export function MediaStudio({
             className="mb-3 h-9 w-full max-w-md rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
             aria-label="Modelo embeddings"
           >
-            {EMBED_MODELS.map((m) => (
-              <option key={m} value={m}>
-                {m}
+            {embeddingOptions.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name} · {model.id}
               </option>
             ))}
           </select>

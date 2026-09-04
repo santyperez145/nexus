@@ -73,7 +73,7 @@ en `X-Forwarded-For` enviado por el cliente.
 Los webhooks de observabilidad se persisten antes del primer intento, incluyen `x-nexus-delivery` y
 se reintentan desde el worker o `GET /api/internal/cron/webhooks` con backoff progresivo (máximo 6 intentos); el Delivery log permite
 auditar respuestas, próximos intentos y dead letters sin exponer el payload.
-Webhooks, `web_fetch`, feeds de catálogo y probes configurables usan resolución DNS pública fijada al
+Webhooks, `web_fetch`, feeds de catálogo, probes configurables y adapters runtime gestionados usan resolución DNS pública fijada al
 socket, rechazan redirects y limitan el cuerpo leído; URLs privadas, metadata, NAT64 y 6to4 hacia
 rangos reservados fallan antes de acceder a la red interna.
 Los crons fallan cerrados si `CRON_SECRET` no está configurado. En Railway, el workflow
@@ -96,7 +96,7 @@ La sonda recurrente del cron de health vuelve a descubrir esos contratos y una f
 proveedor del routing sin exponer ni devolver su secreto. El precio de lista se traslada sin markup:
 el ingreso de Nexus continúa siendo el 5% transparente en recargas y uso BYOK.
 Los modelos gestionados verificados alimentan el mismo catálogo runtime de Chat, Responses, Messages,
-comparación, rankings, Spaces y promociones del Hub; una suspensión o expiración de salud los retira
+Embeddings, comparación, rankings, Spaces y promociones del Hub; una suspensión o expiración de salud los retira
 de todos esos consumidores sin dejar referencias ejecutables parciales.
 
 Cada despliegue ejecuta `node scripts/migrate.mjs migrate` como predeploy y no inicia la nueva versión

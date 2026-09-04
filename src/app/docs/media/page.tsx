@@ -64,19 +64,28 @@ curl $NEXUS_URL/api/v1/audio/transcriptions \\
           <h2 className="mb-2 text-lg font-semibold text-zinc-900">
             Embeddings
           </h2>
+          <p className="mb-3 text-sm leading-6 text-zinc-600">
+            Selecciona cualquier modelo de embeddings ejecutable del catálogo y enruta entre proveedores
+            verificados por precio, orden, privacidad y salud. Admite fallback, BYOK, dimensiones del proveedor
+            y salida <code className="text-zinc-800">float</code> o <code className="text-zinc-800">base64</code>;
+            el ledger liquida los tokens reportados por el proveedor.
+          </p>
           <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`curl $NEXUS_URL/api/v1/embeddings \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "openai/text-embedding-3-small",
-    "input": "gateway OpenAI-compatible"
+    "input": "gateway multi-proveedor",
+    "dimensions": 512,
+    "provider": { "sort": "price", "allow_fallbacks": true }
   }'
 
 # SDK
 const e = await nexus.embeddings.create({
   model: "openai/text-embedding-3-small",
   input: "gateway OpenAI-compatible",
+  dimensions: 512,
 });`}
           </pre>
         </section>

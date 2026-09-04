@@ -1,5 +1,4 @@
 import {
-  EMBEDDING_MODELS,
   IMAGE_MODELS,
   SPEECH_MODELS,
   TRANSCRIPTION_MODELS,
@@ -31,7 +30,7 @@ export function isModelRouteSupported(kind: ModelKind, id: string) {
   if (kind === "image") return IMAGE_MODELS.includes(candidate);
   if (kind === "speech") return SPEECH_MODELS.includes(candidate);
   if (kind === "transcription") return TRANSCRIPTION_MODELS.includes(candidate);
-  if (kind === "embeddings") return EMBEDDING_MODELS.includes(candidate);
+  if (kind === "embeddings") return true;
   return id === "nexus/video";
 }
 

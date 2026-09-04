@@ -154,6 +154,64 @@ export async function fetchPublicUrl(raw: string, init?: RequestInit): Promise<R
   return undiciFetch(url, requestInit) as unknown as Promise<Response>;
 }
 
+export function limitResponseBody(
+  response: Response,
+  maxBytes: number,
+  errorShape?: { status: number; code: string },
+) {
+  if (!Number.isInteger(maxBytes) || maxBytes < 1) throw new Error("maxBytes must be positive");
+  const tooLarge = () => Object.assign(responseTooLarge(maxBytes), errorShape ?? {});
+  const advertised = Number(response.headers.get("content-length"));
+  if (Number.isFinite(advertised) && advertised > maxBytes) {
+    void response.body?.cancel("response too large").catch(() => undefined);
+    throw tooLarge();
+  }
+  if (!response.body) return response;
+  const reader = response.body.getReader();
+  let total = 0;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          reader.releaseLock();
+          return;
+        }
+        total += value.byteLength;
+        if (total > maxBytes) {
+          await reader.cancel("response too large");
+          controller.error(tooLarge());
+          reader.releaseLock();
+          return;
+        }
+        controller.enqueue(value);
+      } catch (error) {
+        controller.error(error);
+        reader.releaseLock();
+      }
+    },
+    async cancel(reason) {
+      await reader.cancel(reason);
+      reader.releaseLock();
+    },
+  });
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
+export async function fetchPublicUrlLimited(
+  raw: string,
+  init: RequestInit | undefined,
+  maxBytes: number,
+  errorShape?: { status: number; code: string },
+) {
+  return limitResponseBody(await fetchPublicUrl(raw, init), maxBytes, errorShape);
+}
+
 function responseTooLarge(maxBytes: number) {
   return Object.assign(new Error(`Upstream response exceeds ${maxBytes} bytes`), {
     status: 413,

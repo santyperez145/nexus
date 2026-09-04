@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   assertPublicHttpUrl,
   isBlockedHost,
+  limitResponseBody,
   readResponseTextLimited,
 } from "../src/lib/net/public-url";
 
@@ -55,6 +56,31 @@ describe("SSRF guard", () => {
           100,
         ),
       (error: unknown) => (error as { status?: number }).status === 413,
+    );
+  });
+
+  it("bounds managed provider streams while preserving successful responses", async () => {
+    assert.equal(await limitResponseBody(new Response("hello"), 5).text(), "hello");
+    await assert.rejects(
+      () => limitResponseBody(new Response("too-large"), 4).text(),
+      (error: unknown) => (error as { code?: string }).code === "response_too_large",
+    );
+    assert.throws(
+      () => limitResponseBody(
+        new Response("body", { headers: { "content-length": "9000" } }),
+        100,
+      ),
+      (error: unknown) => (error as { status?: number }).status === 413,
+    );
+    assert.throws(
+      () => limitResponseBody(
+        new Response("body", { headers: { "content-length": "9000" } }),
+        100,
+        { status: 502, code: "provider_invalid_response" },
+      ),
+      (error: unknown) =>
+        (error as { status?: number; code?: string }).status === 502 &&
+        (error as { code?: string }).code === "provider_invalid_response",
     );
   });
 });

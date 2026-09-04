@@ -32,7 +32,16 @@ export function sortEndpoints(
   const copy = [...endpoints];
   const minTps = prefs?.preferred_min_throughput;
   const maxLat = prefs?.preferred_max_latency != null ? prefs.preferred_max_latency * 1000 : undefined;
+  const order = new Map((prefs?.order ?? []).map((provider, index) => [provider, index]));
+  const orderRank = (endpoint: ModelEndpoint) =>
+    Math.min(
+      order.get(endpoint.name) ?? Number.POSITIVE_INFINITY,
+      order.get(endpoint.adapter) ?? Number.POSITIVE_INFINITY,
+    );
   copy.sort((a, b) => {
+    const aOrder = orderRank(a);
+    const bOrder = orderRank(b);
+    if (aOrder !== bOrder) return aOrder - bOrder;
     if (minTps) {
       const ah = a.throughputTps > 0 && a.throughputTps >= minTps ? 0 : 1;
       const bh = b.throughputTps > 0 && b.throughputTps >= minTps ? 0 : 1;
@@ -58,10 +67,10 @@ export function sortEndpoints(
     }
     return a.pricing.prompt + a.pricing.completion - (b.pricing.prompt + b.pricing.completion);
   });
-  return copy;
+  return prefs?.allow_fallbacks === false ? copy.slice(0, 1) : copy;
 }
 
-function applyVariantSort(variants: string[], prefs?: ProviderPreferences): ProviderPreferences["sort"] {
+export function applyVariantSort(variants: string[], prefs?: ProviderPreferences): ProviderPreferences["sort"] {
   if (variants.includes("fast") || variants.includes("nitro")) return "throughput";
   if (variants.includes("cheap") || variants.includes("floor")) return "price";
   if (variants.includes("quality") || variants.includes("exacto")) return "throughput";
@@ -76,7 +85,7 @@ function requestParams(req: ChatRequest) {
   return params;
 }
 
-function filterEndpoints(
+export function filterEndpoints(
   endpoints: ModelEndpoint[],
   prefs: ProviderPreferences | undefined,
   auth: AuthContext,
@@ -105,14 +114,10 @@ function filterEndpoints(
       list = list.filter(isEndpointNoTrainingConfirmed);
     }
   }
-  if (prefs?.order?.length) {
-    const ordered = prefs.order
-      .map((name) => list.find((e) => e.name === name || e.adapter === name))
-      .filter((e): e is ModelEndpoint => Boolean(e));
-    const rest = list.filter((e) => !prefs.order!.includes(e.name) && !prefs.order!.includes(e.adapter));
-    list = prefs.allow_fallbacks === false ? ordered : [...ordered, ...rest];
-  } else if (prefs?.allow_fallbacks === false) {
-    list = list.slice(0, 1);
+  if (prefs?.order?.length && prefs.allow_fallbacks === false) {
+    list = list.filter(
+      (endpoint) => prefs.order!.includes(endpoint.name) || prefs.order!.includes(endpoint.adapter),
+    );
   }
   return list;
 }

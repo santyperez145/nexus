@@ -1,7 +1,10 @@
 import {
+  isEndpointNoTrainingConfirmed,
+  isEndpointZdrConfirmed,
   isProviderNoTrainingConfirmed,
   isProviderZdrConfirmed,
 } from "@/lib/providers/privacy";
+import type { ModelEndpoint } from "@/lib/catalog";
 import type { AuthContext } from "./types";
 
 export function mediaPrivacyAllowed(input: {
@@ -37,4 +40,18 @@ export function assertMediaPrivacy(auth: AuthContext, provider: string, isByok: 
       { status: 503, code: "provider_privacy_unavailable" },
     );
   }
+}
+
+export function endpointMediaPrivacyAllowed(
+  auth: AuthContext,
+  endpoint: ModelEndpoint,
+  isByok: boolean,
+) {
+  return mediaPrivacyAllowed({
+    requiresZdr: auth.zdr,
+    requiresNoTraining: !auth.allowTraining,
+    isByok,
+    zdrConfirmed: isEndpointZdrConfirmed(endpoint),
+    noTrainingConfirmed: isEndpointNoTrainingConfirmed(endpoint),
+  });
 }

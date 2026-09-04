@@ -321,8 +321,28 @@ class GenerationsResource {
 
 class EmbeddingsResource {
   constructor(private readonly client: Nexus) {}
-  create(body: { model?: string; input: string | string[] }) {
-    return this.client.request<{ data: Array<{ embedding: number[]; index: number }>; model: string }>(
+  create(body: {
+    model?: string;
+    input: string | string[];
+    encoding_format?: "float" | "base64";
+    dimensions?: number;
+    user?: string;
+    provider?: {
+      order?: string[];
+      ignore?: string[];
+      only?: string[];
+      allow_fallbacks?: boolean;
+      data_collection?: "allow" | "deny";
+      zdr?: boolean;
+      sort?: "price" | "throughput" | "latency";
+    };
+  }) {
+    return this.client.request<{
+      data: Array<{ embedding: number[] | string; index: number }>;
+      model: string;
+      provider: string;
+      id: string;
+    }>(
       "/embeddings",
       { method: "POST", body },
     );

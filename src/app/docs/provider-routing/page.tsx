@@ -91,7 +91,9 @@ export default function ProviderRoutingDocsPage() {
           SSRF, revisión de privacidad, precio de lista y readiness por modelo. Nexus vuelve a
           comprobarlos cada 15 minutos; un health vencido o un cambio de contrato retira la ruta
           hasta que un operador la apruebe otra vez. La API pública nunca expone credenciales ni la
-          URL privada de configuración.
+          URL privada de configuración. Chat y embeddings reutilizan la misma preferencia de
+          proveedor; durante la ejecución, cada conexión gestionada conserva DNS público fijado al
+          socket, bloquea redirects y limita el stream upstream.
         </p>
         <p className="text-sm text-zinc-500">
           Ver hosts:{" "}

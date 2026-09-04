@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.20.0
+  version: 0.21.0
   description: OpenAI-compatible, multi-provider model gateway. One slug, many independently verified inference hosts. 0% markup on pooled inference; Nexus charges the documented 5% wallet/BYOK fee. The X-Nexus-Guest local echo is development-only and disabled in production.
 servers:
   - url: /api/v1
@@ -662,8 +662,27 @@ paths:
         "200": { description: success }
   /embeddings:
     post:
-      summary: Embeddings (billed + generation ledger)
+      summary: Multi-provider embeddings (routed, billed + generation ledger)
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                model: { type: string, example: openai/text-embedding-3-small }
+                input:
+                  oneOf:
+                    - { type: string }
+                    - { type: array, maxItems: 2048, items: { type: string } }
+                encoding_format: { type: string, enum: [float, base64], default: float }
+                dimensions: { type: integer, minimum: 1, maximum: 65536 }
+                user: { type: string, maxLength: 256 }
+                provider:
+                  type: object
+                  description: OpenRouter-compatible provider order, allow_fallbacks, privacy and sort preferences
       responses:
         "200": { description: Vectors }
   /images/generations:
