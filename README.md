@@ -104,6 +104,11 @@ Las cuentas nuevas verifican su correo antes de crear una sesión en producción
 de contraseña revoca sesiones anteriores. Los intentos de acceso, registro y recuperación usan el
 mismo Redis distribuido y fail-closed que el gateway.
 
+El alta provisiona en una sola transacción el workspace predeterminado, el ledger de bienvenida
+cuando el sandbox lo habilita y una clave inicial desactivada pendiente de revelar. La revelación,
+creación con límite de plan y rotación de claves son atómicas; un reintento no duplica recursos ni
+deja dos credenciales activas.
+
 ZDR y no-entrenamiento son filtros estrictos. Las marcas del catálogo sólo describen capacidad;
 Nexus no enruta en esos modos hasta que el operador confirme el acuerdo real mediante las allowlists
 de entorno. Si no queda un host elegible, la solicitud falla y nunca relaja privacidad. BYOK se

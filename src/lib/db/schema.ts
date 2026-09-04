@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -198,6 +199,7 @@ export const apiKeys = pgTable(
     isManagement: boolean("is_management").notNull().default(false),
     scopes: jsonb("scopes").$type<string[] | null>(),
     disabled: boolean("disabled").notNull().default(false),
+    pendingReveal: boolean("pending_reveal").notNull().default(false),
     limitMicros: bigint("limit_micros", { mode: "number" }),
     usageMicros: bigint("usage_micros", { mode: "number" }).notNull().default(0),
     limitReset: text("limit_reset"),
@@ -205,7 +207,12 @@ export const apiKeys = pgTable(
     lastUsedAt: timestamp("last_used_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("api_key_user_idx").on(t.userId)],
+  (t) => [
+    index("api_key_user_idx").on(t.userId),
+    uniqueIndex("api_key_pending_reveal_user_uidx")
+      .on(t.userId)
+      .where(sql`${t.pendingReveal} = true`),
+  ],
 );
 
 export const creditLedger = pgTable(

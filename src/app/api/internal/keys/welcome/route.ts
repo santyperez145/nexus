@@ -1,7 +1,7 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
-import { db, ensureDb, schema } from "@/lib/db";
-import { issueApiKey } from "@/lib/keys";
+import { signupBonusMicros } from "@/lib/config";
+import { ensureDb } from "@/lib/db";
+import { claimWelcomeApiKey, provisionUserAccount } from "@/lib/onboarding/provision";
 
 /** One-time reveal: solo si hay Default sin uso; evita rotar dos veces. */
 export async function POST() {
@@ -9,20 +9,9 @@ export async function POST() {
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   await ensureDb();
   const userId = session.user.id;
-  const [unused] = await db
-    .select()
-    .from(schema.apiKeys)
-    .where(
-      and(
-        eq(schema.apiKeys.userId, userId),
-        eq(schema.apiKeys.name, "Default"),
-        isNull(schema.apiKeys.lastUsedAt),
-        eq(schema.apiKeys.disabled, false),
-      ),
-    )
-    .limit(1);
-
-  if (!unused) {
+  await provisionUserAccount(userId, signupBonusMicros());
+  const issued = await claimWelcomeApiKey(userId);
+  if (!issued) {
     return Response.json(
       {
         error:
@@ -31,38 +20,6 @@ export async function POST() {
       { status: 409 },
     );
   }
-
-  const [ws] = await db
-    .select()
-    .from(schema.workspaces)
-    .where(and(eq(schema.workspaces.userId, userId), eq(schema.workspaces.isDefault, true)))
-    .limit(1);
-
-  // UPDATE ... RETURNING es el lock lógico: en una carrera solo un request reclama la key.
-  const [claimed] = await db
-    .update(schema.apiKeys)
-    .set({ lastUsedAt: new Date(), disabled: true })
-    .where(
-      and(
-        eq(schema.apiKeys.id, unused.id),
-        isNull(schema.apiKeys.lastUsedAt),
-        eq(schema.apiKeys.disabled, false),
-      ),
-    )
-    .returning();
-  if (!claimed) {
-    return Response.json(
-      { error: "La key de bienvenida ya fue revelada. Usá Rotar si necesitás otra." },
-      { status: 409 },
-    );
-  }
-
-  const issued = await issueApiKey({
-    userId,
-    name: "Default",
-    workspaceId: unused.workspaceId ?? ws?.id ?? null,
-  });
-  await db.delete(schema.apiKeys).where(eq(schema.apiKeys.id, unused.id));
 
   return Response.json({
     data: {

@@ -126,6 +126,7 @@ export const SCHEMA_SQL = [
     is_management boolean NOT NULL DEFAULT false,
     scopes jsonb,
     disabled boolean NOT NULL DEFAULT false,
+    pending_reveal boolean NOT NULL DEFAULT false,
     limit_micros bigint,
     usage_micros bigint NOT NULL DEFAULT 0,
     limit_reset text,
@@ -135,6 +136,8 @@ export const SCHEMA_SQL = [
   )`,
   `CREATE INDEX IF NOT EXISTS api_key_user_idx ON "api_key"(user_id)`,
   `ALTER TABLE "api_key" ADD COLUMN IF NOT EXISTS scopes jsonb`,
+  `ALTER TABLE "api_key" ADD COLUMN IF NOT EXISTS pending_reveal boolean NOT NULL DEFAULT false`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS api_key_pending_reveal_user_uidx ON "api_key"(user_id) WHERE pending_reveal = true`,
   `CREATE TABLE IF NOT EXISTS "credit_ledger" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
