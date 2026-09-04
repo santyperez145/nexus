@@ -8,7 +8,12 @@ import {
   stripeAutomaticTaxEnabled,
   stripeMode,
 } from "../src/lib/config";
-import { chargeAmountCents } from "../src/lib/stripe";
+import {
+  chargeAmountCents,
+  checkoutIdempotencyKey,
+  checkoutIntegrationId,
+  validCheckoutRequestId,
+} from "../src/lib/stripe";
 import { usdToMicros, tokenCostUsd } from "../src/lib/money";
 import { estimateReservationMicros } from "../src/lib/gateway/billing";
 import {
@@ -55,6 +60,43 @@ describe("atomic settle math", () => {
 });
 
 describe("stripe session idempotency shape", () => {
+  it("accepts bounded opaque request ids and rejects malformed input", () => {
+    assert.equal(validCheckoutRequestId("f447328f-4068-4ee1-985b-f7ad57b820f2"), true);
+    assert.equal(validCheckoutRequestId("too-short"), false);
+    assert.equal(validCheckoutRequestId("invalid request id with spaces"), false);
+    assert.equal(validCheckoutRequestId("x".repeat(129)), false);
+  });
+
+  it("deduplicates an exact checkout attempt but isolates users and flows", () => {
+    const attempt = {
+      userId: "usr_customer_a",
+      flow: "credits:starter",
+      requestId: "f447328f-4068-4ee1-985b-f7ad57b820f2",
+    };
+    const key = checkoutIdempotencyKey(attempt);
+    assert.equal(checkoutIdempotencyKey(attempt), key);
+    assert.match(key, /^nexus:checkout:[a-f0-9]{64}$/);
+    assert.notEqual(
+      checkoutIdempotencyKey({ ...attempt, userId: "usr_customer_b" }),
+      key,
+    );
+    assert.notEqual(
+      checkoutIdempotencyKey({ ...attempt, flow: "subscription:pro:1" }),
+      key,
+    );
+  });
+
+  it("keeps the partner integration identifier stable across retries", () => {
+    const requestId = "f447328f-4068-4ee1-985b-f7ad57b820f2";
+    const first = checkoutIntegrationId("credits", requestId);
+    assert.equal(checkoutIntegrationId("credits", requestId), first);
+    assert.match(first, /^nexus_credits_[a-z]{8}$/);
+    assert.notEqual(
+      checkoutIntegrationId("credits", "c76b4da2-82db-4e83-b451-40bd2963b2bd"),
+      first,
+    );
+  });
+
   it("treats duplicate session ids as no-ops conceptually", () => {
     const seen = new Set<string>();
     function once(sessionId: string) {

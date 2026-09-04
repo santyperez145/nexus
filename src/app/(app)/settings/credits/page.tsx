@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import {
@@ -125,6 +125,7 @@ function CreditsInner() {
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "in" | "out">("all");
   const [teamSeats, setTeamSeats] = useState("5");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const checkoutAttempts = useRef(new Map<string, string>());
   const subscriptionReturn = resolveSubscriptionReturn(
     subscriptionResult,
     credits?.subscription_status,
@@ -245,6 +246,18 @@ function CreditsInner() {
     return rows;
   }, [credits?.ledger, ledgerFilter]);
 
+  function checkoutHeaders(flow: string) {
+    let requestId = checkoutAttempts.current.get(flow);
+    if (!requestId) {
+      requestId = crypto.randomUUID();
+      checkoutAttempts.current.set(flow, requestId);
+    }
+    return {
+      "Content-Type": "application/json",
+      "Idempotency-Key": requestId,
+    };
+  }
+
   async function buy(packId: string) {
     if (!canCheckout || pendingAction) return;
     setPendingAction(`pack:${packId}`);
@@ -252,7 +265,7 @@ function CreditsInner() {
     try {
       const res = await fetch("/api/internal/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: checkoutHeaders(`pack:${packId}`),
         body: JSON.stringify({ packId }),
       });
       const data = (await res.json().catch(() => ({}))) as ApiEnvelope;
@@ -275,7 +288,7 @@ function CreditsInner() {
     try {
       const res = await fetch("/api/internal/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: checkoutHeaders(`plan:${planId}:${seats}`),
         body: JSON.stringify({ planId, seats }),
       });
       const data = (await res.json().catch(() => ({}))) as ApiEnvelope;
@@ -580,6 +593,10 @@ function CreditsInner() {
       <p className="mt-3 text-xs text-zinc-500">
         Impuestos no incluidos: se calculan solo cuando la cuenta Stripe tiene
         registros fiscales activos.
+      </p>
+      <p className="mt-2 text-xs text-zinc-500">
+        Pago seguro en Stripe Checkout con tarjeta, Link y los métodos dinámicos
+        disponibles para tu país y dispositivo.
       </p>
 
       <h2 className="mb-3 mt-10 text-lg font-medium">Cargas de saldo</h2>

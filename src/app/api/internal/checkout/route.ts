@@ -13,8 +13,10 @@ import { getSession } from "@/lib/auth";
 import { db, ensureDb, schema } from "@/lib/db";
 import {
   chargeAmountCents,
+  checkoutIdempotencyKey,
   checkoutIntegrationId,
   getStripe,
+  validCheckoutRequestId,
 } from "@/lib/stripe";
 import {
   checkoutSessionBelongsToUser,
@@ -73,6 +75,13 @@ export async function POST(req: Request) {
   const packId = typeof body.packId === "string" ? body.packId : "";
   const planId = typeof body.planId === "string" ? body.planId : "";
   const rawSeats = body.seats;
+  const requestId = req.headers.get("Idempotency-Key");
+  if (!validCheckoutRequestId(requestId)) {
+    return Response.json(
+      { error: "Falta una clave de idempotencia válida para el checkout" },
+      { status: 400 },
+    );
+  }
   if (Boolean(packId) === Boolean(planId)) {
     return Response.json(
       { error: "Elegí una carga de saldo o un plan" },
@@ -137,28 +146,39 @@ export async function POST(req: Request) {
       );
     }
     const seats = plan.seats ? seatsNumber : 1;
+    const idempotencyKey = checkoutIdempotencyKey({
+      userId: session.user.id,
+      flow: `subscription:${plan.id}:${seats}`,
+      requestId,
+    });
     try {
-      const checkout = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        integration_identifier: checkoutIntegrationId(`subscription_${plan.id}`),
-        ...(user?.stripeCustomerId
-          ? { customer: user.stripeCustomerId }
-          : { customer_email: session.user.email }),
-        client_reference_id: session.user.id,
-        line_items: [{ price, quantity: seats }],
-        metadata: { userId: session.user.id, planId: plan.id },
-        subscription_data: {
+      const checkout = await stripe.checkout.sessions.create(
+        {
+          mode: "subscription",
+          integration_identifier: checkoutIntegrationId(
+            `subscription_${plan.id}`,
+            requestId,
+          ),
+          ...(user?.stripeCustomerId
+            ? { customer: user.stripeCustomerId }
+            : { customer_email: session.user.email }),
+          client_reference_id: session.user.id,
+          line_items: [{ price, quantity: seats }],
           metadata: { userId: session.user.id, planId: plan.id },
+          subscription_data: {
+            metadata: { userId: session.user.id, planId: plan.id },
+          },
+          success_url: `${APP_URL}/settings/credits?subscription=ok`,
+          cancel_url: `${APP_URL}/settings/credits?subscription=canceled`,
+          billing_address_collection: "auto",
+          automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
+          ...(user?.stripeCustomerId
+            ? { customer_update: { address: "auto" as const } }
+            : {}),
+          allow_promotion_codes: false,
         },
-        success_url: `${APP_URL}/settings/credits?subscription=ok`,
-        cancel_url: `${APP_URL}/settings/credits?subscription=canceled`,
-        billing_address_collection: "auto",
-        automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
-        ...(user?.stripeCustomerId
-          ? { customer_update: { address: "auto" as const } }
-          : {}),
-        allow_promotion_codes: false,
-      });
+        { idempotencyKey },
+      );
       if (!checkout.url) throw new Error("Stripe Checkout returned no URL");
       return Response.json({ url: checkout.url });
     } catch (error) {
@@ -176,44 +196,52 @@ export async function POST(req: Request) {
 
   const pack = CREDIT_PACKS.find((p) => p.id === packId);
   if (!pack) return Response.json({ error: "Invalid pack" }, { status: 400 });
+  const idempotencyKey = checkoutIdempotencyKey({
+    userId: session.user.id,
+    flow: `credits:${pack.id}`,
+    requestId,
+  });
   try {
-    const checkout = await stripe.checkout.sessions.create({
-      mode: "payment",
-      integration_identifier: checkoutIntegrationId("credits"),
-      client_reference_id: session.user.id,
-      ...(user?.stripeCustomerId
-        ? { customer: user.stripeCustomerId }
-        : {
-            customer_email: session.user.email,
-            customer_creation: "always" as const,
-          }),
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "usd",
-            unit_amount: chargeAmountCents(pack.usd),
-            product_data: {
-              name: `Créditos Nexus ${pack.label}`,
-              description: `Saldo de inferencia ${pack.label} + comisión USD ${creditPurchaseFeeUsd(pack.usd).toFixed(2)}`,
+    const checkout = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        integration_identifier: checkoutIntegrationId("credits", requestId),
+        client_reference_id: session.user.id,
+        ...(user?.stripeCustomerId
+          ? { customer: user.stripeCustomerId }
+          : {
+              customer_email: session.user.email,
+              customer_creation: "always" as const,
+            }),
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "usd",
+              unit_amount: chargeAmountCents(pack.usd),
+              product_data: {
+                name: `Créditos Nexus ${pack.label}`,
+                description: `Saldo de inferencia ${pack.label} + comisión USD ${creditPurchaseFeeUsd(pack.usd).toFixed(2)}`,
+              },
             },
           },
-        },
-      ],
-      metadata: { userId: session.user.id, creditsUsd: String(pack.usd) },
-      success_url: `${APP_URL}/settings/credits?checkout_session={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${APP_URL}/settings/credits?canceled=1`,
-      billing_address_collection: "auto",
-      automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
-      ...(user?.stripeCustomerId
-        ? { customer_update: { address: "auto" as const } }
-        : {}),
-      allow_promotion_codes: false,
-      payment_intent_data: {
-        setup_future_usage: "off_session",
+        ],
         metadata: { userId: session.user.id, creditsUsd: String(pack.usd) },
+        success_url: `${APP_URL}/settings/credits?checkout_session={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${APP_URL}/settings/credits?canceled=1`,
+        billing_address_collection: "auto",
+        automatic_tax: { enabled: stripeAutomaticTaxEnabled() },
+        ...(user?.stripeCustomerId
+          ? { customer_update: { address: "auto" as const } }
+          : {}),
+        allow_promotion_codes: false,
+        payment_intent_data: {
+          setup_future_usage: "off_session",
+          metadata: { userId: session.user.id, creditsUsd: String(pack.usd) },
+        },
       },
-    });
+      { idempotencyKey },
+    );
     if (!checkout.url) throw new Error("Stripe Checkout returned no URL");
     return Response.json({ url: checkout.url });
   } catch (error) {
