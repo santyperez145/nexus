@@ -53,4 +53,3 @@ describe("trusted client IP resolution", () => {
     );
   });
 });
-

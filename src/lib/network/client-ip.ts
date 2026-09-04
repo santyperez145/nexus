@@ -37,4 +37,3 @@ export function clientIp(headers?: Headers, env: RuntimeEnv = process.env) {
 export function clientIpKey(headers?: Headers, env: RuntimeEnv = process.env) {
   return clientIp(headers, env) ?? "unknown";
 }
-
