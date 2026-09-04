@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { db, ensureDb, schema } from "@/lib/db";
@@ -50,7 +51,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <tbody>
             {rows.map((user) => (
               <tr key={user.id} className="border-b border-zinc-100 last:border-0">
-                <td className="px-4 py-3"><div className="font-medium text-zinc-950">{user.name}</div><div className="text-xs text-zinc-500">{user.email}</div></td>
+                <td className="px-4 py-3"><Link href={`/admin/users/${user.id}`} className="font-medium text-zinc-950 hover:text-violet-700">{user.name}</Link><div className="text-xs text-zinc-500">{user.email}</div></td>
                 <td className="px-4 py-3"><span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium uppercase">{user.plan}</span><div className="mt-1 text-[11px] text-zinc-500">{user.subscriptionStatus}</div></td>
                 <td className="px-4 py-3 font-mono text-xs">{formatUsd(microsToUsd(user.creditMicros))}</td>
                 <td className="px-4 py-3 text-xs"><span className={user.emailVerified ? "text-emerald-700" : "text-amber-700"}>{user.emailVerified ? "Email verificado" : "Sin verificar"}</span><div className="mt-1 font-mono text-[10px] text-zinc-400">{user.id}</div></td>
