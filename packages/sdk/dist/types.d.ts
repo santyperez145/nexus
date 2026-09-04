@@ -344,3 +344,46 @@ export type SpaceCreateRequest = {
     max_tokens?: number;
     workspace_id?: string | null;
 };
+export type CollectionItem = {
+    id: string;
+    type: "model" | "dataset" | "space";
+    path: string;
+    title: string;
+    description: string;
+    href: string;
+    note: string;
+    position: number;
+};
+export type Collection = {
+    id: string;
+    namespace: string;
+    namespace_name: string;
+    namespace_verified: boolean;
+    slug: string;
+    path: string;
+    title: string;
+    description: string;
+    visibility: "public" | "private";
+    theme: "indigo" | "cyan" | "amber" | "emerald" | "rose" | "zinc";
+    item_count: number;
+    items: CollectionItem[];
+    access: {
+        manager: boolean;
+    };
+    created_at: string;
+    updated_at: string;
+};
+export type CollectionCreateRequest = {
+    namespace: string;
+    slug: string;
+    title: string;
+    description?: string;
+    visibility?: "public" | "private";
+    theme?: Collection["theme"];
+    workspace_id?: string | null;
+};
+export type CollectionItemCreateRequest = {
+    type: CollectionItem["type"];
+    path: string;
+    note?: string;
+};

@@ -10,6 +10,7 @@ const COLS = [
       ["/models", "Modelos"],
       ["/datasets", "Datasets"],
       ["/spaces", "Spaces"],
+      ["/collections", "Colecciones"],
       ["/rankings", "Ranking"],
       ["/compare", "Comparar"],
       ["/arena", "Arena"],

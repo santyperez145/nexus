@@ -106,6 +106,26 @@ describe("API path policy", () => {
       /missing scope spaces:write/,
     );
 
+    const publicCollections = new Request("http://localhost/api/v1/collections");
+    const ownCollections = new Request("http://localhost/api/v1/collections?mine=1");
+    const collectionDetail = new Request("http://localhost/api/v1/collections/acme/frontier");
+    const writeCollection = new Request("http://localhost/api/v1/collections", { method: "POST" });
+    assert.equal(isManagementPath(publicCollections), false);
+    assert.equal(requiredScope(publicCollections), null);
+    assert.equal(isManagementPath(ownCollections), true);
+    assert.equal(requiredScope(ownCollections), "collections:read");
+    assert.equal(requiredScope(collectionDetail), "collections:read");
+    assert.equal(requiredScope(writeCollection), "collections:write");
+    enforcePathPolicy(ownCollections, { ...mgmtKey, scopes: ["collections:read"] });
+    assert.throws(
+      () => enforcePathPolicy(collectionDetail, { ...inferenceKey, scopes: ["inference:write"] }),
+      /missing scope collections:read/,
+    );
+    assert.throws(
+      () => enforcePathPolicy(writeCollection, { ...mgmtKey, scopes: ["collections:read"] }),
+      /missing scope collections:write/,
+    );
+
     const publicModels = new Request("http://localhost/api/v1/models?include_reference=true");
     const modelRepository = new Request("http://localhost/api/v1/models/acme/spanish-7b");
     const ownModels = new Request("http://localhost/api/v1/models?mine=1");

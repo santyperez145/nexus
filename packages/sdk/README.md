@@ -107,6 +107,8 @@ pueden volver a firmar durante ese período.
 | `nexus.datasets.models` | `/datasets/models` (ranking de modelos) |
 | `nexus.spaces.list` / `.get` / `.create` / `.update` / `.delete` | `/spaces` |
 | `nexus.spaces.run` | `POST /spaces/{namespace}/{slug}/run` |
+| `nexus.collections.list` / `.get` / `.create` / `.update` / `.delete` | `/collections` |
+| `nexus.collections.items.add` / `.update` / `.remove` / `.reorder` | `/collections/{namespace}/{slug}/items` |
 | `nexus.auth.key` | `/auth/key` |
 | `nexus.oauth.describe` / `.challenge` / `.exchange` | `/oauth` PKCE |
 

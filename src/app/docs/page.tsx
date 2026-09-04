@@ -42,6 +42,9 @@ const ENDPOINTS = [
   ["GET/POST", "/api/v1/spaces", "Spaces públicos/privados"],
   ["GET/PATCH/DELETE", "/api/v1/spaces/{namespace}/{slug}", "Configuración de Space"],
   ["POST", "/api/v1/spaces/{namespace}/{slug}/run", "Inferencia por Space (+ ledger)"],
+  ["GET/POST", "/api/v1/collections", "Colecciones públicas/privadas y filtros"],
+  ["GET/PATCH/DELETE", "/api/v1/collections/{namespace}/{slug}", "Perfil de colección tenant-safe"],
+  ["POST/PATCH/PUT/DELETE", "/api/v1/collections/{namespace}/{slug}/items", "Items heterogéneos y orden atómico"],
   ["POST", "/api/v1/oauth", "OAuth PKCE → API key"],
   ["GET/POST/DELETE", "/api/v1/presets", "Presets (@slug)"],
   ["GET", "/api/v1/datasets/models", "Rankings"],
@@ -58,6 +61,7 @@ const SURFACES = [
   ["Chat", "/chat", "Playground texto + route trace"],
   ["Dataset Hub", "/datasets", "Versionado · gating · distribución"],
   ["Spaces", "/spaces", "Apps publicables · runtime multi‑proveedor"],
+  ["Colecciones", "/collections", "Modelos · datasets · Spaces curados"],
   ["Status", "/status", "Cables de la instancia"],
 ];
 
@@ -80,7 +84,7 @@ export default function DocsPage() {
           </div>
           <p className="mt-1 text-sm text-zinc-600">
             Inferencia: Bearer <code className="text-zinc-800">sk-nx-</code>. Management:{" "}
-            <code className="text-zinc-800">sk-nx-mgmt-</code> (keys, BYOK, tenants, datasets, Spaces). El header{" "}
+            <code className="text-zinc-800">sk-nx-mgmt-</code> (keys, BYOK, tenants, datasets, Spaces y colecciones). El header{" "}
             <code className="text-zinc-800">X-Nexus-Guest</code> habilita un eco aislado solo en
             desarrollo, con 8 rpm/IP y sin persistencia ni keys. Producción siempre requiere sesión
             o Bearer.
@@ -252,6 +256,27 @@ await nexus.datasets.revisions.create("mi-equipo", "support-evals", {
 await nexus.models.repositories.revisions.create("mi-equipo", "modelo-espanol-7b", {
   commit_message: "Publica pesos cuantizados",
   files: [{ file_id: "file_…", path: "weights/model.safetensors" }],
+});`}
+        </pre>
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Hub Collections</h2>
+        <p className="mb-3 text-sm text-zinc-600">
+          Las colecciones reúnen modelos ejecutables o reference-only, datasets y Spaces sin copiar
+          sus permisos. Cada lectura vuelve a evaluar la visibilidad de los recursos hijos; el filtro
+          por item tampoco revela asociaciones privadas. Las escrituras requieren una management key
+          con <code className="text-zinc-800">collections:write</code> y rol admin del workspace.
+        </p>
+        <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+{`await nexus.collections.create({
+  namespace: "mi-equipo",
+  slug: "frontier-stack",
+  title: "Frontier stack",
+  theme: "cyan",
+});
+
+await nexus.collections.items.add("mi-equipo", "frontier-stack", {
+  type: "model",
+  path: "nexus/auto",
+  note: "Router multi-proveedor para producción",
 });`}
         </pre>
         <h2 className="mb-3 text-lg font-medium text-zinc-900">Enterprise / ZDR</h2>

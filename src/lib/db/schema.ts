@@ -644,6 +644,68 @@ export const hubModelPromotionRequests = pgTable(
   ],
 );
 
+export const hubCollections = pgTable(
+  "hub_collection",
+  {
+    id: text("id").primaryKey(),
+    namespaceId: text("namespace_id")
+      .notNull()
+      .references(() => hubNamespaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").references(() => workspaces.id, {
+      onDelete: "cascade",
+    }),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    visibility: text("visibility").notNull().default("public"),
+    theme: text("theme").notNull().default("indigo"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("hub_collection_namespace_slug_uidx").on(t.namespaceId, t.slug),
+    index("hub_collection_public_updated_idx")
+      .on(t.updatedAt)
+      .where(sql`${t.visibility} = 'public'`),
+    index("hub_collection_user_idx").on(t.userId, t.updatedAt),
+    index("hub_collection_workspace_idx").on(t.workspaceId, t.updatedAt),
+    check("hub_collection_visibility_check", sql`${t.visibility} IN ('public', 'private')`),
+    check(
+      "hub_collection_theme_check",
+      sql`${t.theme} IN ('indigo', 'cyan', 'amber', 'emerald', 'rose', 'zinc')`,
+    ),
+  ],
+);
+
+export const hubCollectionItems = pgTable(
+  "hub_collection_item",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id")
+      .notNull()
+      .references(() => hubCollections.id, { onDelete: "cascade" }),
+    itemType: text("item_type").notNull(),
+    itemPath: text("item_path").notNull(),
+    note: text("note").notNull().default(""),
+    position: integer("position").notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("hub_collection_item_resource_uidx").on(t.collectionId, t.itemType, t.itemPath),
+    uniqueIndex("hub_collection_item_position_uidx").on(t.collectionId, t.position),
+    index("hub_collection_item_collection_idx").on(t.collectionId, t.position),
+    check("hub_collection_item_type_check", sql`${t.itemType} IN ('model', 'dataset', 'space')`),
+    check("hub_collection_item_position_check", sql`${t.position} BETWEEN 0 AND 999`),
+  ],
+);
+
 export const hubSpaces = pgTable(
   "hub_space",
   {

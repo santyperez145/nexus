@@ -1,4 +1,4 @@
-import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, ModelEvaluation, ModelEvaluationCreateRequest, ModelPromotion, ModelPromotionCreateRequest, RerankRequest, RerankResponse, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
+import type { ChatChunk, ChatCompletion, ChatRequest, Collection, CollectionCreateRequest, CollectionItemCreateRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, ModelEvaluation, ModelEvaluationCreateRequest, ModelPromotion, ModelPromotionCreateRequest, RerankRequest, RerankResponse, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
 export declare class Nexus {
     #private;
     readonly apiKey: string;
@@ -33,6 +33,7 @@ export declare class Nexus {
     readonly shares: SharesResource;
     readonly datasets: DatasetsResource;
     readonly spaces: SpacesResource;
+    readonly collections: CollectionsResource;
     readonly auth: AuthResource;
     readonly oauth: OauthResource;
     constructor(opts?: NexusClientOptions);
@@ -763,6 +764,53 @@ declare class SpacesResource {
             content: string;
         }>;
     }): Promise<ChatCompletion>;
+}
+declare class CollectionsResource {
+    private readonly client;
+    readonly items: {
+        add: (namespace: string, slug: string, body: CollectionItemCreateRequest) => Promise<{
+            data: Collection;
+        }>;
+        update: (namespace: string, slug: string, id: string, note: string) => Promise<{
+            data: Collection;
+        }>;
+        remove: (namespace: string, slug: string, id: string) => Promise<{
+            data: Collection;
+        }>;
+        reorder: (namespace: string, slug: string, itemIds: string[]) => Promise<{
+            data: Collection;
+        }>;
+    };
+    constructor(client: Nexus);
+    private path;
+    list(opts?: {
+        q?: string;
+        owner?: string;
+        item?: string;
+        mine?: boolean;
+        limit?: number;
+    }): Promise<{
+        data: Collection[];
+        meta: {
+            count: number;
+            scope: string;
+        };
+    }>;
+    get(namespace: string, slug: string): Promise<{
+        data: Collection;
+    }>;
+    create(body: CollectionCreateRequest): Promise<{
+        data: Collection;
+    }>;
+    update(namespace: string, slug: string, body: Partial<Omit<CollectionCreateRequest, "namespace" | "slug" | "workspace_id">>): Promise<{
+        data: Collection;
+    }>;
+    delete(namespace: string, slug: string): Promise<{
+        data: {
+            id: string;
+            deleted: boolean;
+        };
+    }>;
 }
 declare class AuthResource {
     private readonly client;

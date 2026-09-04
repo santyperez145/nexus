@@ -39,6 +39,7 @@ export class Nexus {
     shares;
     datasets;
     spaces;
+    collections;
     auth;
     oauth;
     #fetch;
@@ -78,6 +79,7 @@ export class Nexus {
         this.shares = new SharesResource(this);
         this.datasets = new DatasetsResource(this);
         this.spaces = new SpacesResource(this);
+        this.collections = new CollectionsResource(this);
         this.auth = new AuthResource(this);
         this.oauth = new OauthResource(this);
     }
@@ -742,6 +744,49 @@ class SpacesResource {
             method: "POST",
             body,
         });
+    }
+}
+class CollectionsResource {
+    client;
+    items;
+    constructor(client) {
+        this.client = client;
+        this.items = {
+            add: (namespace, slug, body) => this.client.request(this.path(namespace, slug, "/items"), { method: "POST", body }),
+            update: (namespace, slug, id, note) => this.client.request(this.path(namespace, slug, "/items"), {
+                method: "PATCH",
+                body: { id, note },
+            }),
+            remove: (namespace, slug, id) => this.client.request(this.path(namespace, slug, "/items"), {
+                method: "DELETE",
+                query: { id },
+            }),
+            reorder: (namespace, slug, itemIds) => this.client.request(this.path(namespace, slug, "/items"), {
+                method: "PUT",
+                body: { item_ids: itemIds },
+            }),
+        };
+    }
+    path(namespace, slug, suffix = "") {
+        return `/collections/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}${suffix}`;
+    }
+    list(opts = {}) {
+        return this.client.request("/collections", { query: opts });
+    }
+    get(namespace, slug) {
+        return this.client.request(this.path(namespace, slug));
+    }
+    create(body) {
+        return this.client.request("/collections", { method: "POST", body });
+    }
+    update(namespace, slug, body) {
+        return this.client.request(this.path(namespace, slug), {
+            method: "PATCH",
+            body,
+        });
+    }
+    delete(namespace, slug) {
+        return this.client.request(this.path(namespace, slug), { method: "DELETE" });
     }
 }
 class AuthResource {

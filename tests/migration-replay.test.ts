@@ -19,7 +19,7 @@ describe("fresh migration replay", () => {
     const migrationResult = await client.query<{ count: number }>(
       "select count(*)::integer as count from drizzle.__drizzle_migrations",
     );
-    assert.equal(migrationResult.rows[0]?.count, 19);
+    assert.equal(migrationResult.rows[0]?.count, 20);
 
     const columnResult = await client.query<{ column_name: string }>(
       "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'file' order by ordinal_position",
@@ -44,6 +44,19 @@ describe("fresh migration replay", () => {
       "select indexname from pg_indexes where schemaname = 'public' and tablename = 'hub_model_promotion_request'",
     );
     assert.ok(promotionIndexes.rows.some((row) => row.indexname === "hub_model_promotion_pending_uidx"));
+
+    const collectionTables = await client.query<{ table_name: string }>(
+      "select table_name from information_schema.tables where table_schema = 'public' and table_name in ('hub_collection', 'hub_collection_item') order by table_name",
+    );
+    assert.deepEqual(
+      collectionTables.rows.map((row) => row.table_name),
+      ["hub_collection", "hub_collection_item"],
+    );
+    const collectionIndexes = await client.query<{ indexname: string }>(
+      "select indexname from pg_indexes where schemaname = 'public' and tablename = 'hub_collection_item'",
+    );
+    assert.ok(collectionIndexes.rows.some((row) => row.indexname === "hub_collection_item_resource_uidx"));
+    assert.ok(collectionIndexes.rows.some((row) => row.indexname === "hub_collection_item_position_uidx"));
 
     const providerTables = await client.query<{ table_name: string }>(
       "select table_name from information_schema.tables where table_schema = 'public' and table_name in ('provider_connection', 'provider_offering') order by table_name",

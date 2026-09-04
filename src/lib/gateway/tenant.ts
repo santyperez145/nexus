@@ -1,6 +1,6 @@
 import { and, eq, inArray, or, type Column, type SQL } from "drizzle-orm";
 import type { AuthContext } from "./types";
-import { db, schema } from "@/lib/db";
+import { db, schema, type DbExecutor } from "@/lib/db";
 
 /** Exact for workspace-scoped keys; sessions see owned rows plus explicitly accessible workspaces. */
 export function canAccess(
@@ -77,8 +77,12 @@ export async function accessibleWorkspaceIds(userId: string) {
   return [...new Set([...owned, ...managed, ...assigned].map((workspace) => workspace.id))];
 }
 
-export async function canManageWorkspace(auth: AuthContext, workspaceId: string) {
-  const [workspace] = await db
+export async function canManageWorkspace(
+  auth: AuthContext,
+  workspaceId: string,
+  executor: DbExecutor = db,
+) {
+  const [workspace] = await executor
     .select()
     .from(schema.workspaces)
     .where(eq(schema.workspaces.id, workspaceId))
@@ -86,18 +90,22 @@ export async function canManageWorkspace(auth: AuthContext, workspaceId: string)
   if (!workspace) return false;
   if (workspace.userId === auth.userId) return true;
   if (!workspace.organizationId) return false;
-  return canManageOrganization(auth, workspace.organizationId);
+  return canManageOrganization(auth, workspace.organizationId, executor);
 }
 
-export async function canManageOrganization(auth: AuthContext, organizationId: string) {
-  const [organization] = await db
+export async function canManageOrganization(
+  auth: AuthContext,
+  organizationId: string,
+  executor: DbExecutor = db,
+) {
+  const [organization] = await executor
     .select({ ownerId: schema.organizations.ownerId })
     .from(schema.organizations)
     .where(eq(schema.organizations.id, organizationId))
     .limit(1);
   if (!organization) return false;
   if (organization.ownerId === auth.userId) return true;
-  const [membership] = await db
+  const [membership] = await executor
     .select({ role: schema.organizationMembers.role })
     .from(schema.organizationMembers)
     .where(
@@ -110,9 +118,13 @@ export async function canManageOrganization(auth: AuthContext, organizationId: s
   return membership?.role === "owner" || membership?.role === "admin";
 }
 
-export async function assertWorkspaceManager(auth: AuthContext, workspaceId?: string | null) {
+export async function assertWorkspaceManager(
+  auth: AuthContext,
+  workspaceId?: string | null,
+  executor: DbExecutor = db,
+) {
   if (!workspaceId) return;
-  if (!(await canManageWorkspace(auth, workspaceId))) {
+  if (!(await canManageWorkspace(auth, workspaceId, executor))) {
     throw Object.assign(new Error("Workspace admin role required"), {
       status: 403,
       code: "forbidden",

@@ -11,11 +11,12 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
     items: [
       { href: "/overview", label: "Inicio" },
       { href: "/chat", label: "Chat" },
-      { href: "/studio", label: "Estudio multimedia" },
+      { href: "/studio", label: "Estudio de inferencia" },
       { href: "/models", label: "Modelos" },
       { href: "/settings/models", label: "Repositorios de modelos" },
       { href: "/settings/datasets", label: "Hub de datasets" },
       { href: "/settings/spaces", label: "Spaces" },
+      { href: "/settings/collections", label: "Colecciones" },
     ],
   },
   {

@@ -4,6 +4,9 @@ import type {
   ChatChunk,
   ChatCompletion,
   ChatRequest,
+  Collection,
+  CollectionCreateRequest,
+  CollectionItemCreateRequest,
   DatasetCreateRequest,
   DatasetRepository,
   DatasetRevisionRequest,
@@ -61,6 +64,7 @@ export class Nexus {
   readonly shares: SharesResource;
   readonly datasets: DatasetsResource;
   readonly spaces: SpacesResource;
+  readonly collections: CollectionsResource;
   readonly auth: AuthResource;
   readonly oauth: OauthResource;
   #fetch: typeof fetch;
@@ -101,6 +105,7 @@ export class Nexus {
     this.shares = new SharesResource(this);
     this.datasets = new DatasetsResource(this);
     this.spaces = new SpacesResource(this);
+    this.collections = new CollectionsResource(this);
     this.auth = new AuthResource(this);
     this.oauth = new OauthResource(this);
   }
@@ -1006,6 +1011,74 @@ class SpacesResource {
       method: "POST",
       body,
     });
+  }
+}
+
+class CollectionsResource {
+  readonly items: {
+    add: (namespace: string, slug: string, body: CollectionItemCreateRequest) => Promise<{ data: Collection }>;
+    update: (namespace: string, slug: string, id: string, note: string) => Promise<{ data: Collection }>;
+    remove: (namespace: string, slug: string, id: string) => Promise<{ data: Collection }>;
+    reorder: (namespace: string, slug: string, itemIds: string[]) => Promise<{ data: Collection }>;
+  };
+
+  constructor(private readonly client: Nexus) {
+    this.items = {
+      add: (namespace, slug, body) =>
+        this.client.request(this.path(namespace, slug, "/items"), { method: "POST", body }),
+      update: (namespace, slug, id, note) =>
+        this.client.request(this.path(namespace, slug, "/items"), {
+          method: "PATCH",
+          body: { id, note },
+        }),
+      remove: (namespace, slug, id) =>
+        this.client.request(this.path(namespace, slug, "/items"), {
+          method: "DELETE",
+          query: { id },
+        }),
+      reorder: (namespace, slug, itemIds) =>
+        this.client.request(this.path(namespace, slug, "/items"), {
+          method: "PUT",
+          body: { item_ids: itemIds },
+        }),
+    };
+  }
+
+  private path(namespace: string, slug: string, suffix = "") {
+    return `/collections/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}${suffix}`;
+  }
+
+  list(opts: { q?: string; owner?: string; item?: string; mine?: boolean; limit?: number } = {}) {
+    return this.client.request<{ data: Collection[]; meta: { count: number; scope: string } }>(
+      "/collections",
+      { query: opts },
+    );
+  }
+
+  get(namespace: string, slug: string) {
+    return this.client.request<{ data: Collection }>(this.path(namespace, slug));
+  }
+
+  create(body: CollectionCreateRequest) {
+    return this.client.request<{ data: Collection }>("/collections", { method: "POST", body });
+  }
+
+  update(
+    namespace: string,
+    slug: string,
+    body: Partial<Omit<CollectionCreateRequest, "namespace" | "slug" | "workspace_id">>,
+  ) {
+    return this.client.request<{ data: Collection }>(this.path(namespace, slug), {
+      method: "PATCH",
+      body,
+    });
+  }
+
+  delete(namespace: string, slug: string) {
+    return this.client.request<{ data: { id: string; deleted: boolean } }>(
+      this.path(namespace, slug),
+      { method: "DELETE" },
+    );
   }
 }
 

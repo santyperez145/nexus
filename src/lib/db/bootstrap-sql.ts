@@ -531,6 +531,48 @@ export const SCHEMA_SQL = [
    ON "hub_model_promotion_request"(repository_id, revision_id) WHERE status = 'pending'`,
   `CREATE INDEX IF NOT EXISTS hub_model_promotion_status_created_idx
    ON "hub_model_promotion_request"(status, created_at)`,
+  `CREATE TABLE IF NOT EXISTS "hub_collection" (
+    id text PRIMARY KEY,
+    namespace_id text NOT NULL REFERENCES "hub_namespace"(id) ON DELETE CASCADE,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id text REFERENCES "workspace"(id) ON DELETE CASCADE,
+    slug text NOT NULL,
+    title text NOT NULL,
+    description text NOT NULL DEFAULT '',
+    visibility text NOT NULL DEFAULT 'public',
+    theme text NOT NULL DEFAULT 'indigo',
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now(),
+    CONSTRAINT hub_collection_visibility_check CHECK (visibility IN ('public', 'private')),
+    CONSTRAINT hub_collection_theme_check CHECK (theme IN ('indigo', 'cyan', 'amber', 'emerald', 'rose', 'zinc'))
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_collection_namespace_slug_uidx
+   ON "hub_collection"(namespace_id, slug)`,
+  `CREATE INDEX IF NOT EXISTS hub_collection_public_updated_idx
+   ON "hub_collection"(updated_at) WHERE visibility = 'public'`,
+  `CREATE INDEX IF NOT EXISTS hub_collection_user_idx
+   ON "hub_collection"(user_id, updated_at)`,
+  `CREATE INDEX IF NOT EXISTS hub_collection_workspace_idx
+   ON "hub_collection"(workspace_id, updated_at)`,
+  `CREATE TABLE IF NOT EXISTS "hub_collection_item" (
+    id text PRIMARY KEY,
+    collection_id text NOT NULL REFERENCES "hub_collection"(id) ON DELETE CASCADE,
+    item_type text NOT NULL,
+    item_path text NOT NULL,
+    note text NOT NULL DEFAULT '',
+    position integer NOT NULL,
+    created_by text NOT NULL REFERENCES "user"(id) ON DELETE RESTRICT,
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now(),
+    CONSTRAINT hub_collection_item_type_check CHECK (item_type IN ('model', 'dataset', 'space')),
+    CONSTRAINT hub_collection_item_position_check CHECK (position BETWEEN 0 AND 999)
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_collection_item_resource_uidx
+   ON "hub_collection_item"(collection_id, item_type, item_path)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_collection_item_position_uidx
+   ON "hub_collection_item"(collection_id, position)`,
+  `CREATE INDEX IF NOT EXISTS hub_collection_item_collection_idx
+   ON "hub_collection_item"(collection_id, position)`,
   `CREATE TABLE IF NOT EXISTS "hub_space" (
     id text PRIMARY KEY,
     namespace_id text NOT NULL REFERENCES "hub_namespace"(id) ON DELETE CASCADE,

@@ -40,7 +40,7 @@ export async function ownedHubNamespace(
   if (ownerNamespace) {
     throw conflict(`this tenant already uses namespace ${ownerNamespace.slug}`);
   }
-  await assertWorkspaceManager(auth, workspaceId);
+  await assertWorkspaceManager(auth, workspaceId, tx);
   const row = {
     id: id("ns"),
     slug: namespaceSlug,

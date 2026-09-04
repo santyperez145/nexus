@@ -405,6 +405,36 @@ describe("nexus-sdk", () => {
     assert.equal(result.choices[0]?.message.content, "done");
   });
 
+  it("manages curated Hub collections and their ordered heterogeneous items", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-mgmt-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return Response.json({ data: { path: "acme/frontier", items: [] } });
+      },
+    });
+    await nexus.collections.create({
+      namespace: "acme",
+      slug: "frontier",
+      title: "Frontier stack",
+      theme: "cyan",
+    });
+    await nexus.collections.items.add("acme", "frontier", {
+      type: "model",
+      path: "nexus/auto",
+      note: "Multi-provider router",
+    });
+    await nexus.collections.items.reorder("acme", "frontier", ["item_2", "item_1"]);
+    await nexus.collections.items.remove("acme", "frontier", "item_1");
+    assert.equal(calls[0].url, "https://nexus.test/api/v1/collections");
+    assert.equal(calls[1].url, "https://nexus.test/api/v1/collections/acme/frontier/items");
+    assert.deepEqual(JSON.parse(String(calls[2].init.body)), { item_ids: ["item_2", "item_1"] });
+    assert.equal(calls[3].url, "https://nexus.test/api/v1/collections/acme/frontier/items?id=item_1");
+    assert.equal(calls[3].init.method, "DELETE");
+  });
+
   it("manages reference-only model repositories without conflating runtime models", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const nexus = new Nexus({

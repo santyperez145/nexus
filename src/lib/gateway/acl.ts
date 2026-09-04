@@ -14,6 +14,7 @@ const MANAGEMENT_PATHS = [
   "/api/v1/models",
   "/api/v1/datasets",
   "/api/v1/spaces",
+  "/api/v1/collections",
   "/api/v1/files",
   "/api/v1/guardrails",
   "/api/v1/observability",
@@ -47,6 +48,7 @@ const RESOURCE_PATHS = [
   ["/api/v1/models", "models"],
   ["/api/v1/datasets", "datasets"],
   ["/api/v1/spaces", "spaces"],
+  ["/api/v1/collections", "collections"],
   ["/api/v1/files", "files"],
   ["/api/v1/guardrails", "guardrails"],
   ["/api/v1/observability", "observability"],
@@ -70,6 +72,8 @@ const MANAGEMENT_SCOPES = new Set([
   "datasets:write",
   "spaces:read",
   "spaces:write",
+  "collections:read",
+  "collections:write",
   "files:read",
   "files:write",
   "guardrails:read",
@@ -139,6 +143,14 @@ export function isManagementPath(req: Request) {
       return false;
     }
   }
+  if (path === "/api/v1/collections" || path.startsWith("/api/v1/collections/")) {
+    if (req.method !== "GET" && req.method !== "HEAD") return true;
+    try {
+      return new URL(req.url).searchParams.get("mine") === "1";
+    } catch {
+      return false;
+    }
+  }
   return matches(path, MANAGEMENT_PATHS);
 }
 
@@ -154,6 +166,9 @@ export function requiredScope(req: Request) {
   const path = pathnameOf(req);
   if ((path === "/api/v1/models" || path.startsWith("/api/v1/models/")) && !isManagementPath(req)) {
     return path === "/api/v1/models" || path.endsWith("/endpoints") ? null : "models:read";
+  }
+  if ((path === "/api/v1/collections" || path.startsWith("/api/v1/collections/")) && !isManagementPath(req)) {
+    return path === "/api/v1/collections" ? null : "collections:read";
   }
   const resource = RESOURCE_PATHS.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`))?.[1];
   if (!resource) return null;

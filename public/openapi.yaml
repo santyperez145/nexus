@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.22.0
+  version: 0.23.0
   description: OpenAI-compatible, multi-provider model gateway. One slug, many independently verified inference hosts. 0% markup on pooled inference; Nexus charges the documented 5% wallet/BYOK fee. The X-Nexus-Guest local echo is development-only and disabled in production.
 servers:
   - url: /api/v1
@@ -1300,6 +1300,132 @@ paths:
         "200": { description: OpenAI-compatible chat completion with X-Request-Id and X-Nexus-Space }
         "401": { description: Missing inference identity }
         "404": { description: Space is missing or inaccessible }
+  /collections:
+    get:
+      summary: List public collections or collections visible to the authenticated tenant
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - in: query
+          name: mine
+          schema: { type: boolean, default: false }
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: item
+          description: Exact namespace/slug resource path; filtering occurs only after child ACL checks.
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200": { description: Collections with up to four ACL-filtered item previews each }
+    post:
+      summary: Create a personal or workspace collection
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [namespace, slug, title]
+              properties:
+                namespace: { type: string, maxLength: 100 }
+                slug: { type: string, maxLength: 120 }
+                title: { type: string, maxLength: 120 }
+                description: { type: string, maxLength: 5000 }
+                visibility: { type: string, enum: [public, private], default: public }
+                theme: { type: string, enum: [indigo, cyan, amber, emerald, rose, zinc], default: indigo }
+                workspace_id: { type: [string, "null"] }
+      responses:
+        "201": { description: Collection created after namespace and workspace-manager validation }
+        "403": { description: Workspace admin role required }
+        "409": { description: Collection path already exists }
+  /collections/{namespace}/{slug}:
+    parameters:
+      - in: path
+        name: namespace
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: Read a collection with child resources filtered by the caller identity
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200": { description: Collection and every currently accessible item }
+        "404": { description: Collection missing or private to another tenant }
+    patch:
+      summary: Update collection metadata
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Collection updated }
+        "403": { description: Collection manager role required }
+    delete:
+      summary: Delete a collection without deleting the referenced resources
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Collection and item links deleted }
+  /collections/{namespace}/{slug}/items:
+    parameters:
+      - in: path
+        name: namespace
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    post:
+      summary: Add one accessible model, dataset, or Space to a collection
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, path]
+              properties:
+                type: { type: string, enum: [model, dataset, space] }
+                path: { type: string, description: Exact namespace/slug path }
+                note: { type: string, maxLength: 500 }
+      responses:
+        "200": { description: Updated collection }
+        "404": { description: Resource missing or inaccessible }
+        "409": { description: Duplicate item or 100-item limit reached }
+    patch:
+      summary: Update the note of one collection item
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Updated collection }
+    put:
+      summary: Atomically reorder every item in the collection
+      description: item_ids must contain every current item exactly once.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Reordered collection }
+        "400": { description: Incomplete or duplicate item IDs }
+    delete:
+      summary: Remove one item link and compact the remaining positions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Updated collection }
   /datasets/models:
     get:
       summary: Model rankings dataset
