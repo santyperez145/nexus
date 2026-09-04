@@ -1,13 +1,29 @@
 import { currentRequestId } from "./request-id";
 
 export function jsonError(error: unknown) {
-  const status = typeof error === "object" && error && "status" in error ? Number(error.status) : 500;
-  const message = error instanceof Error ? error.message : "Internal error";
+  const invalidJson =
+    error instanceof SyntaxError &&
+    /json|unexpected end|unexpected token/i.test(error.message);
+  const hasExplicitStatus = Boolean(
+    typeof error === "object" && error && "status" in error,
+  );
+  const status = hasExplicitStatus
+    ? Number((error as { status: unknown }).status)
+    : invalidJson
+      ? 400
+      : 500;
   const explicitCode =
     typeof error === "object" && error && "code" in error && typeof (error as { code?: unknown }).code === "string"
       ? (error as { code: string }).code
       : undefined;
   const safe = Number.isFinite(status) && status >= 400 ? status : 500;
+  const message = invalidJson
+    ? "Invalid JSON body"
+    : safe === 500
+      ? "Internal server error"
+      : error instanceof Error
+        ? error.message
+        : "Internal error";
   const code =
     explicitCode ??
     (safe === 401
@@ -34,6 +50,19 @@ export function jsonError(error: unknown) {
   const headers: Record<string, string> = {};
   const requestId = currentRequestId();
   if (requestId) headers["x-request-id"] = requestId;
+  if (safe === 500) {
+    console.error("Unhandled Nexus API error", {
+      requestId: requestId ?? null,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorCode:
+        typeof error === "object" &&
+        error &&
+        "code" in error &&
+        typeof (error as { code?: unknown }).code === "string"
+          ? (error as { code: string }).code
+          : null,
+    });
+  }
   if (safe === 429) {
     headers["Retry-After"] = "60";
     headers["X-RateLimit-Limit"] = "60";
@@ -55,7 +84,16 @@ export function jsonError(error: unknown) {
 export function anthropicJsonError(error: unknown) {
   const base = jsonError(error);
   const status = base.status;
-  const message = error instanceof Error ? error.message : "Internal error";
+  const invalidJson =
+    error instanceof SyntaxError &&
+    /json|unexpected end|unexpected token/i.test(error.message);
+  const message = invalidJson
+    ? "Invalid JSON body"
+    : status === 500
+      ? "Internal server error"
+      : error instanceof Error
+        ? error.message
+        : "Internal error";
   const type =
     status === 401
       ? "authentication_error"
