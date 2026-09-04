@@ -21,11 +21,67 @@ import {
   validCheckoutSessionId,
 } from "@/lib/billing/checkout-return";
 import { reconcileWalletCheckout } from "@/lib/billing/stripe-event-processor";
+import {
+  consumeBillingOperationRateLimit,
+  type BillingOperation,
+} from "@/lib/billing/operation-rate-limit";
+
+async function enforceBillingOperationLimit(
+  userId: string,
+  operation: BillingOperation,
+) {
+  try {
+    const result = await consumeBillingOperationRateLimit(userId, operation);
+    if (result.allowed) return null;
+
+    return Response.json(
+      {
+        error: {
+          message:
+            "Demasiadas operaciones de facturación. Intentá nuevamente más tarde.",
+          type: "rate_limit_error",
+          code: "rate_limited",
+        },
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(result.retryAfterSeconds),
+          "X-RateLimit-Limit": String(result.limit),
+          "X-RateLimit-Remaining": String(result.remaining),
+          "X-RateLimit-Reset": String(Math.ceil(result.resetAt / 1_000)),
+        },
+      },
+    );
+  } catch (error) {
+    console.error("Billing operation rate limit unavailable", {
+      operation,
+      userId,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return Response.json(
+      {
+        error: {
+          message:
+            "La protección de facturación no está disponible temporalmente.",
+          type: "server_error",
+          code: "rate_limit_unavailable",
+        },
+      },
+      { status: 503 },
+    );
+  }
+}
 
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session?.user)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceBillingOperationLimit(
+    session.user.id,
+    "checkout_create",
+  );
+  if (limited) return limited;
   const { packId, planId, seats: rawSeats } = await req.json();
   const stripe = getStripe();
   if (!stripe) {
@@ -154,6 +210,11 @@ export async function PUT(req: Request) {
       { status: 401 },
     );
   }
+  const limited = await enforceBillingOperationLimit(
+    session.user.id,
+    "checkout_reconcile",
+  );
+  if (limited) return limited;
   const stripe = getStripe();
   if (!stripe) {
     return Response.json(
@@ -232,6 +293,11 @@ export async function PATCH() {
   const session = await getSession();
   if (!session?.user)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceBillingOperationLimit(
+    session.user.id,
+    "portal_create",
+  );
+  if (limited) return limited;
   const stripe = getStripe();
   if (!stripe)
     return Response.json({ error: "Stripe not configured" }, { status: 503 });

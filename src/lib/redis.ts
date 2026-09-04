@@ -4,6 +4,15 @@ type CounterStore = {
   set(key: string, value: string, ttlSec?: number): Promise<void>;
 };
 
+const INCR_WITH_TTL_SCRIPT = `
+local count = redis.call("INCR", KEYS[1])
+local ttl = redis.call("TTL", KEYS[1])
+if count == 1 or ttl < 0 then
+  redis.call("EXPIRE", KEYS[1], ARGV[1])
+end
+return count
+`;
+
 const memory = new Map<string, { value: string; exp: number }>();
 
 function memGet(key: string) {
@@ -20,7 +29,10 @@ const memoryStore: CounterStore = {
   async incr(key, ttlSec) {
     const current = Number(memGet(key) ?? "0") + 1;
     const prev = memory.get(key);
-    const exp = prev?.exp && prev.exp > Date.now() ? prev.exp : Date.now() + ttlSec * 1000;
+    const exp =
+      prev?.exp && prev.exp > Date.now()
+        ? prev.exp
+        : Date.now() + ttlSec * 1000;
     memory.set(key, { value: String(current), exp });
     return current;
   },
@@ -48,8 +60,7 @@ async function createStore(): Promise<CounterStore> {
     });
     return {
       async incr(key, ttlSec) {
-        const n = await redis.incr(key);
-        if (n === 1) await redis.expire(key, ttlSec);
+        const n = await redis.eval(INCR_WITH_TTL_SCRIPT, [key], [ttlSec]);
         return Number(n);
       },
       async get(key) {
@@ -65,7 +76,10 @@ async function createStore(): Promise<CounterStore> {
 
   if (process.env.REDIS_URL) {
     const { default: Redis } = await import("ioredis");
-    const redis = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 2, lazyConnect: true });
+    const redis = new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 2,
+      lazyConnect: true,
+    });
     try {
       await redis.connect();
     } catch (error) {
@@ -74,9 +88,8 @@ async function createStore(): Promise<CounterStore> {
     }
     return {
       async incr(key, ttlSec) {
-        const n = await redis.incr(key);
-        if (n === 1) await redis.expire(key, ttlSec);
-        return n;
+        const n = await redis.eval(INCR_WITH_TTL_SCRIPT, 1, key, ttlSec);
+        return Number(n);
       },
       async get(key) {
         return redis.get(key);

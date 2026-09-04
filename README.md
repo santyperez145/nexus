@@ -97,6 +97,10 @@ parciales y disputas se convierten en débitos o retenciones transaccionales e i
 exposición combinada nunca revierte más crédito que la compra y una disputa ganada libera sólo lo
 que ya no sigue reembolsado. Si el saldo fue consumido antes del refund, queda deuda auditable y la
 inferencia paga permanece bloqueada hasta regularizarla.
+Checkout, la reconciliación del retorno y Billing Portal tienen límites Redis independientes por usuario
+antes de invocar Stripe. La creación admite 10 operaciones cada 10 minutos, el Portal 20 cada 10 minutos
+y el polling post-pago 30 por minuto; los bloqueos responden `429` con `Retry-After` y una falla del
+almacén distribuido cierra estas operaciones con `503`.
 El inbox de Stripe es idempotente y conserva estado, intentos y error sin duplicar el payload. Un
 superadmin puede reprocesar un evento fallido desde `/admin/operations`; Nexus recupera el evento
 canónico con la API de Stripe, valida su tipo, reutiliza el mismo procesador del webhook y registra la
