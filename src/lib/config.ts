@@ -18,7 +18,10 @@ export const CREDIT_PURCHASE_MIN_FEE_USD = 0.8;
 /** Revenue collected on a wallet top-up before processor fees and taxes. */
 export function creditPurchaseFeeUsd(creditsUsd: number) {
   if (!Number.isFinite(creditsUsd) || creditsUsd <= 0) return 0;
-  return Math.max(CREDIT_PURCHASE_MIN_FEE_USD, creditsUsd * CREDIT_PURCHASE_FEE);
+  return Math.max(
+    CREDIT_PURCHASE_MIN_FEE_USD,
+    creditsUsd * CREDIT_PURCHASE_FEE,
+  );
 }
 
 /** Fee de plataforma sobre el precio de lista cuando la inferencia usa BYOK. */
@@ -30,19 +33,26 @@ export const FREE_MODEL_CREDITS_THRESHOLD_USD = 10;
 
 /** Opt-in. Default off: no créditos de bienvenida sin verificación. */
 export function signupBonusMicros() {
-  return process.env.NODE_ENV !== "production" && process.env.ENABLE_SIGNUP_BONUS === "true"
+  return process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_SIGNUP_BONUS === "true"
     ? 1_000_000
     : 0;
 }
 
 /** Opt-in. Default off: no auto-grant ni top-up de wallet sin Stripe. */
 export function manualCreditsEnabled() {
-  return process.env.NODE_ENV !== "production" && process.env.ENABLE_MANUAL_CREDITS === "true";
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_MANUAL_CREDITS === "true"
+  );
 }
 
 /** The anonymous echo is a development aid, never a production API surface. */
 export function guestPlaygroundEnabled() {
-  return process.env.NODE_ENV !== "production" && process.env.ENABLE_GUEST_PLAYGROUND !== "false";
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_GUEST_PLAYGROUND !== "false"
+  );
 }
 
 export const KEY_PREFIX = "sk-nx-";
@@ -63,7 +73,7 @@ export const SUBSCRIPTION_PLANS = [
     monthlyUsd: 19,
     includedCreditsUsd: 5,
     seats: false,
-    description: "600 RPM, hasta 25 API keys y 5 workspaces para builders.",
+    description: "600 RPM, hasta 25 claves API y 5 espacios de trabajo.",
   },
   {
     id: "team",
@@ -71,7 +81,7 @@ export const SUBSCRIPTION_PLANS = [
     monthlyUsd: 49,
     includedCreditsUsd: 15,
     seats: true,
-    description: "1.800 RPM, 250 API keys y workspaces compartidos con RBAC.",
+    description: "1.800 RPM, 250 claves API y espacios compartidos con roles.",
   },
 ] as const;
 
@@ -112,7 +122,9 @@ export const PLAN_LIMITS = {
 } as const;
 
 export function limitsForPlan(plan?: string) {
-  return PLAN_LIMITS[plan === "team" || plan === "pro" || plan === "guest" ? plan : "free"];
+  return PLAN_LIMITS[
+    plan === "team" || plan === "pro" || plan === "guest" ? plan : "free"
+  ];
 }
 
 export function isPlatformAdmin(email?: string | null) {

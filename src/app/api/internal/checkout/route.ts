@@ -123,8 +123,8 @@ export async function POST(req: Request) {
           currency: "usd",
           unit_amount: chargeAmountCents(pack.usd),
           product_data: {
-            name: `Nexus credits ${pack.label}`,
-            description: `Saldo de inferencia ${pack.label} + fee USD ${creditPurchaseFeeUsd(pack.usd).toFixed(2)}`,
+            name: `Créditos Nexus ${pack.label}`,
+            description: `Saldo de inferencia ${pack.label} + comisión USD ${creditPurchaseFeeUsd(pack.usd).toFixed(2)}`,
           },
         },
       },

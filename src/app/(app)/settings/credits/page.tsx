@@ -52,6 +52,25 @@ type Analytics = {
   by_day: Array<{ day: string; cost: number; requests: number }>;
 };
 
+const LEDGER_TYPE_LABELS: Record<string, string> = {
+  purchase: "Carga de saldo",
+  subscription_credit: "Crédito del plan",
+  signup_bonus: "Crédito de bienvenida",
+  admin_adjustment: "Ajuste administrativo",
+  reserve: "Reserva",
+  reserve_release: "Liberación de reserva",
+  inference: "Uso de modelos",
+  byok_fee: "Comisión de proveedor propio",
+  stripe_refund: "Reembolso",
+  stripe_dispute_hold: "Retención por disputa",
+  stripe_dispute_release: "Liberación de disputa",
+};
+
+const LEDGER_DATE_FORMAT = new Intl.DateTimeFormat("es-AR", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 function CreditsInner() {
   const params = useSearchParams();
   const checkoutSessionId = params.get("checkout_session");
@@ -243,8 +262,8 @@ function CreditsInner() {
     setMsg(
       json.ok
         ? enabled
-          ? "Auto top-up activado"
-          : "Auto top-up desactivado"
+          ? "Recarga automática activada"
+          : "Recarga automática desactivada"
         : json.error,
     );
     reloadPrefs();
@@ -302,7 +321,7 @@ function CreditsInner() {
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-xl border border-zinc-200 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wide text-zinc-500">
-                  Burn 7d
+                  Consumo 7 días
                 </div>
                 <div className="mt-0.5 text-lg text-zinc-900">
                   {formatUsd(burn7d, 2)}
@@ -313,7 +332,7 @@ function CreditsInner() {
               </div>
               <div className="rounded-xl border border-zinc-200 px-3 py-2">
                 <div className="text-[10px] uppercase tracking-wide text-zinc-500">
-                  Runway
+                  Duración estimada
                 </div>
                 <div className="mt-0.5 text-lg text-zinc-900">
                   {runway == null
@@ -332,13 +351,13 @@ function CreditsInner() {
           <div className="rounded-2xl border border-zinc-200 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">
-                Burn diario · 7d
+                Consumo diario · últimos 7 días
               </div>
               <Link
                 href="/analytics"
                 className="text-[11px] text-violet-700 hover:underline"
               >
-                Analytics →
+                Métricas →
               </Link>
             </div>
             {analytics?.by_day?.length ? (
@@ -372,7 +391,7 @@ function CreditsInner() {
           <h2 className="text-lg font-medium">Planes</h2>
           <p className="mt-1 text-sm text-zinc-500">
             Suscripción para capacidades de plataforma; la inferencia sigue
-            descontándose del wallet.
+            descontándose del saldo.
           </p>
         </div>
         {credits?.subscription ? (
@@ -455,7 +474,7 @@ function CreditsInner() {
         registros fiscales activos.
       </p>
 
-      <h2 className="mb-3 mt-10 text-lg font-medium">Packs</h2>
+      <h2 className="mb-3 mt-10 text-lg font-medium">Cargas de saldo</h2>
       <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {CREDIT_PACKS.map((p) => {
           const fee = creditPurchaseFeeUsd(p.usd);
@@ -464,7 +483,7 @@ function CreditsInner() {
             <div key={p.id} className="rounded-xl border border-zinc-200 p-4">
               <div className="text-2xl font-semibold">{p.label}</div>
               <p className="mt-1 text-xs text-zinc-500">
-                Cargo ~{formatUsd(charge, 2)} · fee {formatUsd(fee, 2)}
+                Cargo ~{formatUsd(charge, 2)} · comisión {formatUsd(fee, 2)}
               </p>
               <Button className="mt-4 w-full" onClick={() => void buy(p.id)}>
                 {credits?.billing_mode === "test" ? "Probar" : "Comprar"}
@@ -488,7 +507,7 @@ function CreditsInner() {
               });
               const json = await res.json();
               setMsg(
-                json.ok ? "Se acreditaron $10 (wallet manual)" : json.error,
+                json.ok ? "Se acreditaron $10 (saldo manual)" : json.error,
               );
               reload();
             }}
@@ -498,7 +517,7 @@ function CreditsInner() {
         </p>
       ) : null}
 
-      <h2 className="mt-10 mb-3 text-lg font-medium">Auto top-up</h2>
+      <h2 className="mt-10 mb-3 text-lg font-medium">Recarga automática</h2>
       <p className="mb-3 max-w-xl text-sm text-zinc-500">
         Estado:{" "}
         <span
@@ -508,7 +527,7 @@ function CreditsInner() {
         >
           {prefs?.autoTopupEnabled ? "activo" : "apagado"}
         </span>
-        . Con wallet manual acredita al pasar el umbral. En producción cobra
+        . Con saldo manual acredita al pasar el umbral. En producción cobra
         únicamente el método predeterminado guardado después de un checkout
         compatible.
       </p>
@@ -544,13 +563,13 @@ function CreditsInner() {
       {credits?.ledger?.length ? (
         <>
           <div className="mt-10 mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-medium">Ledger</h2>
+            <h2 className="text-lg font-medium">Movimientos</h2>
             <div className="flex gap-1 rounded-lg border border-zinc-200 p-0.5">
               {(
                 [
-                  ["all", "All"],
-                  ["in", "In"],
-                  ["out", "Out"],
+                  ["all", "Todos"],
+                  ["in", "Ingresos"],
+                  ["out", "Egresos"],
                 ] as const
               ).map(([id, label]) => (
                 <button
@@ -576,13 +595,13 @@ function CreditsInner() {
               >
                 <div className="min-w-0">
                   <span className="font-mono text-xs text-zinc-400">
-                    {l.type}
+                    {LEDGER_TYPE_LABELS[l.type] ?? "Movimiento"}
                   </span>
                   {l.note ? (
                     <span className="text-zinc-500"> · {l.note}</span>
                   ) : null}
                   <div className="text-[11px] text-zinc-600">
-                    {new Date(l.created_at).toISOString().slice(0, 19)}Z
+                    {LEDGER_DATE_FORMAT.format(new Date(l.created_at))}
                   </div>
                 </div>
                 <span
