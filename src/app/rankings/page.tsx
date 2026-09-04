@@ -3,7 +3,12 @@ import { sql, gte, ne, and } from "drizzle-orm";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { RankingsClient } from "@/components/models/rankings-client";
-import { allModels, usdPerMillion } from "@/lib/catalog";
+import {
+  allModels,
+  hasExecutableEndpoint,
+  isTextGenerationModel,
+  usdPerMillion,
+} from "@/lib/catalog";
 import { db, ensureDb, schema } from "@/lib/db";
 import { GUEST_USER_ID } from "@/lib/gateway/guest";
 
@@ -48,12 +53,9 @@ export default async function RankingsPage({
 
   const byUsage = new Map(usage.map((u) => [u.model, u]));
   const rows = allModels()
-    .filter((m) => !m.id.startsWith("nexus/"))
+    .filter((model) => !model.id.startsWith("nexus/") && isTextGenerationModel(model))
     .map((m) => {
       const u = byUsage.get(m.id);
-      const catalogLatency = m.endpoints.length
-        ? Math.min(...m.endpoints.map((e) => e.latencyMs))
-        : null;
       const measured =
         u?.avgLatency != null && Number.isFinite(Number(u.avgLatency))
           ? Math.round(Number(u.avgLatency))
@@ -61,11 +63,11 @@ export default async function RankingsPage({
       const inputs = m.architecture?.inputModalities ?? ["text"];
       return {
         id: m.id,
-        promptPerM: usdPerMillion(m.pricing.prompt),
+        promptPerM: hasExecutableEndpoint(m) ? usdPerMillion(m.pricing.prompt) : null,
         free: m.free,
         tokens: Number(u?.tokens ?? 0),
         requests: Number(u?.requests ?? 0),
-        latencyMs: measured ?? catalogLatency,
+        latencyMs: measured,
         measured: measured != null,
         providers: [...new Set(m.endpoints.map((e) => e.adapter))].slice(0, 3),
         vision: inputs.includes("image"),

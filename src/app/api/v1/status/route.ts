@@ -1,5 +1,11 @@
 import { connectionStatus } from "@/lib/connections";
-import { allModels } from "@/lib/catalog";
+import {
+  allModels,
+  hasExecutableEndpoint,
+  isExecutableEndpoint,
+  isTokenGatewayModel,
+} from "@/lib/catalog";
+import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { isStripeOperational, recentOperationalProviderIds } from "@/lib/providers/health-store";
 
 export async function GET() {
@@ -18,19 +24,44 @@ export async function GET() {
   }
   const configuredLabs = configuredProviders.size;
   const verifiedLabs = operationalProviders.size;
-  const mode = verifiedLabs > 0 ? "live" : configuredLabs > 0 ? "degraded" : "unconfigured";
+  const catalog = allModels();
+  const executableModels = catalog.filter(
+    (model) => !model.id.startsWith("nexus/") && isModelExecutionReady(model),
+  );
+  const executableGatewayModels = catalog.filter(
+    (model) =>
+      !model.id.startsWith("nexus/") &&
+      isTokenGatewayModel(model) &&
+      hasExecutableEndpoint(model),
+  );
+  const executableProviderIds = new Set(
+    executableGatewayModels.flatMap((model) =>
+      model.endpoints.filter(isExecutableEndpoint).map((endpoint) => endpoint.adapter),
+    ),
+  );
+  const verifiedExecutableLabs = [...operationalProviders].filter((provider) =>
+    executableProviderIds.has(provider),
+  ).length;
+  const mode =
+    verifiedExecutableLabs > 0 ? "live" : configuredLabs > 0 ? "degraded" : "unconfigured";
   const commerceConfigured = c.stripe.wired && c.stripe.webhook && c.stripe.plans;
-  const inferenceOk = c.database.wired && c.redis.wired && verifiedLabs > 0;
+  const inferenceOk = c.database.wired && c.redis.wired && verifiedExecutableLabs > 0;
   const commerceOk = commerceConfigured && stripeVerified;
   const ok = inferenceOk && commerceOk;
   return Response.json({
     service: "nexus",
     ok,
     mode,
-    models: allModels().length,
-    wired_labs: verifiedLabs,
+    models: executableModels.length,
+    gateway_models: executableGatewayModels.length,
+    catalog_models: catalog.filter((model) => !model.id.startsWith("nexus/")).length,
+    reference_only_models: catalog.filter(
+      (model) => !model.id.startsWith("nexus/") && !isModelExecutionReady(model),
+    ).length,
+    wired_labs: configuredLabs,
     configured_labs: configuredLabs,
     verified_labs: verifiedLabs,
+    verified_executable_labs: verifiedExecutableLabs,
     stripe: c.stripe.wired,
     stripe_webhook: c.stripe.webhook,
     subscriptions: c.stripe.wired && c.stripe.webhook && c.stripe.plans,

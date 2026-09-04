@@ -7,7 +7,7 @@ import { formatUsd } from "@/lib/money";
 
 export type RankingRow = {
   id: string;
-  promptPerM: number;
+  promptPerM: number | null;
   free: boolean;
   tokens: number;
   requests: number;
@@ -53,19 +53,19 @@ export function RankingsClient({
     if (sort === "price") {
       list.sort((a, b) => {
         if (a.free !== b.free) return a.free ? -1 : 1;
-        return a.promptPerM - b.promptPerM;
+        return (a.promptPerM ?? Number.POSITIVE_INFINITY) - (b.promptPerM ?? Number.POSITIVE_INFINITY);
       });
     } else if (sort === "latency") {
       list.sort((a, b) => {
         const la = a.latencyMs ?? Number.POSITIVE_INFINITY;
         const lb = b.latencyMs ?? Number.POSITIVE_INFINITY;
         if (la !== lb) return la - lb;
-        return a.promptPerM - b.promptPerM;
+        return (a.promptPerM ?? Number.POSITIVE_INFINITY) - (b.promptPerM ?? Number.POSITIVE_INFINITY);
       });
     } else {
       list.sort((a, b) => {
         if (b.tokens !== a.tokens) return b.tokens - a.tokens;
-        return a.promptPerM - b.promptPerM;
+        return (a.promptPerM ?? Number.POSITIVE_INFINITY) - (b.promptPerM ?? Number.POSITIVE_INFINITY);
       });
     }
     return list;
@@ -121,7 +121,9 @@ export function RankingsClient({
       sort === "popular"
         ? r.tokens
         : sort === "price"
-          ? 1 / Math.max(r.promptPerM, 1e-12)
+          ? r.promptPerM == null
+            ? 0
+            : 1 / Math.max(r.promptPerM, 1e-12)
           : 1 / Math.max(r.latencyMs ?? 1e9, 1),
     ),
   );
@@ -203,7 +205,9 @@ export function RankingsClient({
               sort === "popular"
                 ? m.tokens / maxBar
                 : sort === "price"
-                  ? (1 / Math.max(m.promptPerM, 1e-12)) / maxBar
+                  ? m.promptPerM == null
+                    ? 0
+                    : (1 / Math.max(m.promptPerM, 1e-12)) / maxBar
                   : (1 / Math.max(m.latencyMs ?? 1e9, 1)) / maxBar;
             return (
               <li
@@ -240,15 +244,17 @@ export function RankingsClient({
                   </div>
                 </div>
                 <span className="hidden tabular-nums text-sm text-zinc-500 md:block">
-                  {m.free ? "Gratis" : formatUsd(m.promptPerM, 2)}
+                  {m.promptPerM == null ? "Pendiente" : m.free ? "Gratis" : formatUsd(m.promptPerM, 2)}
                 </span>
                 <span className="text-right tabular-nums text-sm text-zinc-600">
                   {sort === "latency"
                     ? m.latencyMs != null
-                      ? `${m.latencyMs} ms${m.measured ? "" : "*"}`
+                      ? `${m.latencyMs} ms`
                       : "—"
                     : sort === "price"
-                      ? m.free
+                      ? m.promptPerM == null
+                        ? "Pendiente"
+                        : m.free
                         ? "Gratis"
                         : formatUsd(m.promptPerM, 2)
                       : m.tokens.toLocaleString()}
@@ -294,7 +300,7 @@ export function RankingsClient({
       </div>
       {sort === "latency" ? (
         <p className="mt-2 text-xs text-zinc-500">
-          * Estimación del catálogo hasta contar con suficientes mediciones propias.
+          Sólo se muestran mediciones registradas por Nexus; “—” significa que todavía no hay tráfico suficiente.
         </p>
       ) : null}
     </div>

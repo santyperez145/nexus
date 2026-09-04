@@ -91,6 +91,8 @@ function endpointOf(item: Discovered, zdr: boolean): ModelEndpoint {
     adapter: item.adapter,
     providerModel: item.providerModel,
     pricing: { prompt: 0, completion: 0 },
+    pricingVerified: false,
+    free: false,
     latencyMs: 0,
     throughputTps: 0,
     zdr,

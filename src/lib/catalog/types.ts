@@ -3,6 +3,10 @@ export type ModelEndpoint = {
   adapter: string;
   providerModel: string;
   pricing: { prompt: number; completion: number };
+  /** True only after Nexus has reviewed the retail tariff for this exact provider model. */
+  pricingVerified?: boolean;
+  /** Explicit zero-cost tariff. Zeroes without this flag are treated as unknown, never free. */
+  free?: boolean;
   latencyMs: number;
   throughputTps: number;
   zdr: boolean;
@@ -10,7 +14,7 @@ export type ModelEndpoint = {
   quantization: string;
   /** Curated host (slug/price/ZDR). Does not imply live telemetry. */
   verified?: boolean;
-  /** latency/throughput/uptime are placeholders, not measured. */
+  /** latency/throughput/uptime are unavailable, not measured. */
   metricsEstimated?: boolean;
 };
 

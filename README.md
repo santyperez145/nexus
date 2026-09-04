@@ -132,6 +132,11 @@ Nexus no enruta en esos modos hasta que el operador confirme el acuerdo real med
 de entorno. Si no queda un host elegible, la solicitud falla y nunca relaja privacidad. BYOK se
 excluye de esos modos hasta poder registrar garantías por credencial.
 
+El catálogo también separa descubrimiento de ejecución: un modelo descubierto puede aparecer como
+referencia, pero sólo entra al router cuando la tarifa de ese proveedor/modelo está verificada. Un
+precio `0` sin marca explícita de gratuidad se interpreta como desconocido y falla cerrado; los feeds
+externos no pueden auto-certificar precios ni reemplazar las entradas curadas de Nexus.
+
 Los guardrails son jerárquicos: las reglas personales y las del workspace activo se intersectan.
 Pueden limitar modelos y proveedores, imponer un costo máximo, bloquear patrones sensibles y forzar
 ZDR. Las preferencias enviadas por el cliente sólo pueden acotar esa política; una intersección vacía

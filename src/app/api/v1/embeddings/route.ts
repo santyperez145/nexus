@@ -3,7 +3,7 @@ import { resolveByokKey } from "@/lib/gateway/byok";
 import { chargeAndRecordMedia, holdMediaCredits } from "@/lib/gateway/media-billing";
 import { releaseReserve } from "@/lib/gateway/billing";
 import { embedTexts } from "@/lib/gateway/providers";
-import { findModel } from "@/lib/catalog";
+import { findModel, isExecutableEndpoint } from "@/lib/catalog";
 import { assertRateLimit } from "@/lib/gateway/rate-limit";
 import { supportedEmbeddingModel } from "@/lib/media/pricing";
 import { assertMediaPrivacy, canUseByokForMedia } from "@/lib/gateway/media-privacy";
@@ -42,7 +42,18 @@ export async function POST(req: Request) {
     }
     const requested = `openai/${providerModel}`;
     const catalog = findModel(requested);
-    const pricing = catalog?.endpoints[0]?.pricing ?? catalog?.pricing ?? { prompt: 0.00000002, completion: 0 };
+    const pricedEndpoint = catalog?.endpoints.find(
+      (endpoint) => endpoint.adapter === "openai" && isExecutableEndpoint(endpoint),
+    );
+    if (!pricedEndpoint) {
+      return jsonError(
+        Object.assign(new Error("Embedding retail pricing is not verified"), {
+          status: 503,
+          code: "provider_unpriced",
+        }),
+      );
+    }
+    const pricing = pricedEndpoint.pricing;
     const byok = await resolveByokKey(auth.userId, "openai", auth);
     const apiKey = canUseByokForMedia(auth) ? byok : undefined;
     const isByok = Boolean(apiKey);

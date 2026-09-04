@@ -37,12 +37,13 @@ describe("catalog verified vs discovered", () => {
     assert.equal(m.pricing.prompt, 0);
   });
 
-  it("keeps explicit zero pricing as free for discovered rows", () => {
+  it("does not let a discovered zero price self-certify as free", () => {
     const m = normalizeUpstream({
       id: "acme/open-weights",
       pricing: { prompt: "0", completion: "0" },
     });
-    assert.equal(m.free, true);
+    assert.equal(m.free, false);
+    assert.equal(m.endpoints[0]?.pricingVerified, false);
   });
 
   it("exposes honest flags on every non-router catalog row", () => {

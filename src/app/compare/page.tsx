@@ -1,7 +1,11 @@
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { CompareClient } from "@/components/models/compare-client";
-import { allModels } from "@/lib/catalog";
+import {
+  allModels,
+  hasExecutableEndpoint,
+  isTextGenerationModel,
+} from "@/lib/catalog";
 import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 export default async function ComparePage({
@@ -10,16 +14,20 @@ export default async function ComparePage({
   searchParams: Promise<{ a?: string; b?: string }>;
 }) {
   const q = await searchParams;
-  const models = allModels().map((m) => ({
+  const models = allModels()
+    .filter((model) => !model.id.startsWith("nexus/") && isTextGenerationModel(model))
+    .map((m) => ({
     id: m.id,
     name: m.name,
     contextLength: m.contextLength,
     free: m.free,
+    pricingVerified: hasExecutableEndpoint(m),
     pricing: { prompt: m.pricing.prompt, completion: m.pricing.completion },
     endpoints: m.endpoints.map((e) => ({
       adapter: e.adapter,
       latencyMs: e.latencyMs,
       throughputTps: e.throughputTps,
+      measured: e.metricsEstimated === false,
       zdr: isEndpointZdrConfirmed(e),
     })),
     output: m.architecture.outputModalities,

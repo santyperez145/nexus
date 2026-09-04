@@ -11,8 +11,15 @@ type Row = {
   name: string;
   contextLength: number;
   free: boolean;
+  pricingVerified: boolean;
   pricing: { prompt: number; completion: number };
-  endpoints: Array<{ adapter: string; latencyMs: number; throughputTps: number; zdr: boolean }>;
+  endpoints: Array<{
+    adapter: string;
+    latencyMs: number;
+    throughputTps: number;
+    zdr: boolean;
+    measured: boolean;
+  }>;
   output: string[];
 };
 
@@ -25,8 +32,10 @@ function costForTokens(
   completionPerM: number,
   tokens: number,
   free: boolean,
+  pricingVerified: boolean,
   promptShare = 0.5,
 ) {
+  if (!pricingVerified) return null;
   if (free) return 0;
   const promptN = tokens * promptShare;
   const completionN = tokens * (1 - promptShare);
@@ -71,21 +80,30 @@ export function CompareClient({
     return <p className="text-sm text-zinc-500">Catálogo vacío.</p>;
   }
 
-  const leftPrompt = left.free ? 0 : usdPerMillion(left.pricing.prompt);
-  const rightPrompt = right.free ? 0 : usdPerMillion(right.pricing.prompt);
-  const leftComp = left.free ? 0 : usdPerMillion(left.pricing.completion);
-  const rightComp = right.free ? 0 : usdPerMillion(right.pricing.completion);
-  const cheaper = leftPrompt === rightPrompt ? null : leftPrompt < rightPrompt ? "a" : "b";
+  const leftPrompt = left.pricingVerified ? (left.free ? 0 : usdPerMillion(left.pricing.prompt)) : null;
+  const rightPrompt = right.pricingVerified ? (right.free ? 0 : usdPerMillion(right.pricing.prompt)) : null;
+  const leftComp = left.pricingVerified ? (left.free ? 0 : usdPerMillion(left.pricing.completion)) : null;
+  const rightComp = right.pricingVerified ? (right.free ? 0 : usdPerMillion(right.pricing.completion)) : null;
+  const cheaper =
+    leftPrompt == null || rightPrompt == null || leftPrompt === rightPrompt
+      ? null
+      : leftPrompt < rightPrompt
+        ? "a"
+        : "b";
   const biggerCtx =
     left.contextLength === right.contextLength ? null : left.contextLength > right.contextLength ? "a" : "b";
 
-  const leftLat = left.endpoints.length ? Math.min(...left.endpoints.map((e) => e.latencyMs)) : null;
-  const rightLat = right.endpoints.length ? Math.min(...right.endpoints.map((e) => e.latencyMs)) : null;
+  const leftMeasured = left.endpoints.filter((endpoint) => endpoint.measured && endpoint.latencyMs > 0);
+  const rightMeasured = right.endpoints.filter((endpoint) => endpoint.measured && endpoint.latencyMs > 0);
+  const leftLat = leftMeasured.length ? Math.min(...leftMeasured.map((e) => e.latencyMs)) : null;
+  const rightLat = rightMeasured.length ? Math.min(...rightMeasured.map((e) => e.latencyMs)) : null;
   const faster =
     leftLat == null || rightLat == null || leftLat === rightLat ? null : leftLat < rightLat ? "a" : "b";
 
-  const leftTps = left.endpoints.length ? Math.max(...left.endpoints.map((e) => e.throughputTps)) : null;
-  const rightTps = right.endpoints.length ? Math.max(...right.endpoints.map((e) => e.throughputTps)) : null;
+  const leftTpsRows = left.endpoints.filter((endpoint) => endpoint.measured && endpoint.throughputTps > 0);
+  const rightTpsRows = right.endpoints.filter((endpoint) => endpoint.measured && endpoint.throughputTps > 0);
+  const leftTps = leftTpsRows.length ? Math.max(...leftTpsRows.map((e) => e.throughputTps)) : null;
+  const rightTps = rightTpsRows.length ? Math.max(...rightTpsRows.map((e) => e.throughputTps)) : null;
   const higherTps =
     leftTps == null || rightTps == null || leftTps === rightTps ? null : leftTps > rightTps ? "a" : "b";
 
@@ -99,14 +117,14 @@ export function CompareClient({
     },
     {
       label: "Entrada / 1 M",
-      av: left.free ? "Gratis" : formatUsd(leftPrompt, 2),
-      bv: right.free ? "Gratis" : formatUsd(rightPrompt, 2),
+      av: leftPrompt == null ? "Pendiente" : left.free ? "Gratis" : formatUsd(leftPrompt, 2),
+      bv: rightPrompt == null ? "Pendiente" : right.free ? "Gratis" : formatUsd(rightPrompt, 2),
       win: cheaper,
     },
     {
       label: "Salida / 1 M",
-      av: left.free ? "—" : formatUsd(leftComp, 2),
-      bv: right.free ? "—" : formatUsd(rightComp, 2),
+      av: leftComp == null ? "Pendiente" : left.free ? "—" : formatUsd(leftComp, 2),
+      bv: rightComp == null ? "Pendiente" : right.free ? "—" : formatUsd(rightComp, 2),
     },
     {
       label: "Proveedores",
@@ -250,9 +268,9 @@ export function CompareClient({
             <span>B</span>
           </div>
           {volumes.map((n, i) => {
-            const ca = costForTokens(leftPrompt, leftComp, n, left.free, promptShare);
-            const cb = costForTokens(rightPrompt, rightComp, n, right.free, promptShare);
-            const win = ca === cb ? null : ca < cb ? "a" : "b";
+            const ca = costForTokens(leftPrompt ?? 0, leftComp ?? 0, n, left.free, left.pricingVerified, promptShare);
+            const cb = costForTokens(rightPrompt ?? 0, rightComp ?? 0, n, right.free, right.pricingVerified, promptShare);
+            const win = ca == null || cb == null || ca === cb ? null : ca < cb ? "a" : "b";
             return (
               <div
                 key={n}
@@ -262,10 +280,10 @@ export function CompareClient({
               >
                 <span className="tabular-nums text-zinc-500">{n.toLocaleString()}</span>
                 <span className={`font-mono text-xs ${win === "a" ? "font-semibold text-emerald-700" : ""}`}>
-                  {formatUsd(ca, 4)}
+                  {ca == null ? "Pendiente" : formatUsd(ca, 4)}
                 </span>
                 <span className={`font-mono text-xs ${win === "b" ? "font-semibold text-emerald-700" : ""}`}>
-                  {formatUsd(cb, 4)}
+                  {cb == null ? "Pendiente" : formatUsd(cb, 4)}
                 </span>
               </div>
             );
@@ -274,18 +292,22 @@ export function CompareClient({
       </section>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-          <Link
-            href={`/chat?model=${encodeURIComponent(left.id)}&compare=${encodeURIComponent(right.id)}`}
-          >
-            Probar ambos en el chat
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
-          <Link href={`/arena?a=${encodeURIComponent(left.id)}&b=${encodeURIComponent(right.id)}`}>
-            Abrir en la Arena
-          </Link>
-        </Button>
+        {left.pricingVerified && right.pricingVerified ? (
+          <>
+            <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Link
+                href={`/chat?model=${encodeURIComponent(left.id)}&compare=${encodeURIComponent(right.id)}`}
+              >
+                Probar ambos en el chat
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
+              <Link href={`/arena?a=${encodeURIComponent(left.id)}&b=${encodeURIComponent(right.id)}`}>
+                Abrir en la Arena
+              </Link>
+            </Button>
+          </>
+        ) : null}
         <Button asChild variant="outline" className="border-zinc-300 bg-white text-zinc-900">
           <Link href={`/models/${left.id}`}>Ver modelo A</Link>
         </Button>

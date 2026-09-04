@@ -1,4 +1,5 @@
 import { allModels } from "@/lib/catalog";
+import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { usdPerMillion } from "@/lib/catalog";
 
 export async function GET(req: Request) {
@@ -6,7 +7,11 @@ export async function GET(req: Request) {
   const output = url.searchParams.get("output_modalities");
   const category = url.searchParams.get("category");
   const supported = url.searchParams.get("supported_parameters");
+  const includeReference = url.searchParams.get("include_reference") === "true";
   let models = allModels();
+  if (!includeReference) {
+    models = models.filter(isModelExecutionReady);
+  }
   if (output) {
     const wanted = output.split(",").map((s) => s.trim());
     models = models.filter((m) => wanted.every((w) => m.architecture.outputModalities.includes(w)));
@@ -47,7 +52,10 @@ export async function GET(req: Request) {
       completion_per_million: usdPerMillion(m.pricing.completion),
       free: m.free,
       verified: Boolean(m.verified),
+      executable: isModelExecutionReady(m),
+      reference_only: !isModelExecutionReady(m),
       providers: m.endpoints.map((e) => e.adapter),
+      pricing_verified: m.endpoints.some((e) => e.pricingVerified === true),
       metrics_estimated: m.endpoints.some((e) => e.metricsEstimated !== false),
     },
   }));

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Playground } from "@/components/chat/playground";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
-import { allModels } from "@/lib/catalog";
+import { allModels, hasExecutableEndpoint, isTextGenerationModel } from "@/lib/catalog";
 import { getSession } from "@/lib/auth";
 import { db, ensureDb, schema } from "@/lib/db";
 import { wiredProviders } from "@/lib/providers/registry";
@@ -28,7 +28,13 @@ export default async function ChatPage({
         .where(and(eq(schema.byokCredentials.userId, userId), eq(schema.byokCredentials.deleted, false)))
         .limit(1)
     : [];
-  const models = allModels().map((m) => ({ id: m.id, name: m.name }));
+  const models = allModels()
+    .filter(
+      (model) =>
+        model.id.startsWith("nexus/") ||
+        (isTextGenerationModel(model) && hasExecutableEndpoint(model)),
+    )
+    .map((m) => ({ id: m.id, name: m.name }));
   const guest = !userId && guestPlaygroundEnabled();
   const requiresAuth = !userId && !guest;
 

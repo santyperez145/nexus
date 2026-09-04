@@ -5,7 +5,13 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { Button } from "@/components/ui/button";
 import { CostEstimator } from "@/components/models/cost-estimator";
 import { ModelArtwork } from "@/components/models/model-artwork";
-import { allModels, findModel, usdPerMillion, type CatalogModel } from "@/lib/catalog";
+import {
+  allModels,
+  findModel,
+  isExecutableEndpoint,
+  usdPerMillion,
+  type CatalogModel,
+} from "@/lib/catalog";
 import {
   isModelRouteSupported,
   modelAction,
@@ -77,10 +83,26 @@ function modelStats(model: CatalogModel, kind: ModelKind, usage: Usage, supporte
       requestUsage,
     ];
   }
+  if (model.id === "nexus/auto") {
+    return [
+      { label: "Contexto máximo", value: `${Math.round(model.contextLength / 1000)}k`, detail: "según ruta" },
+      { label: "Entrada / 1 M", value: "Variable", detail: "se reserva el fallback más caro" },
+      { label: "Salida / 1 M", value: "Variable", detail: "se liquida el host usado" },
+      requestUsage,
+    ];
+  }
   return [
     { label: "Contexto", value: `${Math.round(model.contextLength / 1000)}k`, detail: "tokens" },
-    { label: "Entrada / 1 M", value: model.free ? "Gratis" : formatUsd(usdPerMillion(model.pricing.prompt), 2), detail: "tokens" },
-    { label: "Salida / 1 M", value: model.free ? "—" : formatUsd(usdPerMillion(model.pricing.completion), 2), detail: "tokens" },
+    {
+      label: "Entrada / 1 M",
+      value: !supported ? "—" : model.free ? "Gratis" : formatUsd(usdPerMillion(model.pricing.prompt), 2),
+      detail: supported ? "tokens" : "tarifa no verificada",
+    },
+    {
+      label: "Salida / 1 M",
+      value: !supported || model.free ? "—" : formatUsd(usdPerMillion(model.pricing.completion), 2),
+      detail: supported ? "tokens" : "tarifa no verificada",
+    },
     requestUsage,
   ];
 }
@@ -177,8 +199,15 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
     input: model.architecture.inputModalities,
     output: model.architecture.outputModalities,
   });
-  const supported = isModelRouteSupported(kind, model.id);
-  const action = modelAction(kind, model.id);
+  const routeSupported = isModelRouteSupported(kind, model.id);
+  const isBuiltinRouter = model.id === "nexus/auto" || model.id === "nexus/free";
+  const tokenPricingVerified = model.endpoints.some(isExecutableEndpoint);
+  const supported =
+    isBuiltinRouter ||
+    (routeSupported && (kind !== "text" && kind !== "embeddings" ? true : tokenPricingVerified));
+  const action = supported
+    ? modelAction(kind, model.id)
+    : { href: "/providers", label: "Ver disponibilidad" };
   const isTokenPriced = kind === "text" || kind === "embeddings";
   const stats = modelStats(model, kind, usage, supported);
   const sample = supported ? apiSample(model.id, kind) : null;
@@ -309,7 +338,14 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
           </div>
         </dl>
 
-        {isTokenPriced && supported ? (
+        {isBuiltinRouter ? (
+          <div className="mt-8 rounded-xl border border-violet-200 bg-violet-50/70 px-4 py-3 text-sm text-violet-950">
+            <div className="font-medium">Precio determinado por la ruta real</div>
+            <p className="mt-1 text-xs leading-relaxed text-violet-900/80">
+              Nexus reserva el fallback elegible más caro y liquida únicamente el modelo y host que respondió.
+            </p>
+          </div>
+        ) : isTokenPriced && supported ? (
           <div className="mt-8">
             <CostEstimator
               promptPerM={usdPerMillion(model.pricing.prompt)}
@@ -345,6 +381,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
               const isConfigured = configured.has(e.adapter);
               const isOperational = operational.has(e.adapter);
               const measured = !e.metricsEstimated && e.latencyMs > 0;
+              const executable = isExecutableEndpoint(e);
               const bar = Math.max(8, ((e.latencyMs || 1) / maxLat) * 100);
               return (
                 <div
@@ -370,6 +407,11 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                       <span className={isOperational ? "text-emerald-700" : isConfigured ? "text-amber-700" : "text-zinc-400"}>
                         {isOperational ? "operativo" : isConfigured ? "configurado" : "sin configurar"}
                       </span>
+                      {isTokenPriced ? (
+                        <span className={executable ? "text-emerald-700" : "text-amber-700"}>
+                          {executable ? "tarifa verificada" : "tarifa pendiente"}
+                        </span>
+                      ) : null}
                       {measured ? (
                         <>
                           <span className="tabular-nums text-zinc-600">{e.latencyMs} ms</span>
@@ -388,13 +430,17 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                       <div className="h-full rounded-full bg-violet-500/45" style={{ width: `${bar}%` }} />
                     </div>
                   ) : null}
-                  {isTokenPriced ? (
+                  {isTokenPriced && executable ? (
                     <div className="mt-2 flex gap-4 text-xs tabular-nums text-zinc-500">
                       <span>entrada {formatUsd(usdPerMillion(e.pricing.prompt), 2)}/1 M</span>
                       <span>salida {formatUsd(usdPerMillion(e.pricing.completion), 2)}/1 M</span>
                     </div>
                   ) : (
-                    <div className="mt-2 text-xs text-zinc-500">La tarifa se calcula por modalidad antes de reservar saldo.</div>
+                    <div className="mt-2 text-xs text-zinc-500">
+                      {isTokenPriced
+                        ? "No ejecutable hasta verificar la tarifa de este host."
+                        : "La tarifa se calcula por modalidad antes de reservar saldo."}
+                    </div>
                   )}
                 </div>
               );

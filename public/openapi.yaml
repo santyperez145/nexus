@@ -105,6 +105,10 @@ paths:
         - in: query
           name: supported_parameters
           schema: { type: string, example: tools }
+        - in: query
+          name: include_reference
+          description: Include discovery-only entries whose provider tariff is not yet verified.
+          schema: { type: boolean, default: false }
       responses:
         "200": { description: Catalog }
   /models/count:
@@ -122,6 +126,8 @@ paths:
                     type: object
                     properties:
                       count: { type: integer }
+                      executable: { type: integer }
+                      reference_only: { type: integer }
   /models/{author}/{slug}:
     get:
       summary: Model detail

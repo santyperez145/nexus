@@ -9,6 +9,8 @@ function publicEndpoint(endpoint: NonNullable<ReturnType<typeof findModel>>["end
     adapter: endpoint.adapter,
     provider_model: endpoint.providerModel,
     pricing: endpoint.pricing,
+    pricing_verified: endpoint.pricingVerified === true,
+    free: endpoint.free === true,
     latency_ms: endpoint.latencyMs,
     throughput_tps: endpoint.throughputTps,
     zdr: isEndpointZdrConfirmed(endpoint),

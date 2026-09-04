@@ -27,6 +27,8 @@ type Row = {
   description: string;
   author: string;
   free: boolean;
+  pricingVerified: boolean;
+  executable: boolean;
   created: number;
   contextLength: number;
   output: string[];
@@ -44,6 +46,9 @@ function matchesMod(m: Row, mod: string) {
 
 function priceSortValue(m: Row) {
   const kind = modelKind(m);
+  if ((kind === "text" || kind === "embeddings") && !m.pricingVerified) {
+    return Number.POSITIVE_INFINITY;
+  }
   if (kind === "image") return m.pricing.image;
   if (kind === "video") return m.pricing.request;
   if (kind === "speech") return quoteSpeech({ model: m.id, characters: 1000 })?.usd ?? Number.POSITIVE_INFINITY;
@@ -55,7 +60,12 @@ function priceSortValue(m: Row) {
 
 function priceLabel(m: Row) {
   const kind = modelKind(m);
+  if (m.id === "nexus/free") return "Gratis";
+  if (m.id === "nexus/auto") return "Según la ruta elegida";
   if (kind !== "text" && !isModelRouteSupported(kind, m.id)) return "Sin tarifa ejecutable";
+  if ((kind === "text" || kind === "embeddings") && !m.pricingVerified) {
+    return "Tarifa pendiente de verificación";
+  }
   if (m.free) return "Gratis";
   if (kind === "image") return `${formatUsd(m.pricing.image, 3)} / imagen base`;
   if (kind === "video") return `${formatUsd(m.pricing.request, 3)} / trabajo`;
@@ -79,6 +89,10 @@ function capabilityLabel(m: Row) {
   if (kind === "transcription") return "Audio de hasta 25 MiB";
   if (kind === "video") return "Trabajo asíncrono";
   return `${formatContext(m.contextLength)} de contexto`;
+}
+
+function modelIsExecutable(m: Row) {
+  return m.executable;
 }
 
 const MODALITIES = [
@@ -476,8 +490,10 @@ export function ModelsExplorer({
                   const on = selected.includes(m.id);
                   const lat = latencyByModel.get(m.id);
                   const kind = modelKind(m);
-                  const action = modelAction(kind, m.id);
-                  const supported = isModelRouteSupported(kind, m.id);
+                  const supported = modelIsExecutable(m);
+                  const action = supported
+                    ? modelAction(kind, m.id)
+                    : { href: `/models/${m.id}`, label: "Ver ficha" };
                   const vision = m.input?.includes("image");
                   const zdr = m.endpoints.some((e) => e.zdr);
                   const verified = m.endpoints.some((e) => e.verified);
@@ -592,8 +608,10 @@ export function ModelsExplorer({
             const lat = latencyByModel.get(m.id);
             const on = selected.includes(m.id);
             const kind = modelKind(m);
-            const action = modelAction(kind, m.id);
-            const supported = isModelRouteSupported(kind, m.id);
+            const supported = modelIsExecutable(m);
+            const action = supported
+              ? modelAction(kind, m.id)
+              : { href: `/models/${m.id}`, label: "Ver ficha" };
             const vision = m.input?.includes("image");
             const zdr = m.endpoints.some((e) => e.zdr);
             const verified = m.endpoints.some((e) => e.verified);

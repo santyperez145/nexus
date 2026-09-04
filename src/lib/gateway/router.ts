@@ -1,6 +1,9 @@
 import {
   allModels,
   findModel,
+  isExecutableEndpoint,
+  isFreeEndpoint,
+  isTextGenerationModel,
   parseVariant,
   resolveModelSlug,
   usdPerMillion,
@@ -75,7 +78,9 @@ function filterEndpoints(
   prefs: ProviderPreferences | undefined,
   auth: AuthContext,
 ) {
-  let list = endpoints;
+  // Discovery and billing trust are separate. A visible endpoint with an
+  // unknown tariff cannot enter a route plan.
+  let list = endpoints.filter(isExecutableEndpoint);
   if (prefs?.ignore?.length) list = list.filter((e) => !prefs.ignore!.includes(e.name) && !prefs.ignore!.includes(e.adapter));
   if (prefs?.only?.length) list = list.filter((e) => prefs.only!.includes(e.name) || prefs.only!.includes(e.adapter));
   if (prefs?.quantizations?.length) {
@@ -110,7 +115,9 @@ function filterEndpoints(
 }
 
 function pickAuto(prompt: string): CatalogModel[] {
-  const catalog = allModels().filter((m) => !m.id.startsWith("nexus/"));
+  const catalog = allModels().filter(
+    (model) => !model.id.startsWith("nexus/") && isTextGenerationModel(model),
+  );
   const length = prompt.length;
   const looksCode = /```|function |def |import |class |SELECT /i.test(prompt);
   if (looksCode) {
@@ -134,8 +141,13 @@ export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
   for (const slug of slugs) {
     const { id, variants } = parseVariant(slug);
     if (id === "nexus/free") {
-      for (const model of allModels().filter((m) => m.free && !m.id.startsWith("nexus/"))) {
-        const endpoints = filterEndpoints(model.endpoints, req.provider, auth);
+      for (const model of allModels().filter(
+        (candidate) =>
+          candidate.free &&
+          !candidate.id.startsWith("nexus/") &&
+          isTextGenerationModel(candidate),
+      )) {
+        const endpoints = filterEndpoints(model.endpoints, req.provider, auth).filter(isFreeEndpoint);
         if (endpoints.length) models.push({ model, endpoints, variants: ["free"] });
       }
       continue;
@@ -151,28 +163,41 @@ export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
         typeof req.messages?.at(-1)?.content === "string"
           ? (req.messages!.at(-1)!.content as string)
           : req.prompt ?? "";
-      for (const model of pickAuto(prompt).slice(0, 4)) {
+      let added = 0;
+      for (const model of pickAuto(prompt)) {
         if (req.provider?.require_parameters && needed.some((p) => !model.supportedParameters.includes(p))) {
           continue;
         }
         const sort = applyVariantSort(variants, req.provider);
         const endpoints = sortEndpoints(
-          filterEndpoints(model.endpoints, req.provider, auth),
+          filterEndpoints(model.endpoints, req.provider, auth).filter((endpoint) =>
+            variants.includes("free") ? isFreeEndpoint(endpoint) : true,
+          ),
           sort,
           req.provider,
         );
-        if (endpoints.length) models.push({ model, endpoints, variants });
+        if (endpoints.length) {
+          models.push({ model, endpoints, variants });
+          added += 1;
+          if (added >= 4) break;
+        }
       }
       continue;
     }
     const model = findModel(id);
-    if (!model || model.id.startsWith("nexus/")) continue;
+    if (!model || model.id.startsWith("nexus/") || !isTextGenerationModel(model)) continue;
     if (variants.includes("free") && !model.free) continue;
     if (req.provider?.require_parameters && needed.some((p) => !model.supportedParameters.includes(p))) {
       continue;
     }
     const sort = applyVariantSort(variants, req.provider);
-    const endpoints = sortEndpoints(filterEndpoints(model.endpoints, req.provider, auth), sort, req.provider);
+    const endpoints = sortEndpoints(
+      filterEndpoints(model.endpoints, req.provider, auth).filter((endpoint) =>
+        variants.includes("free") ? isFreeEndpoint(endpoint) : true,
+      ),
+      sort,
+      req.provider,
+    );
     if (endpoints.length) models.push({ model, endpoints, variants });
   }
 

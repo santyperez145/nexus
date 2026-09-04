@@ -50,8 +50,6 @@ export function normalizeUpstream(m: UpstreamModel): CatalogModel {
   const adapter = ADAPTER[author] ?? "openai-compatible";
   const prompt = num(m.pricing?.prompt);
   const completion = num(m.pricing?.completion);
-  const priced = m.pricing != null && (m.pricing.prompt != null || m.pricing.completion != null);
-  const free = priced && prompt === 0 && completion === 0;
   return {
     id: m.id,
     name: m.name ?? m.id,
@@ -83,7 +81,7 @@ export function normalizeUpstream(m: UpstreamModel): CatalogModel {
     knowledgeCutoff: m.knowledge_cutoff ?? null,
     huggingFaceId: m.hugging_face_id ?? null,
     canonicalSlug: m.canonical_slug ?? m.id,
-    free,
+    free: false,
     verified: false,
     endpoints: [
       {
@@ -91,6 +89,8 @@ export function normalizeUpstream(m: UpstreamModel): CatalogModel {
         adapter,
         providerModel: m.id.split("/").slice(1).join("/").replace(/:free$/, ""),
         pricing: { prompt, completion },
+        pricingVerified: false,
+        free: false,
         latencyMs: 0,
         throughputTps: 0,
         zdr: false,

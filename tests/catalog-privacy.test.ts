@@ -18,9 +18,10 @@ describe("catalog honesty", () => {
       id: "acme/unknown-price",
       pricing: { prompt: "0", completion: "0" },
     });
-    assert.equal(m.free, true);
+    assert.equal(m.free, false);
     assert.equal(m.verified, false);
     assert.equal(m.endpoints[0]?.zdr, false);
     assert.equal(m.endpoints[0]?.verified, false);
+    assert.equal(m.endpoints[0]?.pricingVerified, false);
   });
 });

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { allModels } from "@/lib/catalog";
+import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { wiredProviders } from "@/lib/providers/registry";
 import {
   isStripeOperational,
@@ -26,7 +27,8 @@ export default async function StatusPage() {
     verified = 0;
     stripeVerified = false;
   }
-  const models = allModels().filter((m) => !m.id.startsWith("nexus/")).length;
+  const catalog = allModels().filter((model) => !model.id.startsWith("nexus/"));
+  const models = catalog.filter(isModelExecutionReady).length;
   const connections = connectionStatus();
   const stripeConfigured =
     connections.stripe.wired && connections.stripe.webhook && connections.stripe.plans;
@@ -37,7 +39,7 @@ export default async function StatusPage() {
     {
       name: "Modelos de IA",
       description: verified
-        ? `${verified} proveedores verificados durante los últimos 30 minutos`
+        ? `${verified} proveedores verificados · ${models} modelos con tarifa ejecutable`
         : wired.length
           ? `${wired.length} configurados, sin una prueba válida reciente`
           : "Sin proveedores de plataforma configurados",
@@ -52,7 +54,11 @@ export default async function StatusPage() {
           : "Faltan credencial, webhook o planes",
       ok: stripeConfigured && stripeVerified,
     },
-    { name: "Catálogo de modelos", description: `${models.toLocaleString()} modelos publicados`, ok: models > 0 },
+    {
+      name: "Catálogo de modelos",
+      description: `${catalog.length.toLocaleString()} publicados · ${models.toLocaleString()} ejecutables`,
+      ok: catalog.length > 0 && models > 0,
+    },
   ];
   const operational = services.every((service) => service.ok);
 

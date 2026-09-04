@@ -214,7 +214,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
   }
 
   await assertRateLimit(auth);
-  await checkFreeRateLimit(auth, first.model.free);
+  await checkFreeRateLimit(auth, first.endpoints[0]?.free === true);
   const allowByokForRequest = canUseByokForRequest(req, auth);
   const byokRows = allowByokForRequest
     ? await db
@@ -231,6 +231,8 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
     byokRows.filter((r) => !r.deleted && r.provider && canAccess(auth, r)).map((r) => r.provider),
   );
   const allEndpoints = plan.models.flatMap((candidate) => candidate.endpoints);
+  const routeIsEntirelyFree =
+    allEndpoints.length > 0 && allEndpoints.every((endpoint) => endpoint.free === true);
   const anyPlatform = allEndpoints.some((endpoint) => hasProviderKey(endpoint));
   const anyByok = allEndpoints.some(
     (endpoint) => byokProviders.has(endpoint.adapter) || byokProviders.has(endpoint.name),
@@ -241,14 +243,14 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
     input: messages,
     estimatedInputTokens: estimateTokens(messages),
     outputTokens,
-    pricings: plan.models.flatMap((candidate) =>
-      candidate.model.free ? [] : candidate.endpoints.map((endpoint) => endpoint.pricing),
-    ),
-    isFree: plan.models.every((candidate) => candidate.model.free),
+    pricings: allEndpoints
+      .filter((endpoint) => endpoint.free !== true)
+      .map((endpoint) => endpoint.pricing),
+    isFree: routeIsEntirelyFree,
   });
   await enforceGuardrails(auth, req, estimate);
   const billingOpts = {
-    isFree: plan.models.every((candidate) => candidate.model.free),
+    isFree: routeIsEntirelyFree,
     byokFeeOnly: !anyPlatform && anyByok,
   };
   const started = Date.now();
@@ -319,7 +321,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
           promptTokens: result.promptTokens,
           completionTokens: result.completionTokens,
           pricing: endpoint.pricing,
-          isFree: candidate.model.free || result.local,
+          isFree: endpoint.free === true || result.local,
           isByok: Boolean(byok) && !result.local,
           logPrompts: shouldRetainPayloads(auth, isZdrRequest(req, auth)),
           reservation,
@@ -443,7 +445,7 @@ async function streamCompletion(opts: {
             promptTokens,
             completionTokens,
             pricing: opts.endpoint.pricing,
-            isFree: opts.candidate.model.free,
+            isFree: opts.endpoint.free === true,
             isByok: Boolean(opts.byok),
             logPrompts: shouldRetainPayloads(opts.auth, isZdrRequest(opts.req, opts.auth)),
             reservation: opts.reservation,

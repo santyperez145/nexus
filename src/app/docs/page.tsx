@@ -11,7 +11,7 @@ const ENDPOINTS = [
   ["POST", "/api/v1/audio/speech", "TTS (+ ledger)"],
   ["POST", "/api/v1/audio/transcriptions", "STT / Whisper (+ ledger)"],
   ["POST/GET", "/api/v1/videos", "Video (Fal / Replicate, poll + ledger)"],
-  ["GET", "/api/v1/models", "Catálogo (category, output_modalities)"],
+  ["GET", "/api/v1/models", "Modelos ejecutables (include_reference=true amplía el catálogo)"],
   ["GET", "/api/v1/models/{author}/{slug}", "Detalle de modelo"],
   ["GET", "/api/v1/models/{author}/{slug}/endpoints", "Hosts de un modelo"],
   ["GET", "/api/v1/models/count", "Conteo de modelos (category filters)"],

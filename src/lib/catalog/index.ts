@@ -3,6 +3,15 @@ import { readCatalogFile } from "./store";
 import type { CatalogModel, ModelEndpoint } from "./types";
 
 export type { CatalogModel, ModelEndpoint };
+export {
+  executableEndpoints,
+  hasExecutableEndpoint,
+  isEmbeddingModel,
+  isExecutableEndpoint,
+  isFreeEndpoint,
+  isTextGenerationModel,
+  isTokenGatewayModel,
+} from "./pricing";
 export const MODEL_CATALOG = bundledModels();
 
 export const BUILTIN_ROUTERS: CatalogModel[] = [

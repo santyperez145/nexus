@@ -6,6 +6,9 @@ type Host = {
   prompt?: number;
   completion?: number;
   zdr?: boolean;
+  /** Must be explicit because a zero price can also mean unknown. */
+  free?: boolean;
+  pricingVerified?: boolean;
 };
 
 function model(opts: {
@@ -27,35 +30,44 @@ function model(opts: {
   params?: string[];
 }): CatalogModel {
   const author = opts.id.split("/")[0] ?? "nexus";
-  const free =
-    opts.free ??
-    (opts.prompt === 0 &&
-      opts.completion === 0 &&
-      (opts.request ?? 0) === 0 &&
-      (opts.image ?? 0) === 0);
   const inputModalities = opts.modalities ?? ["text"];
   const outputModalities = opts.outputModalities ?? ["text"];
+  const usesTokenPricing =
+    outputModalities.includes("embeddings") ||
+    (inputModalities.includes("text") && outputModalities.includes("text"));
   const hosts: Host[] =
     opts.hosts ??
     (opts.adapter && opts.providerModel
       ? [{ adapter: opts.adapter, providerModel: opts.providerModel, zdr: opts.zdr }]
       : []);
-  const endpoints: ModelEndpoint[] = hosts.map((h) => ({
-    name: h.adapter,
-    adapter: h.adapter,
-    providerModel: h.providerModel,
-    pricing: {
-      prompt: h.prompt ?? opts.prompt,
-      completion: h.completion ?? opts.completion,
-    },
-    latencyMs: 0,
-    throughputTps: 0,
-    zdr: h.zdr ?? opts.zdr ?? false,
-    uptime: 0,
-    quantization: "unknown",
-    verified: true,
-    metricsEstimated: true,
-  }));
+  const endpoints: ModelEndpoint[] = hosts.map((h, index) => {
+    const prompt = h.prompt ?? opts.prompt;
+    const completion = h.completion ?? opts.completion;
+    const free = h.free === true || (hosts.length === 1 && opts.free === true);
+    return {
+      name: h.adapter,
+      adapter: h.adapter,
+      providerModel: h.providerModel,
+      pricing: { prompt, completion },
+      // The model-level tariff belongs to the canonical (first) host. Other
+      // hosts often charge differently and need an explicit per-host review.
+      pricingVerified:
+        h.pricingVerified ??
+        (usesTokenPricing &&
+          (free ||
+          ((hosts.length === 1 || index === 0) && (prompt > 0 || completion > 0)) ||
+          ((h.prompt != null && h.completion != null) && (prompt > 0 || completion > 0)))),
+      free,
+      latencyMs: 0,
+      throughputTps: 0,
+      zdr: h.zdr ?? opts.zdr ?? false,
+      uptime: 0,
+      quantization: "unknown",
+      verified: true,
+      metricsEstimated: true,
+    };
+  });
+  const free = endpoints.some((endpoint) => endpoint.free && endpoint.pricingVerified);
   return {
     id: opts.id,
     name: opts.name,
@@ -107,7 +119,7 @@ const llama70Hosts: Host[] = [
 ];
 
 const llama8Hosts: Host[] = [
-  { adapter: "groq", providerModel: "llama-3.1-8b-instant", prompt: 0, completion: 0 },
+  { adapter: "groq", providerModel: "llama-3.1-8b-instant", prompt: 0, completion: 0, free: true },
   { adapter: "together", providerModel: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo" },
   { adapter: "fireworks", providerModel: "accounts/fireworks/models/llama-v3p1-8b-instruct" },
   { adapter: "cerebras", providerModel: "llama3.1-8b" },
@@ -344,7 +356,7 @@ export const OWNED_CATALOG: CatalogModel[] = [
     completion: 0,
     free: true,
     hosts: [
-      { adapter: "groq", providerModel: "gemma2-9b-it", prompt: 0, completion: 0 },
+      { adapter: "groq", providerModel: "gemma2-9b-it", prompt: 0, completion: 0, free: true },
       { adapter: "together", providerModel: "google/gemma-2-9b-it" },
       { adapter: "fireworks", providerModel: "accounts/fireworks/models/gemma2-9b-it" },
     ],

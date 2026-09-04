@@ -93,7 +93,7 @@ export class Nexus {
       method?: string;
       body?: unknown;
       form?: FormData;
-      query?: Record<string, string | number | undefined>;
+      query?: Record<string, string | number | boolean | undefined>;
       headers?: Record<string, string>;
       raw?: boolean;
     } = {},
@@ -168,7 +168,14 @@ class ChatResource {
 
 class ModelsResource {
   constructor(private readonly client: Nexus) {}
-  list(query: { category?: string; output_modalities?: string; supported_parameters?: string } = {}) {
+  list(
+    query: {
+      category?: string;
+      output_modalities?: string;
+      supported_parameters?: string;
+      include_reference?: boolean;
+    } = {},
+  ) {
     return this.client.request<{ data: unknown[] }>("/models", { query });
   }
   get(id: string) {
@@ -178,7 +185,9 @@ class ModelsResource {
     return this.client.request<{ data: unknown }>(`/models/${id}/endpoints`);
   }
   count() {
-    return this.client.request<{ data: { count: number } }>("/models/count");
+    return this.client.request<{
+      data: { count: number; executable: number; reference_only: number };
+    }>("/models/count");
   }
 }
 

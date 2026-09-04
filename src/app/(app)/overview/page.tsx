@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { formatUsd, microsToUsd } from "@/lib/money";
 import { allModels } from "@/lib/catalog";
+import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { wiredProviders } from "@/lib/providers/registry";
 import { Button } from "@/components/ui/button";
 import { AppPageHeader } from "@/components/layout/app-page-header";
@@ -79,7 +80,9 @@ export default async function OverviewPage() {
     await loadWeekSeries(userId);
   const keys = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.userId, userId));
   const labs = wiredProviders().length;
-  const models = allModels().filter((m) => !m.id.startsWith("nexus/")).length;
+  const models = allModels().filter(
+    (model) => !model.id.startsWith("nexus/") && isModelExecutionReady(model),
+  ).length;
   const unusedKeys = keys.filter((k) => !k.lastUsedAt);
   const balanceUsd = microsToUsd(user?.creditMicros ?? 0);
   const balance = formatUsd(balanceUsd, 2);
@@ -156,7 +159,7 @@ export default async function OverviewPage() {
               <div className="mt-1 text-xl font-semibold tabular-nums">{labs}</div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Modelos</div>
+              <div className="text-[10px] uppercase tracking-wide text-zinc-600">Ejecutables</div>
               <div className="mt-1 text-xl font-semibold tabular-nums">{models}</div>
             </div>
           </div>

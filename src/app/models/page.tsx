@@ -1,7 +1,8 @@
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { ModelsExplorer } from "@/components/models/models-explorer";
-import { allModels } from "@/lib/catalog";
+import { allModels, hasExecutableEndpoint } from "@/lib/catalog";
+import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 const MODS = new Set(["all", "text", "image", "video", "audio", "embeddings"]);
@@ -34,6 +35,8 @@ export default async function ModelsPage({
     description: m.description,
     author: m.author,
     free: m.free,
+    pricingVerified: hasExecutableEndpoint(m),
+    executable: isModelExecutionReady(m),
     created: m.created,
     contextLength: m.contextLength,
     output: m.architecture.outputModalities,

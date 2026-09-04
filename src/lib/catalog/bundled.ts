@@ -7,14 +7,14 @@ export function bundledModels(): CatalogModel[] {
   for (const row of full as CatalogModel[]) {
     const m: CatalogModel = {
       ...row,
-      free:
-        row.pricing.prompt === 0 &&
-        row.pricing.completion === 0 &&
-        row.pricing.request === 0 &&
-        row.pricing.image === 0,
+      // Reference feeds are useful for discovery, but cannot declare a model
+      // executable or free without a reviewed provider-specific tariff.
+      free: false,
       verified: false,
       endpoints: row.endpoints.map((endpoint) => ({
         ...endpoint,
+        pricingVerified: false,
+        free: false,
         latencyMs: 0,
         throughputTps: 0,
         zdr: false,
