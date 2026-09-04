@@ -11,6 +11,7 @@ import {
   SUBSCRIPTION_PLANS,
   creditPurchaseFeeUsd,
 } from "@/lib/config";
+import { resolveSubscriptionReturn } from "@/lib/billing/subscription-return";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatUsd } from "@/lib/money";
@@ -62,24 +63,26 @@ function CreditsInner() {
   );
   const [analytics] = useRemoteData<Analytics>("/api/v1/analytics?days=7");
   const [msg, setMsg] = useState<string | null>(
-    subscriptionResult === "ok"
-      ? "Confirmando suscripción con Stripe…"
-      : subscriptionResult === "canceled" || canceled
-        ? "Checkout cancelado."
-        : checkoutOk
-          ? "Confirmando pago con Stripe…"
-          : null,
+    subscriptionResult === "canceled" || canceled
+      ? "Checkout cancelado."
+      : checkoutOk
+        ? "Confirmando pago con Stripe…"
+        : null,
   );
+  const [settledSubscriptionNotice, setSettledSubscriptionNotice] = useState<
+    string | null
+  >(null);
   const [threshold, setThreshold] = useState<string | null>(null);
   const [amount, setAmount] = useState<string | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "in" | "out">("all");
   const [teamSeats, setTeamSeats] = useState("5");
-  const subscriptionConfirmed =
-    subscriptionResult === "ok" &&
-    ["active", "trialing"].includes(credits?.subscription_status ?? "");
-  const displayMessage = subscriptionConfirmed
-    ? `Plan ${credits?.plan ?? ""} activo.`
-    : msg;
+  const subscriptionReturn = resolveSubscriptionReturn(
+    subscriptionResult,
+    credits?.subscription_status,
+    credits?.plan,
+  );
+  const displayMessage =
+    settledSubscriptionNotice ?? subscriptionReturn.notice ?? msg;
   const baseline = useRef<number | null>(null);
   const polls = useRef(0);
   const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
@@ -114,11 +117,14 @@ function CreditsInner() {
   }, [checkoutOk, credits]);
 
   useEffect(() => {
-    if (subscriptionResult !== "ok") return;
-    if (subscriptionConfirmed) {
-      window.history.replaceState({}, "", "/settings/credits");
-      return;
+    if (subscriptionReturn.state === "confirmed") {
+      const finalize = window.setTimeout(() => {
+        setSettledSubscriptionNotice(subscriptionReturn.notice);
+        window.history.replaceState({}, "", "/settings/credits");
+      }, 0);
+      return () => window.clearTimeout(finalize);
     }
+    if (subscriptionReturn.state !== "pending") return;
     const timer = window.setInterval(reload, 1500);
     const stop = window.setTimeout(() => {
       window.clearInterval(timer);
@@ -130,7 +136,7 @@ function CreditsInner() {
       window.clearInterval(timer);
       window.clearTimeout(stop);
     };
-  }, [reload, subscriptionConfirmed, subscriptionResult]);
+  }, [reload, subscriptionReturn.notice, subscriptionReturn.state]);
 
   const burn7d = analytics?.totals.cost ?? 0;
   const dailyBurn = burn7d / 7;
