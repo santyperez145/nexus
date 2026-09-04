@@ -70,7 +70,7 @@
     "railway": "^3.11.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "overrides": {
     "@esbuild-kit/esm-loader": "npm:tsx@4.23.13"
