@@ -29,6 +29,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
   {
     title: "Seguridad y equipo",
     items: [
+      { href: "/settings/account", label: "Cuenta y seguridad" },
       { href: "/settings/privacy", label: "Privacidad" },
       { href: "/settings/guardrails", label: "Reglas de uso" },
       { href: "/settings/observability", label: "Monitoreo" },
@@ -76,9 +77,11 @@ const idleCls = "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950";
 export function AppNav({
   variant = "sidebar",
   platformAdmin = false,
+  userEmail,
 }: {
   variant?: "sidebar" | "mobile";
   platformAdmin?: boolean;
+  userEmail?: string;
 }) {
   const pathname = usePathname() || "/overview";
   const [open, setOpen] = useState(false);
@@ -188,6 +191,19 @@ export function AppNav({
           </Link>
         </div>
       </nav>
+      {userEmail ? (
+        <Link
+          href="/settings/account"
+          className={`rounded-lg border px-3 py-2 transition-colors ${
+            pathname === "/settings/account"
+              ? "border-violet-200 bg-violet-50"
+              : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+          }`}
+        >
+          <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">Cuenta</div>
+          <div className="mt-0.5 truncate text-xs text-zinc-800" title={userEmail}>{userEmail}</div>
+        </Link>
+      ) : null}
       <SignOutButton />
     </div>
   );

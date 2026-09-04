@@ -30,7 +30,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-500">Saldo disponible</div>
           <div className="text-lg font-semibold tabular-nums text-zinc-950">{balance}</div>
         </Link>
-        <AppNav platformAdmin={platformAdmin} />
+        <AppNav platformAdmin={platformAdmin} userEmail={session.user.email} />
       </aside>
       <div className="relative md:pl-[15.5rem]">
         <div className="flex items-center justify-between gap-2 border-b border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-500 md:hidden">
