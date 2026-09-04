@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, gte } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { formatUsd, microsToUsd } from "@/lib/money";
@@ -65,7 +66,8 @@ async function loadWeekSeries(userId: string) {
 
 export default async function OverviewPage() {
   const session = await getSession();
-  const userId = session!.user.id;
+  if (!session?.user) redirect("/login");
+  const userId = session.user.id;
   const [user] = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
   const recent = await db
     .select()
