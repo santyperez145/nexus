@@ -81,7 +81,7 @@ pueden volver a firmar durante ese período.
 | `nexus.responses.create` | `POST /responses` |
 | `nexus.messages.create` | `POST /messages` |
 | `nexus.models.list` / `.get` / `.endpoints` / `.count` | `/models` |
-| `nexus.models.repositories.*` / `.revisions.*` / `.download` | `/models/{namespace}/{slug}/*` (Hub reference-only) |
+| `nexus.models.repositories.*` / `.revisions.*` / `.evaluations.*` / `.promotions.*` / `.download` | `/models/{namespace}/{slug}/*` (Hub gobernado; artefactos reference-only) |
 | `nexus.credits.get` | `/credits` |
 | `nexus.generations.get` / `.list` | `/generation` |
 | `nexus.embeddings.create` | `/embeddings` |

@@ -211,7 +211,18 @@ export async function createDatasetRepository(auth: AuthContext, input: DatasetC
       };
       await tx.insert(schema.hubRepositories).values(row);
       return combine(
-        { ...row, latestRevision: 0, downloads: 0, createdAt: new Date(), updatedAt: new Date() },
+        {
+          ...row,
+          latestRevision: 0,
+          downloads: 0,
+          verificationStatus: "unverified",
+          verifiedRevision: null,
+          runtimeModelId: null,
+          verifiedAt: null,
+          verifiedBy: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
         namespace,
       );
     });

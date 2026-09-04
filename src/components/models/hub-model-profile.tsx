@@ -4,6 +4,7 @@ import {
   Box,
   Download,
   File,
+  FlaskConical,
   GitCommitHorizontal,
   LockKeyhole,
   ShieldCheck,
@@ -14,6 +15,7 @@ import { ModelAccessButton } from "@/components/models/model-access-button";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth";
 import { sessionAuthContext } from "@/lib/gateway/api-auth";
+import { listModelEvaluations } from "@/lib/hub/model-governance";
 import {
   findModelRepository,
   listModelRevisions,
@@ -33,7 +35,10 @@ export async function HubModelProfile({ namespace, slug }: { namespace: string; 
   if (!repository) notFound();
   const access = await modelRepositoryAccess(repository, auth);
   if (!access.metadata) notFound();
-  const revisions = access.content ? await listModelRevisions(repository.id) : [];
+  const [revisions, evaluations] = await Promise.all([
+    access.content ? listModelRevisions(repository.id) : Promise.resolve([]),
+    listModelEvaluations(repository, access.manager),
+  ]);
   const latest = revisions[0];
   const path = `${repository.namespace}/${repository.slug}`;
 
@@ -53,8 +58,8 @@ export async function HubModelProfile({ namespace, slug }: { namespace: string; 
                 <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-cyan-300">
                   <Box className="size-4" /> {path}
                   {repository.namespaceVerified ? <ShieldCheck className="size-4" aria-label="Namespace verificado" /> : null}
-                  <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-200">
-                    reference only
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${repository.verificationStatus === "verified" ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-200" : "border-amber-300/25 bg-amber-300/10 text-amber-200"}`}>
+                    {repository.verificationStatus === "verified" ? `verified · v${repository.verifiedRevision}` : repository.verificationStatus}
                   </span>
                 </div>
                 <h1 className="mt-3 font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-white">
@@ -67,6 +72,10 @@ export async function HubModelProfile({ namespace, slug }: { namespace: string; 
               {access.manager ? (
                 <Button asChild variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white">
                   <Link href={`/settings/models/${path}`}>Administrar</Link>
+                </Button>
+              ) : repository.verificationStatus === "verified" && repository.runtimeModelId ? (
+                <Button asChild className="bg-cyan-300 text-zinc-950 hover:bg-cyan-200">
+                  <Link href={`/models/${repository.runtimeModelId}`}>Abrir runtime verificado</Link>
                 </Button>
               ) : null}
             </div>
@@ -86,13 +95,16 @@ export async function HubModelProfile({ namespace, slug }: { namespace: string; 
           </div>
         </header>
 
-        <section className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-5 text-amber-950">
-          <ShieldX className="mt-0.5 size-5 shrink-0" />
+        <section className={`mt-5 flex items-start gap-3 rounded-2xl border p-5 ${repository.verificationStatus === "verified" ? "border-emerald-200 bg-emerald-50/70 text-emerald-950" : "border-amber-200 bg-amber-50/70 text-amber-950"}`}>
+          {repository.verificationStatus === "verified" ? <ShieldCheck className="mt-0.5 size-5 shrink-0" /> : <ShieldX className="mt-0.5 size-5 shrink-0" />}
           <div>
-            <h2 className="text-sm font-semibold">Límite de confianza del gateway</h2>
-            <p className="mt-1 text-sm leading-relaxed text-amber-800">
-              Este repositorio distribuye documentación y artefactos; no es una ruta ejecutable, no declara precios y no puede entrar al fallback. La ejecución requiere un endpoint del catálogo validado por Nexus.
+            <h2 className="text-sm font-semibold">{repository.verificationStatus === "verified" ? "Revisión verificada y enlazada" : "Límite de confianza del gateway"}</h2>
+            <p className={`mt-1 text-sm leading-relaxed ${repository.verificationStatus === "verified" ? "text-emerald-800" : "text-amber-800"}`}>
+              {repository.verificationStatus === "verified" && repository.runtimeModelId
+                ? `Nexus verificó la revisión v${repository.verifiedRevision} y la enlazó con ${repository.runtimeModelId}. Los artefactos del Hub siguen sin ejecutarse automáticamente: inferencia, precio y privacidad pertenecen al endpoint runtime curado.`
+                : "Este repositorio distribuye documentación y artefactos; no es una ruta ejecutable, no declara precios y no puede entrar al fallback. La ejecución requiere un endpoint del catálogo validado por Nexus."}
             </p>
+            {repository.verificationStatus === "verified" && repository.runtimeModelId ? <Button asChild size="sm" className="mt-3"><Link href={`/models/${repository.runtimeModelId}`}>Ver precio y proveedores</Link></Button> : null}
           </div>
         </section>
 
@@ -137,6 +149,25 @@ export async function HubModelProfile({ namespace, slug }: { namespace: string; 
               {latest && Object.keys(latest.metadata).length ? (
                 <pre className="mt-5 overflow-auto rounded-xl bg-[#0b0e1a] p-4 font-mono text-xs leading-6 text-cyan-100">{JSON.stringify(latest.metadata, null, 2)}</pre>
               ) : null}
+            </section>
+            <section className="overflow-hidden rounded-2xl border border-indigo-950/10 bg-white">
+              <div className="border-b border-zinc-200 px-5 py-4">
+                <h2 className="flex items-center gap-2 font-semibold text-zinc-950"><FlaskConical className="size-4 text-indigo-500" /> Evaluaciones</h2>
+                <p className="mt-0.5 text-xs text-zinc-500">Resultados estructurados, anclados a una revisión y a evidencia SHA-256.</p>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                {evaluations.map((evaluation) => (
+                  <div key={evaluation.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-zinc-900">{evaluation.benchmark}</span><span className="font-mono text-[10px] text-zinc-400">v{evaluation.revision}</span><span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ${evaluation.status === "verified" ? "bg-emerald-50 text-emerald-700" : evaluation.status === "rejected" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{evaluation.status}</span></div>
+                      <p className="mt-1 truncate text-xs text-zinc-500">{evaluation.task} · {evaluation.dataset} · {evaluation.evaluator}</p>
+                      <a href={evaluation.evidence_url} target="_blank" rel="noreferrer" className="mt-1 block truncate font-mono text-[10px] text-indigo-600 hover:underline">evidence sha256:{evaluation.evidence_sha256}</a>
+                    </div>
+                    <div className="text-left sm:text-right"><div className="font-mono text-lg font-semibold text-zinc-950">{evaluation.metric_value}</div><div className="text-[10px] uppercase tracking-wide text-zinc-400">{evaluation.metric}</div></div>
+                  </div>
+                ))}
+                {!evaluations.length ? <p className="px-5 py-10 text-center text-sm text-zinc-500">No hay resultados verificados para esta revisión.</p> : null}
+              </div>
             </section>
           </main>
 

@@ -386,17 +386,29 @@ export const SCHEMA_SQL = [
     tags jsonb NOT NULL DEFAULT '[]'::jsonb,
     latest_revision integer NOT NULL DEFAULT 0,
     downloads integer NOT NULL DEFAULT 0,
+    verification_status text NOT NULL DEFAULT 'unverified',
+    verified_revision integer,
+    runtime_model_id text,
+    verified_at timestamp,
+    verified_by text REFERENCES "user"(id) ON DELETE SET NULL,
     created_at timestamp NOT NULL DEFAULT now(),
     updated_at timestamp NOT NULL DEFAULT now(),
     CONSTRAINT hub_repository_visibility_check CHECK (visibility IN ('public', 'private')),
     CONSTRAINT hub_repository_kind_check CHECK (kind IN ('dataset', 'model')),
     CONSTRAINT hub_repository_revision_check CHECK (latest_revision >= 0),
-    CONSTRAINT hub_repository_downloads_check CHECK (downloads >= 0)
+    CONSTRAINT hub_repository_downloads_check CHECK (downloads >= 0),
+    CONSTRAINT hub_repository_verification_status_check CHECK (verification_status IN ('unverified', 'pending', 'verified', 'rejected', 'stale')),
+    CONSTRAINT hub_repository_verification_shape_check CHECK ((verification_status = 'verified' AND verified_revision IS NOT NULL AND runtime_model_id IS NOT NULL AND verified_at IS NOT NULL) OR verification_status <> 'verified')
   )`,
   `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'dataset'`,
   `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS model_card text`,
   `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS library_name text`,
   `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS base_model text`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS verification_status text NOT NULL DEFAULT 'unverified'`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS verified_revision integer`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS runtime_model_id text`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS verified_at timestamp`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS verified_by text REFERENCES "user"(id) ON DELETE SET NULL`,
   `DO $$
    BEGIN
      IF NOT EXISTS (
@@ -404,6 +416,22 @@ export const SCHEMA_SQL = [
      ) THEN
        ALTER TABLE "hub_repository"
        ADD CONSTRAINT hub_repository_kind_check CHECK (kind IN ('dataset', 'model'));
+     END IF;
+     IF NOT EXISTS (
+       SELECT 1 FROM pg_constraint WHERE conname = 'hub_repository_verification_status_check'
+     ) THEN
+       ALTER TABLE "hub_repository"
+       ADD CONSTRAINT hub_repository_verification_status_check
+       CHECK (verification_status IN ('unverified', 'pending', 'verified', 'rejected', 'stale'));
+     END IF;
+     IF NOT EXISTS (
+       SELECT 1 FROM pg_constraint WHERE conname = 'hub_repository_verification_shape_check'
+     ) THEN
+       ALTER TABLE "hub_repository"
+       ADD CONSTRAINT hub_repository_verification_shape_check CHECK (
+         (verification_status = 'verified' AND verified_revision IS NOT NULL AND runtime_model_id IS NOT NULL AND verified_at IS NOT NULL)
+         OR verification_status <> 'verified'
+       );
      END IF;
    END $$`,
   `DROP INDEX IF EXISTS hub_repository_namespace_slug_uidx`,
@@ -454,6 +482,55 @@ export const SCHEMA_SQL = [
    ON "hub_access_grant"(repository_id, user_id)`,
   `CREATE INDEX IF NOT EXISTS hub_access_grant_repository_status_idx
    ON "hub_access_grant"(repository_id, status)`,
+  `CREATE TABLE IF NOT EXISTS "hub_model_evaluation" (
+    id text PRIMARY KEY,
+    repository_id text NOT NULL REFERENCES "hub_repository"(id) ON DELETE CASCADE,
+    revision_id text NOT NULL REFERENCES "hub_revision"(id) ON DELETE CASCADE,
+    benchmark text NOT NULL,
+    task text NOT NULL,
+    dataset text NOT NULL,
+    dataset_revision text,
+    metric text NOT NULL,
+    metric_value numeric(30, 12) NOT NULL,
+    higher_is_better boolean NOT NULL DEFAULT true,
+    sample_count integer,
+    evaluator text NOT NULL,
+    evaluator_version text,
+    evidence_url text NOT NULL,
+    evidence_sha256 text NOT NULL,
+    status text NOT NULL DEFAULT 'submitted',
+    submitted_by text NOT NULL REFERENCES "user"(id) ON DELETE RESTRICT,
+    reviewed_by text REFERENCES "user"(id) ON DELETE SET NULL,
+    review_note text,
+    created_at timestamp NOT NULL DEFAULT now(),
+    reviewed_at timestamp,
+    CONSTRAINT hub_model_evaluation_status_check CHECK (status IN ('submitted', 'verified', 'rejected')),
+    CONSTRAINT hub_model_evaluation_sample_count_check CHECK (sample_count IS NULL OR sample_count > 0)
+  )`,
+  `CREATE INDEX IF NOT EXISTS hub_model_evaluation_repository_status_idx
+   ON "hub_model_evaluation"(repository_id, status, created_at)`,
+  `CREATE INDEX IF NOT EXISTS hub_model_evaluation_revision_status_idx
+   ON "hub_model_evaluation"(revision_id, status)`,
+  `CREATE TABLE IF NOT EXISTS "hub_model_promotion_request" (
+    id text PRIMARY KEY,
+    repository_id text NOT NULL REFERENCES "hub_repository"(id) ON DELETE CASCADE,
+    revision_id text NOT NULL REFERENCES "hub_revision"(id) ON DELETE CASCADE,
+    runtime_model_id text NOT NULL,
+    status text NOT NULL DEFAULT 'pending',
+    requested_by text NOT NULL REFERENCES "user"(id) ON DELETE RESTRICT,
+    reviewed_by text REFERENCES "user"(id) ON DELETE SET NULL,
+    review_note text,
+    checklist jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamp NOT NULL DEFAULT now(),
+    reviewed_at timestamp,
+    CONSTRAINT hub_model_promotion_status_check CHECK (status IN ('pending', 'approved', 'rejected'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS hub_model_promotion_repository_status_idx
+   ON "hub_model_promotion_request"(repository_id, status, created_at)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_model_promotion_pending_uidx
+   ON "hub_model_promotion_request"(repository_id, revision_id) WHERE status = 'pending'`,
+  `CREATE INDEX IF NOT EXISTS hub_model_promotion_status_created_idx
+   ON "hub_model_promotion_request"(status, created_at)`,
   `CREATE TABLE IF NOT EXISTS "hub_space" (
     id text PRIMARY KEY,
     namespace_id text NOT NULL REFERENCES "hub_namespace"(id) ON DELETE CASCADE,

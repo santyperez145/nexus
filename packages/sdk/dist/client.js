@@ -175,6 +175,14 @@ class ModelsResource {
                 list: (namespace, slug) => this.client.request(path(namespace, slug, "/revisions")),
                 create: (namespace, slug, body) => this.client.request(path(namespace, slug, "/revisions"), { method: "POST", body }),
             },
+            evaluations: {
+                list: (namespace, slug) => this.client.request(path(namespace, slug, "/evaluations")),
+                create: (namespace, slug, body) => this.client.request(path(namespace, slug, "/evaluations"), { method: "POST", body }),
+            },
+            promotions: {
+                list: (namespace, slug) => this.client.request(path(namespace, slug, "/promotions")),
+                create: (namespace, slug, body) => this.client.request(path(namespace, slug, "/promotions"), { method: "POST", body }),
+            },
             download: async (namespace, slug, revision, filePath) => {
                 const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
                 const response = await this.client.request(path(namespace, slug, `/resolve/${encodeURIComponent(String(revision))}/${encodedPath}`), { raw: true });

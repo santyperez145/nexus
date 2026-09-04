@@ -89,7 +89,14 @@ export function publicModelRepository(repository: ModelRepository) {
       source: "hub",
       executable: false,
       reference_only: true,
-      verification_status: "unverified",
+      verification_status: repository.verificationStatus,
+      verified_revision: repository.verifiedRevision,
+      current_revision_verified:
+        repository.verificationStatus === "verified" &&
+        repository.verifiedRevision === repository.latestRevision,
+      runtime_model_id: repository.runtimeModelId,
+      promoted: repository.verificationStatus === "verified" && Boolean(repository.runtimeModelId),
+      verified_at: repository.verifiedAt,
     },
   };
 }
@@ -220,7 +227,18 @@ export async function createModelRepository(auth: AuthContext, input: ModelCreat
       };
       await tx.insert(schema.hubRepositories).values(row);
       return combine(
-        { ...row, latestRevision: 0, downloads: 0, createdAt: new Date(), updatedAt: new Date() },
+        {
+          ...row,
+          latestRevision: 0,
+          downloads: 0,
+          verificationStatus: "unverified",
+          verifiedRevision: null,
+          runtimeModelId: null,
+          verifiedAt: null,
+          verifiedBy: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
         namespace,
       );
     });
@@ -270,6 +288,9 @@ export async function updateModelRepository(
       ...(patch.library_name !== undefined ? { libraryName: patch.library_name } : {}),
       ...(patch.base_model !== undefined ? { baseModel: patch.base_model } : {}),
       ...(patch.tags !== undefined ? { tags: normalizeTags(patch.tags) } : {}),
+      ...(repository.verificationStatus === "verified" || repository.verificationStatus === "pending"
+        ? { verificationStatus: "stale" }
+        : {}),
       updatedAt: new Date(),
     })
     .where(eq(schema.hubRepositories.id, repository.id));
@@ -365,7 +386,13 @@ export async function createModelRevision(
     );
     await tx
       .update(schema.hubRepositories)
-      .set({ latestRevision: revision, updatedAt: new Date() })
+      .set({
+        latestRevision: revision,
+        ...(repository.verificationStatus === "unverified"
+          ? {}
+          : { verificationStatus: "stale" }),
+        updatedAt: new Date(),
+      })
       .where(eq(schema.hubRepositories.id, repository.id));
     return { ...revisionRow, createdAt: new Date(), files: normalizedFiles };
   });

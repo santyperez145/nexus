@@ -384,9 +384,26 @@ describe("nexus-sdk", () => {
       commit_message: "Publish weights",
       files: [{ file_id: "file_1", path: "weights/model.safetensors" }],
     });
+    await nexus.models.repositories.evaluations.create("acme", "spanish-7b", {
+      revision: 1,
+      benchmark: "MMLU-Pro",
+      task: "text-generation",
+      dataset: "TIGER-Lab/MMLU-Pro",
+      metric: "accuracy",
+      metric_value: 0.71,
+      evaluator: "lm-evaluation-harness",
+      evidence_url: "https://example.com/results.json",
+      evidence_sha256: "a".repeat(64),
+    });
+    await nexus.models.repositories.promotions.create("acme", "spanish-7b", {
+      revision: 1,
+      runtime_model_id: "meta-llama/llama-3.3-70b-instruct",
+    });
     assert.equal(calls[0].url, "https://nexus.test/api/v1/models");
     assert.equal(calls[0].init.method, "POST");
     assert.equal(calls[1].url, "https://nexus.test/api/v1/models/acme/spanish-7b/revisions");
+    assert.equal(calls[2].url, "https://nexus.test/api/v1/models/acme/spanish-7b/evaluations");
+    assert.equal(calls[3].url, "https://nexus.test/api/v1/models/acme/spanish-7b/promotions");
   });
 
   it("sends X-Nexus-Guest without bearer when guest:true", async () => {

@@ -1,4 +1,4 @@
-import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
+import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, ModelEvaluation, ModelEvaluationCreateRequest, ModelPromotion, ModelPromotionCreateRequest, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
 export declare class Nexus {
     #private;
     readonly apiKey: string;
@@ -100,6 +100,25 @@ declare class ModelsResource {
             }>;
             create: (namespace: string, slug: string, body: ModelRepositoryRevisionRequest) => Promise<{
                 data: unknown;
+            }>;
+        };
+        evaluations: {
+            list: (namespace: string, slug: string) => Promise<{
+                data: ModelEvaluation[];
+                meta: {
+                    visibility: string;
+                };
+            }>;
+            create: (namespace: string, slug: string, body: ModelEvaluationCreateRequest) => Promise<{
+                data: ModelEvaluation;
+            }>;
+        };
+        promotions: {
+            list: (namespace: string, slug: string) => Promise<{
+                data: ModelPromotion[];
+            }>;
+            create: (namespace: string, slug: string, body: ModelPromotionCreateRequest) => Promise<{
+                data: ModelPromotion;
             }>;
         };
         download: (namespace: string, slug: string, revision: string | number, path: string) => Promise<ArrayBuffer>;

@@ -1,6 +1,7 @@
 import { findModel } from "@/lib/catalog";
 import { authenticateOptionalRequest, authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { writeAudit } from "@/lib/gateway/audit";
+import { listModelEvaluations } from "@/lib/hub/model-governance";
 import { invalidModelRepositoryInput, updateModelRepositorySchema } from "@/lib/hub/model-repositories";
 import {
   deleteModelRepository,
@@ -51,12 +52,16 @@ export async function GET(req: Request, ctx: Context) {
       if (!repository) throw Object.assign(new Error("model repository not found"), { status: 404 });
       const access = await modelRepositoryAccess(repository, auth);
       if (!access.metadata) throw Object.assign(new Error("model repository not found"), { status: 404 });
-      const revisions = access.content ? await listModelRevisions(repository.id) : [];
+      const [revisions, evaluations] = await Promise.all([
+        access.content ? listModelRevisions(repository.id) : Promise.resolve([]),
+        listModelEvaluations(repository, access.manager),
+      ]);
       return Response.json({
         data: {
           ...publicModelRepository(repository),
           ...(access.manager ? { workspace_id: repository.workspaceId } : {}),
           access,
+          evaluations,
           revisions: revisions.map((revision) => ({
             revision: revision.revision,
             commit_sha: revision.commitSha,

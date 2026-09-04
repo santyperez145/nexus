@@ -122,13 +122,19 @@ async function getModels(req: Request) {
             nexus: {
               source: "hub",
               free: false,
-              verified: false,
+              verified: repository.verificationStatus === "verified",
               executable: false,
               reference_only: true,
               providers: [],
               pricing_verified: false,
               metrics_estimated: false,
               latest_revision: repository.latestRevision,
+              verified_revision: repository.verifiedRevision,
+              verification_status: repository.verificationStatus,
+              runtime_model_id: repository.runtimeModelId,
+              promoted:
+                repository.verificationStatus === "verified" &&
+                Boolean(repository.runtimeModelId),
               downloads: repository.downloads,
             },
           };

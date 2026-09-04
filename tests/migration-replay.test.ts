@@ -15,11 +15,11 @@ after(async () => {
 });
 
 describe("fresh migration replay", () => {
-  it("applies every reviewed migration and creates the multipart artifact shape", async () => {
+  it("applies every reviewed migration and creates artifact plus model-governance shapes", async () => {
     const migrationResult = await client.query<{ count: number }>(
       "select count(*)::integer as count from drizzle.__drizzle_migrations",
     );
-    assert.equal(migrationResult.rows[0]?.count, 17);
+    assert.equal(migrationResult.rows[0]?.count, 18);
 
     const columnResult = await client.query<{ column_name: string }>(
       "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'file' order by ordinal_position",
@@ -27,6 +27,23 @@ describe("fresh migration replay", () => {
     const columns = columnResult.rows.map((row) => row.column_name);
     assert.ok(columns.includes("storage_upload_id"));
     assert.ok(columns.includes("storage_part_size"));
+
+    const governanceTables = await client.query<{ table_name: string }>(
+      "select table_name from information_schema.tables where table_schema = 'public' and table_name in ('hub_model_evaluation', 'hub_model_promotion_request') order by table_name",
+    );
+    assert.deepEqual(
+      governanceTables.rows.map((row) => row.table_name),
+      ["hub_model_evaluation", "hub_model_promotion_request"],
+    );
+    const repositoryColumns = await client.query<{ column_name: string }>(
+      "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'hub_repository'",
+    );
+    assert.ok(repositoryColumns.rows.some((row) => row.column_name === "verification_status"));
+    assert.ok(repositoryColumns.rows.some((row) => row.column_name === "runtime_model_id"));
+    const promotionIndexes = await client.query<{ indexname: string }>(
+      "select indexname from pg_indexes where schemaname = 'public' and tablename = 'hub_model_promotion_request'",
+    );
+    assert.ok(promotionIndexes.rows.some((row) => row.indexname === "hub_model_promotion_pending_uidx"));
 
     await client.query(`
       insert into "user" (id, name, email, plan)

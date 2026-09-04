@@ -27,7 +27,16 @@ export type ModelRepositoryRow = {
   latest_revision: number;
   downloads: number;
   updated_at: string;
-  nexus: { executable: false; reference_only: true; verification_status: "unverified" };
+  nexus: {
+    executable: false;
+    reference_only: true;
+    verification_status: "unverified" | "pending" | "verified" | "rejected" | "stale";
+    verified_revision: number | null;
+    current_revision_verified: boolean;
+    runtime_model_id: string | null;
+    promoted: boolean;
+    verified_at: string | null;
+  };
 };
 
 const field = "h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
@@ -104,7 +113,7 @@ export function ModelRepositoryManager() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2"><Box className="size-4 text-indigo-500" /><Link href={`/settings/models/${repository.path}`} className="truncate font-mono text-sm font-semibold text-zinc-900 hover:text-indigo-700">{repository.path}</Link><span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${repository.visibility === "private" ? "bg-zinc-200 text-zinc-700" : "bg-emerald-50 text-emerald-700"}`}>{repository.visibility}</span>{repository.gated ? <LockKeyhole className="size-3.5 text-amber-600" aria-label="Gated" /> : null}</div>
               <div className="mt-1 text-sm text-zinc-600">{repository.title}</div>
-              <div className="mt-2 flex gap-4 font-mono text-[11px] text-zinc-500"><span className="flex items-center gap-1"><GitCommitHorizontal className="size-3" /> rev {repository.latest_revision}</span><span>{repository.pipeline_tag ?? "sin pipeline"}</span><span>reference only</span></div>
+              <div className="mt-2 flex flex-wrap gap-4 font-mono text-[11px] text-zinc-500"><span className="flex items-center gap-1"><GitCommitHorizontal className="size-3" /> rev {repository.latest_revision}</span><span>{repository.pipeline_tag ?? "sin pipeline"}</span><span className={repository.nexus.verification_status === "verified" ? "text-emerald-700" : repository.nexus.verification_status === "rejected" ? "text-rose-700" : "text-amber-700"}>{repository.nexus.verification_status}</span>{repository.nexus.runtime_model_id ? <span className="truncate text-indigo-700">→ {repository.nexus.runtime_model_id}</span> : null}</div>
             </div>
             <div className="flex items-center gap-1"><Button asChild size="sm" variant="outline"><Link href={`/settings/models/${repository.path}`}>Administrar</Link></Button><ConfirmAction triggerLabel="Eliminar" title={`Eliminar ${repository.path}`} description="Se eliminarán el repositorio, revisiones y solicitudes. Los archivos originales permanecen si no están usados por otro recurso Hub." confirmLabel="Eliminar repositorio" onConfirm={async () => { await responseData(await fetch(`/api/v1/models/${repository.path}`, { method: "DELETE" })); reload(); }} /></div>
           </div>

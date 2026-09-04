@@ -18,6 +18,9 @@ let database: typeof import("../src/lib/db");
 let catalog: typeof import("../src/app/api/v1/models/route");
 let detail: typeof import("../src/app/api/v1/models/[...slug]/route");
 let revisions: typeof import("../src/app/api/v1/models/[namespace]/[slug]/revisions/route");
+let evaluations: typeof import("../src/app/api/v1/models/[namespace]/[slug]/evaluations/route");
+let promotions: typeof import("../src/app/api/v1/models/[namespace]/[slug]/promotions/route");
+let governance: typeof import("../src/lib/hub/model-governance");
 let access: typeof import("../src/app/api/v1/models/[namespace]/[slug]/access/route");
 let resolveFile: typeof import("../src/app/api/v1/models/[namespace]/[slug]/resolve/[revision]/[...path]/route");
 let datasets: typeof import("../src/app/api/v1/datasets/route");
@@ -48,6 +51,9 @@ before(async () => {
   catalog = await import("../src/app/api/v1/models/route");
   detail = await import("../src/app/api/v1/models/[...slug]/route");
   revisions = await import("../src/app/api/v1/models/[namespace]/[slug]/revisions/route");
+  evaluations = await import("../src/app/api/v1/models/[namespace]/[slug]/evaluations/route");
+  promotions = await import("../src/app/api/v1/models/[namespace]/[slug]/promotions/route");
+  governance = await import("../src/lib/hub/model-governance");
   access = await import("../src/app/api/v1/models/[namespace]/[slug]/access/route");
   resolveFile = await import(
     "../src/app/api/v1/models/[namespace]/[slug]/resolve/[revision]/[...path]/route"
@@ -58,6 +64,7 @@ before(async () => {
   await database.db.insert(database.schema.users).values([
     { id: "usr_model_owner", name: "Model Owner", email: "model-owner@nexus.test", plan: "pro" },
     { id: "usr_model_reader", name: "Model Reader", email: "model-reader@nexus.test", plan: "pro" },
+    { id: "usr_model_admin", name: "Model Admin", email: "model-admin@nexus.test", plan: "team" },
   ]);
   await database.db.insert(database.schema.apiKeys).values([
     {
@@ -96,6 +103,7 @@ before(async () => {
       mime: "application/octet-stream",
       size: 7,
       content: Buffer.from("weights").toString("base64"),
+      checksumSha256: "9a129038d9a00aed0cf6a7ea059ca50a813449061ab87848cf1a13eafdf33b2c",
     },
     {
       id: "file_model_reader",
@@ -141,6 +149,7 @@ describe("versioned model repositories", () => {
           slug: "spanish-7b",
           title: "Spanish 7B",
           model_card: "# Spanish 7B\nEvaluation and limitations.",
+          license: "apache-2.0",
           pipeline_tag: "text-generation",
           library_name: "transformers",
           tags: ["spanish", "7b"],
@@ -316,5 +325,162 @@ describe("versioned model repositories", () => {
     );
     assert.equal(download.status, 200);
     assert.equal(download.headers.get("cache-control"), "private, no-store");
+  });
+
+  it("verifies revision-bound evaluations before fail-closed runtime promotion", async () => {
+    const blockedEvidence = await evaluations.POST(
+      modelRequest("/nexus-community/spanish-7b/evaluations", ownerToken, {
+        method: "POST",
+        body: JSON.stringify({
+          revision: 1,
+          benchmark: "MMLU-Pro",
+          task: "text-generation",
+          dataset: "TIGER-Lab/MMLU-Pro",
+          metric: "accuracy",
+          metric_value: 0.71,
+          evaluator: "lm-evaluation-harness",
+          evidence_url: "http://127.0.0.1/results.json",
+          evidence_sha256: "b".repeat(64),
+        }),
+      }),
+      context("nexus-community", "spanish-7b"),
+    );
+    assert.equal(blockedEvidence.status, 400);
+
+    const submitted = await evaluations.POST(
+      modelRequest("/nexus-community/spanish-7b/evaluations", ownerToken, {
+        method: "POST",
+        body: JSON.stringify({
+          revision: 1,
+          benchmark: "MMLU-Pro",
+          task: "text-generation",
+          dataset: "TIGER-Lab/MMLU-Pro",
+          dataset_revision: "2026-08",
+          metric: "accuracy",
+          metric_value: 0.71,
+          sample_count: 12000,
+          evaluator: "lm-evaluation-harness",
+          evaluator_version: "0.4.9",
+          evidence_url: "https://example.com/results.json",
+          evidence_sha256: "b".repeat(64),
+        }),
+      }),
+      context("nexus-community", "spanish-7b"),
+    );
+    assert.equal(submitted.status, 201);
+    const submittedJson = (await submitted.json()) as { data: { id: string; status: string } };
+    assert.equal(submittedJson.data.status, "submitted");
+
+    const hidden = await evaluations.GET(
+      modelRequest("/nexus-community/spanish-7b/evaluations"),
+      context("nexus-community", "spanish-7b"),
+    );
+    const hiddenJson = (await hidden.json()) as { data: unknown[] };
+    assert.deepEqual(hiddenJson.data, []);
+
+    const requested = await promotions.POST(
+      modelRequest("/nexus-community/spanish-7b/promotions", ownerToken, {
+        method: "POST",
+        body: JSON.stringify({
+          revision: 1,
+          runtime_model_id: "meta-llama/llama-3.3-70b-instruct",
+        }),
+      }),
+      context("nexus-community", "spanish-7b"),
+    );
+    assert.equal(requested.status, 201);
+    const requestedJson = (await requested.json()) as { data: { id: string; status: string } };
+    assert.equal(requestedJson.data.status, "pending");
+
+    const replayedRequest = await promotions.POST(
+      modelRequest("/nexus-community/spanish-7b/promotions", ownerToken, {
+        method: "POST",
+        body: JSON.stringify({
+          revision: 1,
+          runtime_model_id: "meta-llama/llama-3.3-70b-instruct",
+        }),
+      }),
+      context("nexus-community", "spanish-7b"),
+    );
+    const replayedJson = (await replayedRequest.json()) as { data: { id: string } };
+    assert.equal(replayedRequest.status, 201);
+    assert.equal(replayedJson.data.id, requestedJson.data.id);
+
+    const conflictingRequest = await promotions.POST(
+      modelRequest("/nexus-community/spanish-7b/promotions", ownerToken, {
+        method: "POST",
+        body: JSON.stringify({ revision: 1, runtime_model_id: "openai/gpt-4o" }),
+      }),
+      context("nexus-community", "spanish-7b"),
+    );
+    assert.equal(conflictingRequest.status, 409);
+
+    await assert.rejects(
+      () =>
+        governance.reviewModelPromotion({
+          promotionId: requestedJson.data.id,
+          actorUserId: "usr_model_admin",
+          decision: "approved",
+          note: "All evidence reviewed by platform operations.",
+        }),
+      /verified_evaluation/,
+    );
+
+    await governance.reviewModelEvaluation({
+      evaluationId: submittedJson.data.id,
+      actorUserId: "usr_model_admin",
+      decision: "approved",
+      note: "Dataset, harness output and checksum reproduced.",
+    });
+    const approved = await governance.reviewModelPromotion({
+      promotionId: requestedJson.data.id,
+      actorUserId: "usr_model_admin",
+      decision: "approved",
+      note: "Runtime pricing, provider policy and artifact checks passed.",
+    });
+    assert.equal(approved.status, "approved");
+    assert.ok(Object.values(approved.checklist).every(Boolean));
+
+    const publicResults = await evaluations.GET(
+      modelRequest("/nexus-community/spanish-7b/evaluations"),
+      context("nexus-community", "spanish-7b"),
+    );
+    const publicJson = (await publicResults.json()) as { data: Array<{ status: string; review_note: string | null; revision: number }> };
+    assert.equal(publicJson.data[0]?.status, "verified");
+    assert.equal(publicJson.data[0]?.revision, 1);
+    assert.equal(publicJson.data[0]?.review_note, null);
+
+    const verifiedDetail = await detail.GET(
+      modelRequest("/nexus-community/spanish-7b", ownerToken),
+      catchAll("nexus-community", "spanish-7b"),
+    );
+    const verifiedJson = (await verifiedDetail.json()) as {
+      data: { nexus: { verification_status: string; runtime_model_id: string; verified_revision: number; current_revision_verified: boolean; promoted: boolean; verified_at: string } };
+    };
+    assert.equal(verifiedJson.data.nexus.verification_status, "verified");
+    assert.equal(verifiedJson.data.nexus.verified_revision, 1);
+    assert.equal(verifiedJson.data.nexus.current_revision_verified, true);
+    assert.equal(verifiedJson.data.nexus.runtime_model_id, "meta-llama/llama-3.3-70b-instruct");
+    assert.equal(verifiedJson.data.nexus.promoted, true);
+    assert.match(verifiedJson.data.nexus.verified_at, /^\d{4}-\d{2}-\d{2}T/);
+
+    const revisionTwo = await revisions.POST(
+      modelRequest("/nexus-community/spanish-7b/revisions", ownerToken, {
+        method: "POST",
+        body: JSON.stringify({
+          commit_message: "Publish next safe revision",
+          files: [{ file_id: "file_model_owner", path: "weights/model.safetensors" }],
+        }),
+      }),
+      context("nexus-community", "spanish-7b"),
+    );
+    assert.equal(revisionTwo.status, 201);
+    const staleDetail = await detail.GET(
+      modelRequest("/nexus-community/spanish-7b", ownerToken),
+      catchAll("nexus-community", "spanish-7b"),
+    );
+    const staleJson = (await staleDetail.json()) as { data: { nexus: { verification_status: string; current_revision_verified: boolean } } };
+    assert.equal(staleJson.data.nexus.verification_status, "stale");
+    assert.equal(staleJson.data.nexus.current_revision_verified, false);
   });
 });

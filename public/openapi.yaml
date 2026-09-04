@@ -296,6 +296,83 @@ paths:
                       path: { type: string }
       responses:
         "201": { description: Snapshot committed with monotonic revision and SHA }
+  /models/{author}/{slug}/evaluations:
+    parameters:
+      - in: path
+        name: author
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: List structured model evaluation results
+      description: Anonymous readers receive only platform-verified results. Repository managers also receive submitted and rejected results.
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200": { description: Evaluation results anchored to immutable model revisions }
+    post:
+      summary: Submit an evaluation result for platform verification
+      description: The evidence URL is recorded but never fetched by this request. SHA-256 binds the claim to the reviewed evidence artifact.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, benchmark, task, dataset, metric, metric_value, evaluator, evidence_url, evidence_sha256]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                benchmark: { type: string, maxLength: 160 }
+                task: { type: string, maxLength: 120 }
+                dataset: { type: string, maxLength: 240 }
+                dataset_revision: { type: [string, "null"], maxLength: 160 }
+                metric: { type: string, maxLength: 120 }
+                metric_value: { type: number }
+                higher_is_better: { type: boolean, default: true }
+                sample_count: { type: [integer, "null"], minimum: 1 }
+                evaluator: { type: string, maxLength: 160 }
+                evaluator_version: { type: [string, "null"], maxLength: 120 }
+                evidence_url: { type: string, format: uri, maxLength: 2048 }
+                evidence_sha256: { type: string, pattern: "^[a-fA-F0-9]{64}$" }
+      responses:
+        "201": { description: Evaluation submitted; public visibility remains fail-closed until verified }
+  /models/{author}/{slug}/promotions:
+    parameters:
+      - in: path
+        name: author
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: List promotion reviews for a tenant-owned model repository
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Promotion history and immutable decision checklists }
+    post:
+      summary: Request controlled promotion of a Hub revision
+      description: Promotion links the exact Hub revision to an already executable, price-verified runtime catalog model. It never executes uploaded weights or lets a publisher self-attest provider pricing.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, runtime_model_id]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                runtime_model_id: { type: string, maxLength: 200, example: meta-llama/llama-3.3-70b-instruct }
+      responses:
+        "201": { description: Promotion request queued for platform review }
+        "409": { description: Repository, revision, or runtime route does not satisfy promotion preconditions }
   /models/{author}/{slug}/access:
     parameters:
       - in: path

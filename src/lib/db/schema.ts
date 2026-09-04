@@ -479,6 +479,11 @@ export const hubRepositories = pgTable(
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     latestRevision: integer("latest_revision").notNull().default(0),
     downloads: integer("downloads").notNull().default(0),
+    verificationStatus: text("verification_status").notNull().default("unverified"),
+    verifiedRevision: integer("verified_revision"),
+    runtimeModelId: text("runtime_model_id"),
+    verifiedAt: timestamp("verified_at"),
+    verifiedBy: text("verified_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -493,6 +498,14 @@ export const hubRepositories = pgTable(
     check("hub_repository_kind_check", sql`${t.kind} IN ('dataset', 'model')`),
     check("hub_repository_revision_check", sql`${t.latestRevision} >= 0`),
     check("hub_repository_downloads_check", sql`${t.downloads} >= 0`),
+    check(
+      "hub_repository_verification_status_check",
+      sql`${t.verificationStatus} IN ('unverified', 'pending', 'verified', 'rejected', 'stale')`,
+    ),
+    check(
+      "hub_repository_verification_shape_check",
+      sql`(${t.verificationStatus} = 'verified' AND ${t.verifiedRevision} IS NOT NULL AND ${t.runtimeModelId} IS NOT NULL AND ${t.verifiedAt} IS NOT NULL) OR ${t.verificationStatus} <> 'verified'`,
+    ),
   ],
 );
 
@@ -558,6 +571,76 @@ export const hubAccessGrants = pgTable(
     uniqueIndex("hub_access_grant_repository_user_uidx").on(t.repositoryId, t.userId),
     index("hub_access_grant_repository_status_idx").on(t.repositoryId, t.status),
     check("hub_access_grant_status_check", sql`${t.status} IN ('pending', 'approved', 'rejected')`),
+  ],
+);
+
+export const hubModelEvaluations = pgTable(
+  "hub_model_evaluation",
+  {
+    id: text("id").primaryKey(),
+    repositoryId: text("repository_id")
+      .notNull()
+      .references(() => hubRepositories.id, { onDelete: "cascade" }),
+    revisionId: text("revision_id")
+      .notNull()
+      .references(() => hubRevisions.id, { onDelete: "cascade" }),
+    benchmark: text("benchmark").notNull(),
+    task: text("task").notNull(),
+    dataset: text("dataset").notNull(),
+    datasetRevision: text("dataset_revision"),
+    metric: text("metric").notNull(),
+    metricValue: numeric("metric_value", { precision: 30, scale: 12 }).notNull(),
+    higherIsBetter: boolean("higher_is_better").notNull().default(true),
+    sampleCount: integer("sample_count"),
+    evaluator: text("evaluator").notNull(),
+    evaluatorVersion: text("evaluator_version"),
+    evidenceUrl: text("evidence_url").notNull(),
+    evidenceSha256: text("evidence_sha256").notNull(),
+    status: text("status").notNull().default("submitted"),
+    submittedBy: text("submitted_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+    reviewNote: text("review_note"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at"),
+  },
+  (t) => [
+    index("hub_model_evaluation_repository_status_idx").on(t.repositoryId, t.status, t.createdAt),
+    index("hub_model_evaluation_revision_status_idx").on(t.revisionId, t.status),
+    check("hub_model_evaluation_status_check", sql`${t.status} IN ('submitted', 'verified', 'rejected')`),
+    check("hub_model_evaluation_sample_count_check", sql`${t.sampleCount} IS NULL OR ${t.sampleCount} > 0`),
+  ],
+);
+
+export const hubModelPromotionRequests = pgTable(
+  "hub_model_promotion_request",
+  {
+    id: text("id").primaryKey(),
+    repositoryId: text("repository_id")
+      .notNull()
+      .references(() => hubRepositories.id, { onDelete: "cascade" }),
+    revisionId: text("revision_id")
+      .notNull()
+      .references(() => hubRevisions.id, { onDelete: "cascade" }),
+    runtimeModelId: text("runtime_model_id").notNull(),
+    status: text("status").notNull().default("pending"),
+    requestedBy: text("requested_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+    reviewNote: text("review_note"),
+    checklist: jsonb("checklist").$type<Record<string, boolean>>().notNull().default({}),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at"),
+  },
+  (t) => [
+    uniqueIndex("hub_model_promotion_pending_uidx")
+      .on(t.repositoryId, t.revisionId)
+      .where(sql`${t.status} = 'pending'`),
+    index("hub_model_promotion_repository_status_idx").on(t.repositoryId, t.status, t.createdAt),
+    index("hub_model_promotion_status_created_idx").on(t.status, t.createdAt),
+    check("hub_model_promotion_status_check", sql`${t.status} IN ('pending', 'approved', 'rejected')`),
   ],
 );
 

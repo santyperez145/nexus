@@ -10,6 +10,10 @@ import type {
   ModelRepository,
   ModelRepositoryCreateRequest,
   ModelRepositoryRevisionRequest,
+  ModelEvaluation,
+  ModelEvaluationCreateRequest,
+  ModelPromotion,
+  ModelPromotionCreateRequest,
   Space,
   SpaceCreateRequest,
   NexusClientOptions,
@@ -200,6 +204,14 @@ class ModelsResource {
       list: (namespace: string, slug: string) => Promise<{ data: unknown[] }>;
       create: (namespace: string, slug: string, body: ModelRepositoryRevisionRequest) => Promise<{ data: unknown }>;
     };
+    evaluations: {
+      list: (namespace: string, slug: string) => Promise<{ data: ModelEvaluation[]; meta: { visibility: string } }>;
+      create: (namespace: string, slug: string, body: ModelEvaluationCreateRequest) => Promise<{ data: ModelEvaluation }>;
+    };
+    promotions: {
+      list: (namespace: string, slug: string) => Promise<{ data: ModelPromotion[] }>;
+      create: (namespace: string, slug: string, body: ModelPromotionCreateRequest) => Promise<{ data: ModelPromotion }>;
+    };
     download: (namespace: string, slug: string, revision: string | number, path: string) => Promise<ArrayBuffer>;
   };
 
@@ -215,6 +227,16 @@ class ModelsResource {
       revisions: {
         list: (namespace, slug) => this.client.request(path(namespace, slug, "/revisions")),
         create: (namespace, slug, body) => this.client.request(path(namespace, slug, "/revisions"), { method: "POST", body }),
+      },
+      evaluations: {
+        list: (namespace, slug) => this.client.request(path(namespace, slug, "/evaluations")),
+        create: (namespace, slug, body) =>
+          this.client.request(path(namespace, slug, "/evaluations"), { method: "POST", body }),
+      },
+      promotions: {
+        list: (namespace, slug) => this.client.request(path(namespace, slug, "/promotions")),
+        create: (namespace, slug, body) =>
+          this.client.request(path(namespace, slug, "/promotions"), { method: "POST", body }),
       },
       download: async (namespace, slug, revision, filePath) => {
         const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");

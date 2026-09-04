@@ -11,6 +11,7 @@ export type ControlPlaneOperation =
   | "catalog_sync"
   | "connection_probe"
   | "credit_adjustment"
+  | "model_governance_review"
   | "notification_test"
   | "observability_destination"
   | "observability_ping"
@@ -26,6 +27,7 @@ const CONTROL_PLANE_OPERATION_LIMITS: Record<
   catalog_sync: { limit: 2, windowSeconds: 10 * 60 },
   connection_probe: { limit: 6, windowSeconds: 10 * 60 },
   credit_adjustment: { limit: 30, windowSeconds: 10 * 60 },
+  model_governance_review: { limit: 60, windowSeconds: 10 * 60 },
   notification_test: { limit: 3, windowSeconds: 60 * 60 },
   observability_destination: { limit: 10, windowSeconds: 60 * 60 },
   observability_ping: { limit: 20, windowSeconds: 10 * 60 },

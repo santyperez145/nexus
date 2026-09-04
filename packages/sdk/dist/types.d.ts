@@ -202,7 +202,12 @@ export type ModelRepository = {
         source: "hub";
         executable: false;
         reference_only: true;
-        verification_status: "unverified";
+        verification_status: "unverified" | "pending" | "verified" | "rejected" | "stale";
+        verified_revision: number | null;
+        current_revision_verified: boolean;
+        runtime_model_id: string | null;
+        promoted: boolean;
+        verified_at: string | null;
     };
 };
 export type ModelRepositoryCreateRequest = {
@@ -227,6 +232,56 @@ export type ModelRepositoryRevisionRequest = {
         file_id: string;
         path: string;
     }>;
+};
+export type ModelEvaluation = {
+    id: string;
+    revision_id: string;
+    revision: number;
+    benchmark: string;
+    task: string;
+    dataset: string;
+    dataset_revision: string | null;
+    metric: string;
+    metric_value: number;
+    higher_is_better: boolean;
+    sample_count: number | null;
+    evaluator: string;
+    evaluator_version: string | null;
+    evidence_url: string;
+    evidence_sha256: string;
+    status: "submitted" | "verified" | "rejected";
+    review_note: string | null;
+    created_at: string;
+    reviewed_at: string | null;
+};
+export type ModelEvaluationCreateRequest = {
+    revision: number;
+    benchmark: string;
+    task: string;
+    dataset: string;
+    dataset_revision?: string | null;
+    metric: string;
+    metric_value: number;
+    higher_is_better?: boolean;
+    sample_count?: number | null;
+    evaluator: string;
+    evaluator_version?: string | null;
+    evidence_url: string;
+    evidence_sha256: string;
+};
+export type ModelPromotion = {
+    id: string;
+    revision_id: string;
+    runtime_model_id: string;
+    status: "pending" | "approved" | "rejected";
+    checklist: Record<string, boolean>;
+    review_note: string | null;
+    created_at: string;
+    reviewed_at: string | null;
+};
+export type ModelPromotionCreateRequest = {
+    revision: number;
+    runtime_model_id: string;
 };
 export type Space = {
     id: string;
