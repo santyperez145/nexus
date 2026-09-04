@@ -43,7 +43,7 @@ type Delivery = {
   createdAt: string;
 };
 
-type ApiError = { error?: string | { message?: string } };
+type ApiError = { error?: string | { message?: string; code?: string } };
 type Feedback = { tone: "success" | "error"; text: string };
 type Probe = { tone: "success" | "error"; text: string };
 
@@ -56,6 +56,17 @@ const deliveryLabels: Record<Delivery["status"], string> = {
 };
 
 function errorMessage(value: ApiError, fallback: string) {
+  if (typeof value.error === "object") {
+    if (value.error?.code === "ssrf_blocked") {
+      return "La URL debe apuntar a un servicio público; las redes privadas están bloqueadas.";
+    }
+    if (value.error?.code === "https_required") {
+      return "El destino debe usar una dirección HTTPS.";
+    }
+    if (value.error?.code === "invalid_url") {
+      return "Ingresá una URL válida para el destino.";
+    }
+  }
   return typeof value.error === "string"
     ? value.error
     : value.error?.message || fallback;
