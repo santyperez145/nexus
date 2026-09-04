@@ -9,9 +9,12 @@ if (liveMode && !process.argv.includes("--allow-live")) {
 
 const appUrl = (
   process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "")
+  (process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : "")
 ).replace(/\/$/, "");
-if (!appUrl.startsWith("https://")) throw new Error("A public HTTPS app URL is required");
+if (!appUrl.startsWith("https://"))
+  throw new Error("A public HTTPS app URL is required");
 
 const stripe = new Stripe(key, { apiVersion: "2026-08-26.dahlia" });
 const plans = [
@@ -19,14 +22,16 @@ const plans = [
     id: "pro",
     name: "Nexus Pro",
     monthlyUsd: 19,
-    description: "600 RPM, 25 API keys, 5 workspaces and USD 5 monthly inference credits.",
+    description:
+      "600 RPM, 25 claves API, 5 espacios de trabajo y USD 5 en créditos mensuales de inferencia.",
     adjustableQuantity: false,
   },
   {
     id: "team",
     name: "Nexus Team",
     monthlyUsd: 49,
-    description: "1,800 RPM, 250 API keys, shared workspaces with RBAC and USD 15 monthly inference credits per billing cycle.",
+    description:
+      "1.800 RPM, 250 claves API, espacios compartidos con roles y USD 15 en créditos de inferencia por ciclo de facturación.",
     adjustableQuantity: true,
   },
 ];
@@ -37,7 +42,9 @@ function objectId(value) {
 
 async function ensureProduct(plan) {
   const products = await stripe.products.list({ active: true, limit: 100 });
-  let product = products.data.find((candidate) => candidate.metadata?.nexus_plan === plan.id);
+  let product = products.data.find(
+    (candidate) => candidate.metadata?.nexus_plan === plan.id,
+  );
   const attributes = {
     name: plan.name,
     description: plan.description,
@@ -52,7 +59,11 @@ async function ensureProduct(plan) {
 
 async function ensurePrice(plan, product) {
   const lookupKey = `nexus_${plan.id}_monthly_usd_v1`;
-  const prices = await stripe.prices.list({ active: true, lookup_keys: [lookupKey], limit: 100 });
+  const prices = await stripe.prices.list({
+    active: true,
+    lookup_keys: [lookupKey],
+    limit: 100,
+  });
   const existing = prices.data[0];
   const expectedAmount = plan.monthlyUsd * 100;
   if (existing) {
@@ -62,7 +73,9 @@ async function ensurePrice(plan, product) {
       existing.unit_amount !== expectedAmount ||
       existing.recurring?.interval !== "month"
     ) {
-      throw new Error(`Stripe lookup key ${lookupKey} does not match the Nexus ${plan.id} plan`);
+      throw new Error(
+        `Stripe lookup key ${lookupKey} does not match the Nexus ${plan.id} plan`,
+      );
     }
     return existing;
   }
@@ -110,13 +123,17 @@ const webhookEvents = [
   "charge.dispute.funds_reinstated",
 ];
 const webhookEndpoints = await stripe.webhookEndpoints.list({ limit: 100 });
-const webhook = webhookEndpoints.data.find((candidate) => candidate.url === webhookUrl);
+const webhook = webhookEndpoints.data.find(
+  (candidate) => candidate.url === webhookUrl,
+);
 if (!webhook) {
-  throw new Error(`Create the signed webhook ${webhookUrl} first so its secret can be stored safely`);
+  throw new Error(
+    `Create the signed webhook ${webhookUrl} first so its secret can be stored safely`,
+  );
 }
 const reconciledWebhook = await stripe.webhookEndpoints.update(webhook.id, {
   enabled_events: webhookEvents,
-  description: "Nexus billing lifecycle",
+  description: "Ciclo de facturación de Nexus",
   metadata: { nexus_managed: "true" },
 });
 
@@ -129,16 +146,19 @@ const portalProducts = productsAndPrices.map(({ plan, product, price }) => ({
 }));
 const portalAttributes = {
   active: true,
-  name: "Nexus subscriptions",
+  name: "Suscripciones Nexus",
   default_return_url: `${appUrl}/settings/credits`,
   business_profile: {
-    headline: "Manage your Nexus subscription and billing details.",
+    headline: "Gestioná tu suscripción y tus datos de facturación.",
     privacy_policy_url: `${appUrl}/privacy`,
     terms_of_service_url: `${appUrl}/terms`,
   },
   metadata: { nexus_managed: "true", nexus_configuration: "subscriptions_v1" },
   features: {
-    customer_update: { enabled: true, allowed_updates: ["email", "address", "tax_id"] },
+    customer_update: {
+      enabled: true,
+      allowed_updates: ["email", "address", "tax_id"],
+    },
     invoice_history: { enabled: true },
     payment_method_update: { enabled: true },
     subscription_cancel: {
@@ -165,14 +185,19 @@ const portalAttributes = {
     },
   },
 };
-const portalConfigurations = await stripe.billingPortal.configurations.list({ limit: 100 });
+const portalConfigurations = await stripe.billingPortal.configurations.list({
+  limit: 100,
+});
 let portal = portalConfigurations.data.find(
   (candidate) => candidate.metadata?.nexus_configuration === "subscriptions_v1",
 );
 const portalCreateAttributes = { ...portalAttributes };
 delete portalCreateAttributes.active;
 portal = portal
-  ? await stripe.billingPortal.configurations.update(portal.id, portalAttributes)
+  ? await stripe.billingPortal.configurations.update(
+      portal.id,
+      portalAttributes,
+    )
   : await stripe.billingPortal.configurations.create(portalCreateAttributes, {
       idempotencyKey: "nexus-portal-subscriptions-v3",
     });
@@ -192,7 +217,11 @@ console.log(
       STRIPE_PRICE_PRO_MONTHLY: pro.price.id,
       STRIPE_PRICE_TEAM_MONTHLY: team.price.id,
       STRIPE_PORTAL_CONFIGURATION_ID: portal.id,
-      webhook: { id: reconciledWebhook.id, url: reconciledWebhook.url, events: webhookEvents },
+      webhook: {
+        id: reconciledWebhook.id,
+        url: reconciledWebhook.url,
+        events: webhookEvents,
+      },
       automaticTaxEnabled: false,
     },
     null,

@@ -14,16 +14,37 @@ describe("Stripe commercial readiness probe", () => {
 
   it("requires charges to be enabled", () => {
     const result = stripeAccountProbeResult(
-      { details_submitted: true, charges_enabled: false },
+      {
+        details_submitted: true,
+        charges_enabled: false,
+        business_profile: { name: "Nexus" },
+      },
       12,
     );
     assert.equal(result.ok, false);
     assert.equal(result.detail, "Cobros Stripe deshabilitados");
   });
 
-  it("reports operational only when the account can charge", () => {
+  it("requires a customer-facing Nexus brand", () => {
     const result = stripeAccountProbeResult(
-      { details_submitted: true, charges_enabled: true },
+      {
+        details_submitted: true,
+        charges_enabled: true,
+        business_profile: { name: "nexus-stripe" },
+      },
+      12,
+    );
+    assert.equal(result.ok, false);
+    assert.equal(result.detail, "Marca pública Stripe pendiente");
+  });
+
+  it("reports operational only when the account can charge under the production brand", () => {
+    const result = stripeAccountProbeResult(
+      {
+        details_submitted: true,
+        charges_enabled: true,
+        business_profile: { name: "Nexus AI" },
+      },
       12,
     );
     assert.equal(result.ok, true);

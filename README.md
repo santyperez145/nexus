@@ -21,23 +21,23 @@ npm run dev
 
 3. Creá cuenta → **Conexiones**. Ahí ves qué está verde y qué falta.
 
-| Variable | Para qué |
-|---|---|
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / … | Pool de inferencia de la plataforma |
+| Variable                                                                     | Para qué                                                                                                                                                                |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / …                                   | Pool de inferencia de la plataforma                                                                                                                                     |
 | `STRIPE_SECRET_KEY` + webhook + Price IDs + `STRIPE_PORTAL_CONFIGURATION_ID` | Créditos, planes Pro/Team y portal. Preferir una restricted key (`rk_…`) limitada a Customers, Checkout, PaymentIntents, PaymentMethods, Subscriptions y Billing Portal |
-| `STRIPE_AUTOMATIC_TAX_ENABLED=true` | Opt-in después de configurar Tax Settings y registros fiscales en el entorno activo |
-| `CREDENTIALS_SECRET` | Cifrado BYOK (obligatorio en prod) |
-| `BETTER_AUTH_SECRET` | Secreto de sesión de al menos 32 caracteres (obligatorio en prod) |
-| `RESEND_API_KEY` + `EMAIL_FROM` | Verificación y recuperación de cuenta; remitente verificado, obligatorios en prod |
-| `ADMIN_EMAILS` | Allowlist explícita, separada por comas, para Superadmin, tareas globales y ajustes auditados de saldo; también se aplica en desarrollo |
-| `CRON_SECRET` | Secreto aleatorio de al menos 32 caracteres para tareas internas |
-| `DATABASE_URL` | Postgres/Neon pooled (obligatorio en prod; local: PGlite) |
-| `DATABASE_URL_UNPOOLED` | Conexión directa para `npm run db:migrate` |
-| `REDIS_URL` o Upstash | Rate limit y circuit breaker; obligatorio y fail-closed en prod |
-| `ZDR_PROVIDER_IDS` | Proveedores con capacidad y acuerdo ZDR activo confirmado |
-| `NO_TRAINING_PROVIDER_IDS` | Proveedores cuyo acuerdo activo prohíbe entrenamiento con solicitudes |
-| `GATEWAY_URL` | Data plane Hono aparte (`npm run dev:gateway`) |
-| BYOK en Settings | Keys del cliente, cifradas |
+| `STRIPE_AUTOMATIC_TAX_ENABLED=true`                                          | Opt-in después de configurar Tax Settings y registros fiscales en el entorno activo                                                                                     |
+| `CREDENTIALS_SECRET`                                                         | Cifrado BYOK (obligatorio en prod)                                                                                                                                      |
+| `BETTER_AUTH_SECRET`                                                         | Secreto de sesión de al menos 32 caracteres (obligatorio en prod)                                                                                                       |
+| `RESEND_API_KEY` + `EMAIL_FROM`                                              | Verificación y recuperación de cuenta; remitente verificado, obligatorios en prod                                                                                       |
+| `ADMIN_EMAILS`                                                               | Allowlist explícita, separada por comas, para Superadmin, tareas globales y ajustes auditados de saldo; también se aplica en desarrollo                                 |
+| `CRON_SECRET`                                                                | Secreto aleatorio de al menos 32 caracteres para tareas internas                                                                                                        |
+| `DATABASE_URL`                                                               | Postgres/Neon pooled (obligatorio en prod; local: PGlite)                                                                                                               |
+| `DATABASE_URL_UNPOOLED`                                                      | Conexión directa para `npm run db:migrate`                                                                                                                              |
+| `REDIS_URL` o Upstash                                                        | Rate limit y circuit breaker; obligatorio y fail-closed en prod                                                                                                         |
+| `ZDR_PROVIDER_IDS`                                                           | Proveedores con capacidad y acuerdo ZDR activo confirmado                                                                                                               |
+| `NO_TRAINING_PROVIDER_IDS`                                                   | Proveedores cuyo acuerdo activo prohíbe entrenamiento con solicitudes                                                                                                   |
+| `GATEWAY_URL`                                                                | Data plane Hono aparte (`npm run dev:gateway`)                                                                                                                          |
+| BYOK en Settings                                                             | Keys del cliente, cifradas                                                                                                                                              |
 
 PGlite es exclusivamente un fallback efímero de un solo proceso y no soporta flujos HTTP concurrentes de la app.
 No ejecutes `dev`, tests o workers sobre el mismo `PGLITE_DATA_DIR`; para validación integral, staging y producción
@@ -88,7 +88,10 @@ el webhook `{APP_URL}/api/webhooks/stripe` con `checkout.session.completed`,
 `refund.created|updated` y el ciclo `charge.dispute.*` configurado por el script.
 `npm run stripe:configure` reconcilia idempotentemente Products, Prices, eventos del webhook ya
 firmado y una configuración de Billing Portal; devuelve los tres IDs no secretos que deben guardarse
-en el despliegue. Requiere `-- --allow-live` para modificar live mode.
+en el despliegue. También mantiene en español las descripciones de planes y el encabezado del portal.
+Requiere `-- --allow-live` para modificar live mode. El nombre público de la cuenta se configura como
+`Nexus` desde Stripe Dashboard; Stripe no permite que este script edite la identidad de su propia
+cuenta y el probe comercial falla cerrado mientras falte esa marca o conserve un nombre técnico.
 Cada compra de wallet conserva su PaymentIntent, importe cobrado y moneda en el ledger. Refunds
 parciales y disputas se convierten en débitos o retenciones transaccionales e idempotentes; la
 exposición combinada nunca revierte más crédito que la compra y una disputa ganada libera sólo lo
