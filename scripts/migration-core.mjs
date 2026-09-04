@@ -42,7 +42,10 @@ function normalizePredicate(value, table) {
     .replaceAll(`${table}.`, "")
     .replaceAll("(", "")
     .replaceAll(")", "")
-    .replace(/::[a-z_ ]+/g, "")
+    .replace(
+      /::(?:text|boolean|smallint|integer|bigint|numeric|real|double precision|jsonb?|timestamp(?: with(?:out)? time zone)?)/g,
+      "",
+    )
     .replace(/\s+/g, " ")
     .trim();
 }

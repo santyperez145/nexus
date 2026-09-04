@@ -72,6 +72,30 @@ describe("production migration runner", () => {
     ]);
   });
 
+  it("normalizes PostgreSQL casts without consuming the next predicate clause", () => {
+    const expected = {
+      tables: ["credit_ledger"],
+      columns: [],
+      primaryKeys: [],
+      indexes: [
+        {
+          table: "credit_ledger",
+          name: "ledger_purchase_payment_intent_uidx",
+          columns: ["stripe_payment_intent_id"],
+          unique: true,
+          method: "btree",
+          predicate: "type = 'purchase' and stripe_payment_intent_id is not null",
+          constraint: false,
+        },
+      ],
+      foreignKeys: [],
+    };
+    const actual = clone(expected);
+    actual.indexes[0].predicate =
+      "((credit_ledger.type = 'purchase'::text) AND (credit_ledger.stripe_payment_intent_id IS NOT NULL))";
+    assert.deepEqual(compareCatalog(expected, actual), []);
+  });
+
   it("accepts legacy constraint names only for the reconciliation pass", () => {
     const expected = expectedCatalog(readMigrationBundle().baselineSnapshot);
     const actual = clone(expected);
