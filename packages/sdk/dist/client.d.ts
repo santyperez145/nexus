@@ -5,6 +5,7 @@ export declare class Nexus {
     readonly baseURL: string;
     readonly httpReferer?: string;
     readonly title?: string;
+    readonly guest: boolean;
     readonly chat: ChatResource;
     readonly models: ModelsResource;
     readonly credits: CreditsResource;
@@ -27,12 +28,17 @@ export declare class Nexus {
     readonly organization: OrganizationResource;
     readonly observability: ObservabilityResource;
     readonly routing: RoutingResource;
+    readonly status: StatusResource;
+    readonly shares: SharesResource;
+    readonly datasets: DatasetsResource;
+    readonly auth: AuthResource;
+    readonly oauth: OauthResource;
     constructor(opts?: NexusClientOptions);
     request<T>(path: string, init?: {
         method?: string;
         body?: unknown;
         form?: FormData;
-        query?: Record<string, string | number | undefined>;
+        query?: Record<string, string | number | boolean | undefined>;
         headers?: Record<string, string>;
         raw?: boolean;
     }): Promise<T>;
@@ -58,6 +64,7 @@ declare class ModelsResource {
         category?: string;
         output_modalities?: string;
         supported_parameters?: string;
+        include_reference?: boolean;
     }): Promise<{
         data: unknown[];
     }>;
@@ -70,6 +77,8 @@ declare class ModelsResource {
     count(): Promise<{
         data: {
             count: number;
+            executable: number;
+            reference_only: number;
         };
     }>;
 }
@@ -90,7 +99,17 @@ declare class GenerationsResource {
     get(id: string): Promise<{
         data: unknown;
     }>;
-    list(limit?: number): Promise<{
+    list(query?: {
+        limit?: number;
+        model?: string;
+        provider?: string;
+        byok?: "0" | "1";
+        errors?: "0" | "1";
+        days?: number;
+        api_key?: string;
+        workspace?: string;
+        app?: string;
+    }): Promise<{
         data: unknown[];
     }>;
 }
@@ -114,13 +133,18 @@ declare class ImagesResource {
     generate(body: {
         prompt: string;
         model?: string;
-        size?: string;
+        size?: "1024x1024" | "1024x1536" | "1536x1024";
+        quality?: "low" | "medium" | "high";
         n?: number;
     }): Promise<{
         data: Array<{
             b64_json?: string;
             url?: string;
         }>;
+        id?: string;
+        model?: string;
+        cost?: number;
+        price_version?: string;
     }>;
 }
 declare class AudioResource {
@@ -130,7 +154,9 @@ declare class AudioResource {
         input: string;
         model?: string;
         voice?: string;
-        response_format?: string;
+        response_format?: "mp3" | "opus" | "aac" | "flac" | "wav" | "pcm";
+        speed?: number;
+        instructions?: string;
     }): Promise<ArrayBuffer>;
     transcriptions(body: {
         file: Blob;
@@ -139,6 +165,8 @@ declare class AudioResource {
     } | Record<string, unknown>): Promise<{
         text: string;
         id?: string;
+        duration?: number;
+        cost?: number;
     }>;
 }
 declare class ResponsesResource {
@@ -400,6 +428,108 @@ declare class RoutingResource {
             }>;
             note: string;
             guest?: boolean;
+        };
+    }>;
+}
+declare class StatusResource {
+    private readonly client;
+    constructor(client: Nexus);
+    get(): Promise<{
+        data?: Record<string, unknown>;
+        providers?: Record<string, boolean>;
+    }>;
+}
+declare class SharesResource {
+    private readonly client;
+    constructor(client: Nexus);
+    create(body: {
+        model: string;
+        messages: Array<{
+            role: string;
+            content: string;
+        }>;
+        title?: string;
+        stats?: Record<string, unknown> | null;
+    }): Promise<{
+        data: {
+            id: string;
+            url: string;
+            title: string;
+        };
+    }>;
+    get(id: string): Promise<{
+        data: {
+            id: string;
+            title: string | null;
+            payload: {
+                model: string;
+                messages: Array<{
+                    role: string;
+                    content: string;
+                }>;
+            };
+        };
+    }>;
+    list(): Promise<{
+        data: Array<{
+            id: string;
+            title: string | null;
+            model: string;
+            url: string;
+            created_at: string;
+        }>;
+    }>;
+    delete(id: string): Promise<{
+        data: {
+            id: string;
+            deleted: boolean;
+        };
+    }>;
+}
+declare class OauthResource {
+    private readonly client;
+    constructor(client: Nexus);
+    /** Describe PKCE flow (no auth required). */
+    describe(): Promise<{
+        data: {
+            flow: string;
+            steps: string[];
+        };
+    }>;
+    /** Issue one-time code (requires user session / account bearer). */
+    challenge(codeChallenge: string): Promise<{
+        code: string;
+    }>;
+    /** Exchange code + verifier for sk-nx- key (shown once). */
+    exchange(code: string, codeVerifier: string): Promise<{
+        key: string;
+    }>;
+}
+declare class DatasetsResource {
+    private readonly client;
+    constructor(client: Nexus);
+    models(opts?: {
+        window?: "7d" | "30d" | "all";
+    }): Promise<{
+        data: Array<{
+            model: string;
+            tokens: number;
+            requests: number;
+            avg_latency_ms: number | null;
+        }>;
+        window: string;
+    }>;
+}
+declare class AuthResource {
+    private readonly client;
+    constructor(client: Nexus);
+    key(): Promise<{
+        data: {
+            label?: string | null;
+            is_management?: boolean;
+            limit?: number | null;
+            usage?: number;
+            limit_remaining?: number | null;
         };
     }>;
 }

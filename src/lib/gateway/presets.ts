@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import type { AuthContext, ChatMessage, ChatRequest } from "./types";
+import type { AuthContext, ChatInputMessage, ChatRequest } from "./types";
 import { canAccess, userScope } from "./tenant";
 
 export function presetSlugFromModel(model?: string) {
@@ -28,8 +28,8 @@ export async function applyPreset(req: ChatRequest, auth: AuthContext): Promise<
   let messages = req.messages;
   const system = typeof cfg.system === "string" ? cfg.system.trim() : "";
   if (system) {
-    const thread: ChatMessage[] = [...(req.messages ?? [])];
-    if (!thread.some((m) => m.role === "system")) {
+    const thread: ChatInputMessage[] = [...(req.messages ?? [])];
+    if (!thread.some((m) => m.role === "system" || m.role === "developer")) {
       thread.unshift({ role: "system", content: system });
     }
     messages = thread;

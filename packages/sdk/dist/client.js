@@ -1,6 +1,6 @@
 import { NexusError } from "./error.js";
 import { iterateSSE } from "./sse.js";
-const DEFAULT_BASE = "https://web-production-ef6b3.up.railway.app/api/v1";
+const DEFAULT_BASE = "http://127.0.0.1:3000/api/v1";
 function readEnv(name) {
     if (typeof process === "undefined")
         return undefined;
@@ -11,6 +11,7 @@ export class Nexus {
     baseURL;
     httpReferer;
     title;
+    guest;
     chat;
     models;
     credits;
@@ -33,6 +34,11 @@ export class Nexus {
     organization;
     observability;
     routing;
+    status;
+    shares;
+    datasets;
+    auth;
+    oauth;
     #fetch;
     #defaultHeaders;
     constructor(opts = {}) {
@@ -40,6 +46,7 @@ export class Nexus {
         this.baseURL = (opts.baseURL ?? readEnv("NEXUS_BASE_URL") ?? DEFAULT_BASE).replace(/\/$/, "");
         this.httpReferer = opts.httpReferer;
         this.title = opts.title;
+        this.guest = Boolean(opts.guest);
         this.#fetch = opts.fetch ?? fetch;
         this.#defaultHeaders = opts.defaultHeaders ?? {};
         this.chat = new ChatResource(this);
@@ -64,6 +71,11 @@ export class Nexus {
         this.organization = new OrganizationResource(this);
         this.observability = new ObservabilityResource(this);
         this.routing = new RoutingResource(this);
+        this.status = new StatusResource(this);
+        this.shares = new SharesResource(this);
+        this.datasets = new DatasetsResource(this);
+        this.auth = new AuthResource(this);
+        this.oauth = new OauthResource(this);
     }
     async request(path, init = {}) {
         const url = new URL(this.baseURL + (path.startsWith("/") ? path : `/${path}`));
@@ -72,10 +84,15 @@ export class Nexus {
                 url.searchParams.set(k, String(v));
         }
         const headers = {
-            Authorization: `Bearer ${this.apiKey}`,
             ...this.#defaultHeaders,
             ...init.headers,
         };
+        if (this.apiKey)
+            headers.Authorization = `Bearer ${this.apiKey}`;
+        else if (this.guest)
+            headers["X-Nexus-Guest"] = "1";
+        if (this.guest && !headers["X-Nexus-Guest"])
+            headers["X-Nexus-Guest"] = "1";
         if (this.httpReferer)
             headers["HTTP-Referer"] = this.httpReferer;
         if (this.title)
@@ -164,8 +181,20 @@ class GenerationsResource {
     get(id) {
         return this.client.request("/generation", { query: { id } });
     }
-    list(limit = 50) {
-        return this.client.request("/generations", { query: { limit } });
+    list(query = {}) {
+        return this.client.request("/generations", {
+            query: {
+                limit: query.limit ?? 50,
+                ...(query.model ? { model: query.model } : {}),
+                ...(query.provider ? { provider: query.provider } : {}),
+                ...(query.byok ? { byok: query.byok } : {}),
+                ...(query.errors ? { errors: query.errors } : {}),
+                ...(query.days ? { days: query.days } : {}),
+                ...(query.api_key ? { api_key: query.api_key } : {}),
+                ...(query.workspace ? { workspace: query.workspace } : {}),
+                ...(query.app ? { app: query.app } : {}),
+            },
+        });
     }
 }
 class EmbeddingsResource {
@@ -183,10 +212,7 @@ class ImagesResource {
         this.client = client;
     }
     generate(body) {
-        return this.client.request("/images/generations", {
-            method: "POST",
-            body,
-        });
+        return this.client.request("/images/generations", { method: "POST", body });
     }
 }
 class AudioResource {
@@ -443,5 +469,81 @@ class RoutingResource {
     }
     preview(body) {
         return this.client.request("/routing/preview", { method: "POST", body });
+    }
+}
+class StatusResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    get() {
+        return this.client.request("/status");
+    }
+}
+class SharesResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    create(body) {
+        return this.client.request("/shares", {
+            method: "POST",
+            body,
+        });
+    }
+    get(id) {
+        return this.client.request("/shares", { query: { id } });
+    }
+    list() {
+        return this.client.request("/shares");
+    }
+    delete(id) {
+        return this.client.request("/shares", {
+            method: "DELETE",
+            query: { id },
+        });
+    }
+}
+class OauthResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    /** Describe PKCE flow (no auth required). */
+    describe() {
+        return this.client.request("/oauth");
+    }
+    /** Issue one-time code (requires user session / account bearer). */
+    challenge(codeChallenge) {
+        return this.client.request("/oauth", {
+            method: "POST",
+            body: { code_challenge: codeChallenge },
+        });
+    }
+    /** Exchange code + verifier for sk-nx- key (shown once). */
+    exchange(code, codeVerifier) {
+        return this.client.request("/oauth", {
+            method: "POST",
+            body: { code, code_verifier: codeVerifier },
+        });
+    }
+}
+class DatasetsResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    models(opts) {
+        const window = opts?.window && opts.window !== "all" ? opts.window : undefined;
+        return this.client.request("/datasets/models", { query: window ? { window } : undefined });
+    }
+}
+class AuthResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    key() {
+        return this.client.request("/auth/key");
     }
 }

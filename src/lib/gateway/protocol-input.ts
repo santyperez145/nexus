@@ -7,6 +7,7 @@ function record(value: unknown): UnknownRecord | null {
 }
 
 function stringify(value: unknown) {
+  if (value == null) return "";
   return typeof value === "string" ? value : JSON.stringify(value ?? "");
 }
 
@@ -51,10 +52,33 @@ export function responseFileIds(input: unknown) {
     }
     const item = record(value);
     if (!item) return;
-    if (item.type === "input_file" && typeof item.file_id === "string") ids.add(item.file_id);
+    if (
+      (item.type === "input_file" || item.type === "input_image") &&
+      typeof item.file_id === "string"
+    ) {
+      ids.add(item.file_id);
+    }
     Object.values(item).forEach(visit);
   };
   visit(input);
+  return [...ids];
+}
+
+/** Collect file ids embedded in OpenAI Chat content parts. */
+export function chatFileIds(messages: unknown) {
+  if (!Array.isArray(messages)) return [];
+  const ids = new Set<string>();
+  for (const rawMessage of messages) {
+    const message = record(rawMessage);
+    if (!message || !Array.isArray(message.content)) continue;
+    for (const rawPart of message.content) {
+      const part = record(rawPart);
+      const file = record(part?.file);
+      if (part?.type === "file" && typeof file?.file_id === "string") {
+        ids.add(file.file_id);
+      }
+    }
+  }
   return [...ids];
 }
 
@@ -99,9 +123,19 @@ export function responsesInputToMessages(input: unknown, instructions?: unknown)
     }
     const candidateRole = String(item.role ?? "user");
     const role: ChatMessage["role"] =
-      candidateRole === "assistant" || candidateRole === "system" || candidateRole === "tool"
-        ? candidateRole
-        : "user";
+      candidateRole === "developer"
+        ? "system"
+        : candidateRole === "assistant" ||
+            candidateRole === "system" ||
+            candidateRole === "tool" ||
+            candidateRole === "user"
+          ? candidateRole
+          : (() => {
+              throw Object.assign(new Error(`Unsupported Responses message role: ${candidateRole}`), {
+                status: 400,
+                code: "invalid_request",
+              });
+            })();
     messages.push({ role, content: responseContent(item.content ?? item.text ?? "") });
   }
   return messages;

@@ -5,6 +5,7 @@ import {
   canUseByokForRequest,
   isZdrRequest,
   validateChatRequest,
+  normalizeMessages,
 } from "../src/lib/gateway/handle-chat";
 import type { AuthContext, ChatRequest } from "../src/lib/gateway/types";
 
@@ -50,6 +51,53 @@ describe("ZDR fail-closed contract", () => {
 });
 
 describe("gateway request bounds", () => {
+  it("normalizes modern developer and legacy function messages without losing call identity", () => {
+    const messages = normalizeMessages({
+      messages: [
+        { role: "developer", content: "Follow policy" },
+        {
+          role: "assistant",
+          content: "",
+          function_call: { name: "lookup", arguments: '{"id":1}' },
+        },
+        { role: "function", name: "lookup", content: '{"ok":true}' },
+      ],
+    });
+    assert.equal(messages[0]?.role, "system");
+    assert.equal(messages[1]?.role, "assistant");
+    assert.equal(messages[2]?.role, "tool");
+    assert.equal(messages[2]?.tool_call_id, "legacy_function_1");
+    assert.deepEqual(messages[1]?.tool_calls, [
+      {
+        id: "legacy_function_1",
+        type: "function",
+        function: { name: "lookup", arguments: '{"id":1}' },
+      },
+    ]);
+  });
+
+  it("rejects unknown Chat message roles", () => {
+    assert.throws(
+      () => normalizeMessages({ messages: [{ role: "owner" as "user", content: "x" }] }),
+      (error: Error & { code?: string }) => error.code === "invalid_request",
+    );
+  });
+
+  it("rejects malformed or role-incompatible content parts", () => {
+    assert.throws(
+      () =>
+        normalizeMessages({
+          messages: [
+            {
+              role: "developer",
+              content: [{ type: "image_url", image_url: "https://example.com/policy.png" }],
+            },
+          ],
+        }),
+      (error: Error & { code?: string }) => error.code === "invalid_request",
+    );
+  });
+
   it("rejects unbounded output and tool schemas before provider execution", () => {
     const messages = [{ role: "user" as const, content: "hello" }];
     assert.throws(

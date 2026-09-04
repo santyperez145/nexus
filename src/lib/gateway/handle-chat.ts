@@ -27,6 +27,7 @@ import { chatChunkPayload, chatCompletionPayload, usagePayload } from "./openai-
 import { dispatchGenerationWebhook } from "@/lib/observability/dispatch";
 import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 import { shouldRetainPayloads } from "@/lib/privacy/retention";
+import { chatFileIds } from "./protocol-input";
 
 export function isZdrRequest(req: ChatRequest, auth: AuthContext) {
   return Boolean(auth.zdr || req.provider?.zdr || req.provider?.data_collection === "deny");
@@ -74,9 +75,10 @@ function summarizeRouteHops(plan: ReturnType<typeof resolveRoute>) {
   return hops;
 }
 
-function normalizeMessages(req: ChatRequest): ChatMessage[] {
+export function normalizeMessages(req: ChatRequest): ChatMessage[] {
   if (req.messages?.length) {
-    return req.messages.map((message) => {
+    let pendingLegacyCall: { id: string; name: string } | undefined;
+    return req.messages.map((message, index) => {
       const rawRole = String(message.role);
       const role: ChatMessage["role"] =
         rawRole === "developer"
@@ -91,11 +93,116 @@ function normalizeMessages(req: ChatRequest): ChatMessage[] {
                     code: "invalid_request",
                   });
                 })();
-      return { ...message, role };
+      const { function_call: legacyFunctionCall, ...rest } = message;
+      const normalized: ChatMessage = {
+        ...rest,
+        role,
+        content: normalizeMessageContent(message.content, role),
+      };
+
+      if (role === "assistant" && legacyFunctionCall) {
+        const name = String(legacyFunctionCall.name || "function");
+        const id = `legacy_function_${index}`;
+        pendingLegacyCall = { id, name };
+        normalized.tool_calls = [
+          ...(normalized.tool_calls ?? []),
+          {
+            id,
+            type: "function",
+            function: {
+              name,
+              arguments:
+                typeof legacyFunctionCall.arguments === "string"
+                  ? legacyFunctionCall.arguments
+                  : JSON.stringify(legacyFunctionCall.arguments ?? {}),
+            },
+          },
+        ];
+      }
+
+      if (rawRole === "function") {
+        normalized.tool_call_id =
+          message.tool_call_id ??
+          (pendingLegacyCall && (!message.name || message.name === pendingLegacyCall.name)
+            ? pendingLegacyCall.id
+            : `legacy_function_${index}`);
+        pendingLegacyCall = undefined;
+      }
+
+      return normalized;
     });
   }
   if (req.prompt) return [{ role: "user", content: req.prompt }];
   throw Object.assign(new Error("Either messages or prompt is required"), { status: 400 });
+}
+
+function normalizeMessageContent(value: unknown, role: ChatMessage["role"]): ChatMessage["content"] {
+  if (value == null && role === "assistant") return "";
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) {
+    throw Object.assign(new Error("Message content must be a string or an array of content parts"), {
+      status: 400,
+      code: "invalid_request",
+    });
+  }
+
+  return value.map((rawPart) => {
+    if (!rawPart || typeof rawPart !== "object") {
+      throw Object.assign(new Error("Message content parts must be objects"), {
+        status: 400,
+        code: "invalid_request",
+      });
+    }
+    const part = rawPart as Record<string, unknown>;
+    const type = String(part.type ?? "");
+    if (type === "text" && typeof part.text === "string") {
+      return { type, text: part.text };
+    }
+    if (type === "refusal" && role === "assistant" && typeof part.refusal === "string") {
+      return { type: "text", text: part.refusal };
+    }
+    if (type === "image_url" && role === "user") {
+      const image = part.image_url;
+      const url = typeof image === "string" ? image : (image as { url?: unknown } | null)?.url;
+      if (typeof url === "string" && url) return { type, image_url: { url } };
+    }
+    if (type === "input_audio" && role === "user") {
+      const audio = part.input_audio as { data?: unknown; format?: unknown } | null;
+      if (
+        typeof audio?.data === "string" &&
+        (audio.format === "wav" || audio.format === "mp3")
+      ) {
+        return {
+          type,
+          input_audio: { data: audio.data, format: audio.format },
+        };
+      }
+    }
+    if (type === "file" && role === "user") {
+      const file = part.file as {
+        file_data?: unknown;
+        file_id?: unknown;
+        filename?: unknown;
+      } | null;
+      if (
+        (typeof file?.file_data === "string" && file.file_data) ||
+        (typeof file?.file_id === "string" && file.file_id)
+      ) {
+        return {
+          type,
+          file: {
+            ...(typeof file.file_data === "string" ? { file_data: file.file_data } : {}),
+            ...(typeof file.file_id === "string" ? { file_id: file.file_id } : {}),
+            ...(typeof file.filename === "string" ? { filename: file.filename } : {}),
+          },
+        };
+      }
+    }
+    throw Object.assign(new Error(`Unsupported ${role} message content part: ${type || "unknown"}`), {
+      status: 400,
+      code: "invalid_request",
+    });
+  });
 }
 
 export function validateChatRequest(req: ChatRequest, messages: ChatMessage[]) {
@@ -137,6 +244,10 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
   req = await applyPreset(req, auth);
   await enforceGuardrails(auth, req);
   assertZdrCompatible(req, auth);
+  const embeddedFileIds = chatFileIds(req.messages);
+  if (embeddedFileIds.length) {
+    req = { ...req, file_ids: [...new Set([...(req.file_ids ?? []), ...embeddedFileIds])] };
+  }
   let messages = normalizeMessages(req);
   messages = await attachUserFiles(auth, req, messages);
   validateChatRequest(req, messages);

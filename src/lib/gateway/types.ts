@@ -1,16 +1,25 @@
+export type ChatContentPart = {
+  type: string;
+  text?: string;
+  refusal?: string;
+  image_url?: { url: string } | string;
+  input_audio?: { data: string; format: "wav" | "mp3" };
+  file?: { file_data?: string; file_id?: string; filename?: string };
+  source?: { type?: string; media_type?: string; data?: string; url?: string };
+};
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant" | "tool";
-  content:
-    | string
-    | Array<{
-        type: string;
-        text?: string;
-        image_url?: { url: string } | string;
-        source?: { type?: string; media_type?: string; data?: string; url?: string };
-      }>;
+  content: string | ChatContentPart[];
   name?: string;
   tool_call_id?: string;
   tool_calls?: unknown[];
+};
+
+/** OpenAI accepts developer plus deprecated function messages at the API boundary. */
+export type ChatInputMessage = Omit<ChatMessage, "role"> & {
+  role: ChatMessage["role"] | "developer" | "function";
+  function_call?: { name: string; arguments: string };
 };
 
 export type ProviderPreferences = {
@@ -31,7 +40,7 @@ export type ProviderPreferences = {
 export type ChatRequest = {
   model?: string;
   models?: string[];
-  messages?: ChatMessage[];
+  messages?: ChatInputMessage[];
   prompt?: string;
   stream?: boolean;
   temperature?: number;

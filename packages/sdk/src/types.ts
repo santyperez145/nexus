@@ -2,14 +2,25 @@ import type { NexusModelId } from "./model-ids.js";
 
 export type { NexusModelId };
 
-export type ChatRole = "system" | "user" | "assistant" | "tool";
+export type ChatRole = "system" | "developer" | "user" | "assistant" | "tool" | "function";
+
+export type ChatContentPart = {
+  type: string;
+  text?: string;
+  refusal?: string;
+  image_url?: { url: string } | string;
+  input_audio?: { data: string; format: "wav" | "mp3" };
+  file?: { file_data?: string; file_id?: string; filename?: string };
+};
 
 export type ChatMessage = {
   role: ChatRole;
-  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  content: string | ChatContentPart[];
   name?: string;
   tool_call_id?: string;
   tool_calls?: unknown[];
+  /** Deprecated OpenAI function-call shape; normalized to tool_calls by Nexus. */
+  function_call?: { name: string; arguments: string };
 };
 
 export type ProviderPreferences = {

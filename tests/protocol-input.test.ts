@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   anthropicInputToMessages,
   anthropicTools,
+  chatFileIds,
   responseFileIds,
   responsesInputToMessages,
 } from "../src/lib/gateway/protocol-input";
@@ -25,6 +26,41 @@ describe("protocol input translation", () => {
     assert.equal(messages[1]?.role, "user");
     assert.equal(messages[2]?.role, "tool");
     assert.deepEqual(responseFileIds(input), ["file_1"]);
+  });
+
+  it("preserves developer priority and rejects invalid Responses roles", () => {
+    const messages = responsesInputToMessages([
+      { role: "developer", content: [{ type: "input_text", text: "Policy" }] },
+      { role: "user", content: "Question" },
+    ]);
+    assert.deepEqual(messages.map((message) => message.role), ["system", "user"]);
+    assert.ok(Array.isArray(messages[0]?.content));
+    assert.equal(messages[0]?.content[0]?.text, "Policy");
+    assert.throws(
+      () => responsesInputToMessages([{ role: "owner", content: "Unsafe downgrade" }]),
+      (error: Error & { code?: string }) => error.code === "invalid_request",
+    );
+  });
+
+  it("collects uploaded image ids from Responses input", () => {
+    assert.deepEqual(
+      responseFileIds([
+        { role: "user", content: [{ type: "input_image", file_id: "file_image" }] },
+      ]),
+      ["file_image"],
+    );
+  });
+
+  it("collects file ids embedded in Chat content", () => {
+    assert.deepEqual(
+      chatFileIds([
+        {
+          role: "user",
+          content: [{ type: "file", file: { file_id: "file_chat", filename: "brief.pdf" } }],
+        },
+      ]),
+      ["file_chat"],
+    );
   });
 
   it("maps Anthropic images, tool use/results and tool schemas", () => {

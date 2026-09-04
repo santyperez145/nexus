@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.13.0
-  description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference. Guest playground via X-Nexus-Guest (local echo, IP rate-limited).
+  version: 0.14.0
+  description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference. The X-Nexus-Guest local echo is development-only and disabled in production.
 servers:
   - url: /api/v1
 paths:
@@ -24,7 +24,7 @@ paths:
         - in: header
           name: X-Nexus-Guest
           schema: { type: string, enum: ["1"] }
-          description: Public playground — local echo only, never burns lab keys (8 rpm/IP)
+          description: Development-only playground — local echo, disabled in production (8 rpm/IP)
       requestBody:
         required: true
         content:
@@ -34,7 +34,55 @@ paths:
               properties:
                 model: { type: string, example: meta-llama/llama-3.3-70b-instruct }
                 models: { type: array, items: { type: string }, description: Fallback slugs }
-                messages: { type: array, items: { type: object } }
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role:
+                        type: string
+                        enum: [system, developer, user, assistant, tool, function]
+                        description: developer is normalized with system priority; function is accepted for legacy clients.
+                      content:
+                        oneOf:
+                          - type: string
+                          - type: array
+                            items:
+                              type: object
+                              required: [type]
+                              properties:
+                                type: { type: string, enum: [text, image_url, input_audio, file] }
+                                text: { type: string }
+                                image_url:
+                                  oneOf:
+                                    - type: string
+                                    - type: object
+                                      required: [url]
+                                      properties:
+                                        url: { type: string }
+                                input_audio:
+                                  type: object
+                                  required: [data, format]
+                                  properties:
+                                    data: { type: string, description: Base64-encoded audio }
+                                    format: { type: string, enum: [wav, mp3] }
+                                file:
+                                  type: object
+                                  properties:
+                                    file_data: { type: string }
+                                    file_id: { type: string }
+                                    filename: { type: string }
+                      name: { type: string }
+                      tool_call_id: { type: string }
+                      tool_calls: { type: array }
+                      function_call:
+                        type: object
+                        deprecated: true
+                        required: [name, arguments]
+                        properties:
+                          name: { type: string }
+                          arguments: { type: string }
                 stream: { type: boolean }
                 stream_options:
                   type: object
@@ -530,12 +578,13 @@ paths:
               required: [model, input]
               properties:
                 model: { type: string }
-                input: {}
+                input:
+                  description: String or Responses input items. Message roles accept user, assistant, system, and developer; unsupported roles fail with invalid_request.
                 max_output_tokens: { type: integer }
                 stream: { type: boolean }
                 provider: { type: object }
       responses:
-        "200": { description: Response object with output[] }
+        "200": { description: "Response object with output[]" }
   /videos:
     post:
       summary: Start video job (Fal / Replicate / local)

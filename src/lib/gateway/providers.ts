@@ -13,6 +13,21 @@ function envKey(adapter: string, override?: string) {
   return spec ? envFor(spec) : undefined;
 }
 
+function inlineFileData(value: string, filename?: string) {
+  const dataUrl = /^data:([^;,]+);base64,([\s\S]+)$/.exec(value);
+  if (dataUrl) return { data: dataUrl[2], mediaType: dataUrl[1] };
+  const extension = filename?.split(".").pop()?.toLowerCase();
+  const mediaType =
+    extension === "pdf"
+      ? "application/pdf"
+      : extension === "json"
+        ? "application/json"
+        : extension === "txt" || extension === "md" || extension === "csv"
+          ? "text/plain"
+          : "application/octet-stream";
+  return { data: value, mediaType };
+}
+
 function toCoreMessages(messages: ChatMessage[]): ModelMessage[] {
   return messages.map((m) => {
     if (m.role === "tool") {
@@ -66,19 +81,43 @@ function toCoreMessages(messages: ChatMessage[]): ModelMessage[] {
     if (typeof m.content === "string") {
       return { role, content: m.content } as ModelMessage;
     }
-    const parts = (m.content ?? []).map((p) => {
+    if (role === "system") {
+      return {
+        role,
+        content: (m.content ?? []).map((part) => part.text ?? "").join("\n"),
+      } as ModelMessage;
+    }
+    const parts = (m.content ?? []).flatMap<Record<string, unknown>>((p) => {
       const imageUrl = typeof p.image_url === "string" ? p.image_url : p.image_url?.url;
-      if (imageUrl) return { type: "image" as const, image: imageUrl };
+      if (imageUrl) return [{ type: "image" as const, image: imageUrl }];
       if (p.source?.type === "base64" && p.source.data) {
-        return {
+        return [{
           type: "image" as const,
           image: `data:${p.source.media_type ?? "image/png"};base64,${p.source.data}`,
-        };
+        }];
       }
       if (p.source?.type === "url" && p.source.url) {
-        return { type: "image" as const, image: p.source.url };
+        return [{ type: "image" as const, image: p.source.url }];
       }
-      return { type: "text" as const, text: p.text ?? "" };
+      if (p.input_audio) {
+        return [{
+          type: "file" as const,
+          data: p.input_audio.data,
+          mediaType: p.input_audio.format === "mp3" ? "audio/mpeg" : "audio/wav",
+        }];
+      }
+      if (p.file?.file_data) {
+        const file = inlineFileData(p.file.file_data, p.file.filename);
+        return [{
+          type: "file" as const,
+          data: file.data,
+          mediaType: file.mediaType,
+          ...(p.file.filename ? { filename: p.file.filename } : {}),
+        }];
+      }
+      // Stored file ids are expanded by attachUserFiles before provider execution.
+      if (p.file?.file_id) return [];
+      return [{ type: "text" as const, text: p.text ?? p.refusal ?? "" }];
     });
     return { role, content: parts } as ModelMessage;
   });

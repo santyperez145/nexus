@@ -69,7 +69,12 @@ export async function attachUserFiles(
 
   const rows = await db.select().from(schema.files).where(inArray(schema.files.id, unique));
   const owned = rows.filter((row) => canAccess(auth, row));
-  if (!owned.length) return messages;
+  if (owned.length !== unique.length) {
+    throw Object.assign(new Error("One or more attached files were not found"), {
+      status: 404,
+      code: "file_not_found",
+    });
+  }
 
   const imageFiles = owned.filter((f) => f.content && isImageMime(f.mime, f.filename));
   const textFiles = owned.filter((f) => !imageFiles.includes(f));
