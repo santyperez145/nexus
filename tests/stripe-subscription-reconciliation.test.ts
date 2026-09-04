@@ -1,9 +1,9 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type Stripe from "stripe";
 
 const dataDir = mkdtempSync(join(tmpdir(), "nexus-stripe-subscription-test-"));
@@ -16,6 +16,7 @@ delete process.env.POSTGRES_PRISMA_URL;
 let database: typeof import("../src/lib/db");
 let reconciliation: typeof import("../src/lib/billing/stripe-subscription");
 let webhookEvents: typeof import("../src/lib/billing/stripe-webhook-event");
+let stripeCredit: typeof import("../src/lib/billing/stripe-credit");
 
 function subscription(input: {
   id: string;
@@ -46,6 +47,7 @@ before(async () => {
   database = await import("../src/lib/db");
   reconciliation = await import("../src/lib/billing/stripe-subscription");
   webhookEvents = await import("../src/lib/billing/stripe-webhook-event");
+  stripeCredit = await import("../src/lib/billing/stripe-credit");
   await database.ensureDb();
   await database.db.insert(database.schema.users).values({
     id: "usr_reconcile",
@@ -57,6 +59,65 @@ before(async () => {
 after(() => rmSync(dataDir, { recursive: true, force: true }));
 
 describe("Stripe webhook inbox", () => {
+  it("classifies included plan credits separately from paid wallet top-ups", async () => {
+    assert.deepEqual(
+      await stripeCredit.creditPurchaseOnce({
+        userId: "usr_reconcile",
+        creditsUsd: 5,
+        stripeSessionId: "in_plan_credit",
+        ledgerType: "subscription_credit",
+        note: "Pro: créditos mensuales incluidos",
+      }),
+      { credited: true, micros: 5_000_000 },
+    );
+    assert.deepEqual(
+      await stripeCredit.creditPurchaseOnce({
+        userId: "usr_reconcile",
+        creditsUsd: 5,
+        stripeSessionId: "in_plan_credit",
+        ledgerType: "subscription_credit",
+      }),
+      { credited: false, micros: 0 },
+    );
+    const [stored] = await database.db
+      .select()
+      .from(database.schema.creditLedger)
+      .where(eq(database.schema.creditLedger.stripeSessionId, "in_plan_credit"));
+    assert.equal(stored.type, "subscription_credit");
+  });
+
+  it("backfills historical included credits without reclassifying top-ups", async () => {
+    await database.db.insert(database.schema.creditLedger).values([
+      {
+        id: "led_historical_plan",
+        userId: "usr_reconcile",
+        type: "purchase",
+        micros: 5_000_000,
+        stripeSessionId: "in_historical_plan",
+        note: "Pro: créditos mensuales incluidos",
+      },
+      {
+        id: "led_historical_topup",
+        userId: "usr_reconcile",
+        type: "purchase",
+        micros: 10_000_000,
+        stripeSessionId: "cs_historical_topup",
+        note: "Compra Stripe 10 USD",
+      },
+    ]);
+    const migration = readFileSync(
+      join(process.cwd(), "drizzle", "0007_classify_subscription_credits.sql"),
+      "utf8",
+    );
+    await database.db.execute(sql.raw(migration));
+    const rows = await database.db
+      .select()
+      .from(database.schema.creditLedger)
+      .where(eq(database.schema.creditLedger.userId, "usr_reconcile"));
+    assert.equal(rows.find((row) => row.id === "led_historical_plan")?.type, "subscription_credit");
+    assert.equal(rows.find((row) => row.id === "led_historical_topup")?.type, "purchase");
+  });
+
   it("claims once, records failure and allows an idempotent retry", async () => {
     const firstAttempt = new Date("2026-09-03T12:00:00.000Z");
     const input = {

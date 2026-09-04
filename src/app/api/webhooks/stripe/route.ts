@@ -72,6 +72,7 @@ async function creditSubscriptionInvoice(invoice: Stripe.Invoice) {
     userId,
     creditsUsd: plan.includedCreditsUsd,
     stripeSessionId: invoice.id,
+    ledgerType: "subscription_credit",
     customerId,
     note: `${plan.name}: créditos mensuales incluidos`,
   });

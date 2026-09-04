@@ -9,6 +9,7 @@ export async function creditPurchaseOnce(opts: {
   userId: string;
   creditsUsd: number;
   stripeSessionId: string;
+  ledgerType?: "purchase" | "subscription_credit";
   note?: string;
   customerId?: string | null;
 }): Promise<{ credited: boolean; micros: number }> {
@@ -22,7 +23,7 @@ export async function creditPurchaseOnce(opts: {
       .values({
         id: id("led"),
         userId: opts.userId,
-        type: "purchase",
+        type: opts.ledgerType ?? "purchase",
         micros,
         stripeSessionId: opts.stripeSessionId,
         note,

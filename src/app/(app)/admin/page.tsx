@@ -2,8 +2,8 @@ import Link from "next/link";
 import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
+import { registeredMrrUsd, walletLiabilityMicros } from "@/lib/admin/finance";
 import { connectionStatus } from "@/lib/connections";
-import { SUBSCRIPTION_PLANS } from "@/lib/config";
 import { db, ensureDb, schema } from "@/lib/db";
 import { formatUsd, microsToUsd } from "@/lib/money";
 import { isRecentHealthy } from "@/lib/providers/probe";
@@ -16,7 +16,7 @@ function number(value: unknown) {
 
 export default async function AdminOverviewPage() {
   await ensureDb();
-  const [userTotals, generationTotals, subscriptions, activeKeys, orgs, workspaces, staleHolds, health] =
+  const [userTotals, generationTotals, subscriptions, activeKeys, orgs, workspaces, staleHolds, openHolds, health] =
     await Promise.all([
       db
         .select({ count: count(), walletMicros: sql<number>`coalesce(sum(${schema.users.creditMicros}), 0)` })
@@ -31,9 +31,15 @@ export default async function AdminOverviewPage() {
         .from(schema.generations)
         .where(sql`${schema.generations.createdAt} >= now() - interval '24 hours'`),
       db
-        .select({ plan: schema.subscriptions.plan, quantity: schema.subscriptions.quantity })
+        .select({
+          plan: schema.subscriptions.plan,
+          status: schema.subscriptions.status,
+          quantity: sql<number>`coalesce(sum(${schema.subscriptions.quantity}), 0)`,
+          contracts: sql<number>`count(*)`,
+        })
         .from(schema.subscriptions)
-        .where(inArray(schema.subscriptions.status, ["active", "trialing"])),
+        .where(inArray(schema.subscriptions.status, ["active", "trialing"]))
+        .groupBy(schema.subscriptions.plan, schema.subscriptions.status),
       db.select({ count: count() }).from(schema.apiKeys).where(eq(schema.apiKeys.disabled, false)),
       db.select({ count: count() }).from(schema.organizations),
       db.select({ count: count() }).from(schema.workspaces),
@@ -46,6 +52,10 @@ export default async function AdminOverviewPage() {
             sql`${schema.creditHolds.createdAt} <= now() - interval '15 minutes'`,
           ),
         ),
+      db
+        .select({ micros: sql<number>`coalesce(sum(${schema.creditHolds.reservedMicros}), 0)` })
+        .from(schema.creditHolds)
+        .where(eq(schema.creditHolds.status, "open")),
       readProviderHealthRows(),
     ]);
 
@@ -59,15 +69,25 @@ export default async function AdminOverviewPage() {
   ).length;
   const requests = number(generationTotals[0]?.count);
   const errors = number(generationTotals[0]?.errors);
-  const mrr = subscriptions.reduce((sum, subscription) => {
-    const plan = SUBSCRIPTION_PLANS.find((candidate) => candidate.id === subscription.plan);
-    return sum + (plan?.monthlyUsd ?? 0) * subscription.quantity;
-  }, 0);
+  const mrr = registeredMrrUsd(
+    subscriptions.map((subscription) => ({
+      ...subscription,
+      quantity: number(subscription.quantity),
+    })),
+  );
+  const subscriptionCount = subscriptions.reduce(
+    (sum, subscription) => sum + number(subscription.contracts),
+    0,
+  );
+  const walletMicros = walletLiabilityMicros(
+    number(userTotals[0]?.walletMicros),
+    number(openHolds[0]?.micros),
+  );
 
   const cards = [
-    { label: "Usuarios", value: number(userTotals[0]?.count).toLocaleString(), note: `${subscriptions.length} suscripciones activas o trial` },
-    { label: "MRR registrado", value: formatUsd(mrr, 2), note: "Según suscripciones locales activas; no es caja conciliada" },
-    { label: "Pasivo de wallet", value: formatUsd(microsToUsd(number(userTotals[0]?.walletMicros))), note: "Crédito disponible comprometido con clientes" },
+    { label: "Usuarios", value: number(userTotals[0]?.count).toLocaleString(), note: `${subscriptionCount} suscripciones activas o trial` },
+    { label: "MRR registrado", value: formatUsd(mrr, 2), note: "Sólo suscripciones locales activas; no es caja conciliada" },
+    { label: "Pasivo de wallet", value: formatUsd(microsToUsd(walletMicros)), note: "Crédito disponible más reservas abiertas comprometidas con clientes" },
     { label: "Solicitudes · 24 h", value: requests.toLocaleString(), note: `${number(generationTotals[0]?.tokens).toLocaleString()} tokens · ${requests ? ((errors / requests) * 100).toFixed(1) : "0.0"}% error` },
     { label: "Consumo facturado · 24 h", value: formatUsd(microsToUsd(number(generationTotals[0]?.billedMicros))), note: "Importe retail persistido en generaciones" },
     { label: "Proveedores operativos", value: `${healthy}/${configured}`, note: `${configured}/${connections.providers.length} configurados; salud válida por 30 min` },

@@ -50,6 +50,13 @@
       "when": 1788487280934,
       "tag": "0006_fancy_blue_shield",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788487664690,
+      "tag": "0007_classify_subscription_credits",
+      "breakpoints": true
     }
   ]
 }

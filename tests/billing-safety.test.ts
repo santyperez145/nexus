@@ -14,6 +14,11 @@ import {
   customerDefaultPaymentMethodId,
   ensureAutoTopupPaymentMethod,
 } from "../src/lib/billing/stripe-payment-method";
+import {
+  quotedTopupFeesUsd,
+  registeredMrrUsd,
+  walletLiabilityMicros,
+} from "../src/lib/admin/finance";
 
 describe("atomic settle math", () => {
   it("never charges more than balance when clamping", () => {
@@ -188,5 +193,32 @@ describe("Stripe auto top-up payment method", () => {
       } as unknown as Stripe.Customer),
       "pm_object",
     );
+  });
+});
+
+describe("finance reporting math", () => {
+  it("excludes trials from registered MRR and applies paid seat quantities", () => {
+    assert.equal(
+      registeredMrrUsd([
+        { plan: "pro", status: "active", quantity: 2 },
+        { plan: "team", status: "trialing", quantity: 10 },
+        { plan: "team", status: "active", quantity: 3 },
+      ]),
+      185,
+    );
+  });
+
+  it("reports quoted top-up fees before processor costs", () => {
+    assert.equal(
+      quotedTopupFeesUsd([
+        { micros: 10_000_000, count: 2 },
+        { micros: 100_000_000, count: 1 },
+      ]),
+      7.1,
+    );
+  });
+
+  it("keeps open reservations inside wallet liabilities", () => {
+    assert.equal(walletLiabilityMicros(25_000_000, 4_000_000), 29_000_000);
   });
 });
