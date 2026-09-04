@@ -11,9 +11,9 @@ export default async function ChatLayout({ children }: { children: React.ReactNo
     return <AppShell>{children}</AppShell>;
   }
   return (
-    <div className="relative min-h-screen bg-white text-zinc-900">
+    <div className="nexus-grid relative min-h-screen bg-[#f8f9ff] text-zinc-900">
       <SiteHeader tone="light" />
-      <main className="relative mx-auto max-w-6xl p-4 md:p-8">{children}</main>
+      <main className="relative mx-auto max-w-[90rem] p-4 md:p-8">{children}</main>
       <SiteFooter tone="light" />
     </div>
   );

@@ -10,7 +10,7 @@ export function SignOutButton({ compact = false }: { compact?: boolean }) {
     <Button
       variant="ghost"
       size="sm"
-      className={compact ? "shrink-0 text-zinc-500" : "mt-4 w-full justify-start text-zinc-500"}
+      className={compact ? "shrink-0 text-zinc-400 hover:text-white" : "mt-4 w-full justify-start text-zinc-400 hover:bg-white/[0.06] hover:text-white"}
       onClick={async () => {
         await authClient.signOut();
         router.push("/login");

@@ -44,7 +44,7 @@ PGlite es exclusivamente un fallback efímero de un solo proceso y no soporta fl
 No ejecutes `dev`, tests o workers sobre el mismo `PGLITE_DATA_DIR`; para validación integral, staging y producción
 usá PostgreSQL/Neon.
 
-Las cargas de wallet cobran 5,5% con un mínimo de USD 0,80; la inferencia del pool mantiene 0% de
+Las cargas de wallet cobran 5% con un mínimo de USD 0,80; la inferencia del pool mantiene 0% de
 markup. El mínimo evita que el costo fijo del procesador vuelva deficitarios los packs pequeños.
 
 El eco guest existe únicamente como ayuda de desarrollo y nunca forma parte de la API de producción.

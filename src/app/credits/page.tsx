@@ -15,7 +15,7 @@ import { formatUsd } from "@/lib/money";
 export const dynamic = "force-dynamic";
 
 export default function PublicCreditsPage() {
-  const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
+  const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(0);
   const freeModels = allModels().filter((m) => m.free && !m.id.startsWith("nexus/")).length;
   const planCopy: Record<string, string> = {
     pro: "Para crear, lanzar y escalar productos con más capacidad.",
@@ -27,7 +27,7 @@ export default function PublicCreditsPage() {
       <div className="relative mx-auto max-w-4xl px-4 py-12 md:py-16">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-6 h-44 bg-[radial-gradient(ellipse_at_top,_rgba(217,119,6,0.12),_transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-6 h-52 bg-[radial-gradient(circle_at_30%_0%,rgba(99,102,241,0.14),transparent_50%),radial-gradient(circle_at_75%_0%,rgba(6,182,212,0.09),transparent_45%)]"
         />
         <MarketingPageHeader title="Precios simples y transparentes">
           Pagá el precio publicado de cada modelo. Sin recargos por token, mínimos mensuales ni
@@ -38,9 +38,9 @@ export default function PublicCreditsPage() {
           {[
             { t: "Sin recargo por uso", d: "El precio por token coincide con el publicado en el catálogo." },
             { t: `${feePct}% al cargar`, d: `Comisión visible; mínimo ${formatUsd(CREDIT_PURCHASE_MIN_FEE_USD, 2)}.` },
-            { t: "Tus propias cuentas", d: "Conectá proveedores que ya usás y mantené el control." },
+            { t: "Stripe Checkout + Link", d: "Link y otros métodos elegibles aparecen dinámicamente según tu región." },
           ].map((c) => (
-            <div key={c.t} className="rounded-xl border border-zinc-200 bg-white px-4 py-4">
+            <div key={c.t} className="nexus-surface rounded-2xl border border-indigo-100 bg-white/90 px-4 py-4">
               <div className="text-lg font-semibold text-zinc-900">
                 {c.t}
               </div>
@@ -56,7 +56,7 @@ export default function PublicCreditsPage() {
         </p>
         <div className="mb-10 grid gap-3 md:grid-cols-2">
           {SUBSCRIPTION_PLANS.map((plan) => (
-            <div key={plan.id} className={`relative rounded-2xl bg-white p-6 ${plan.id === "team" ? "border-2 border-violet-500 shadow-[0_16px_45px_rgba(99,102,241,0.12)]" : "border border-zinc-200"}`}>
+            <div key={plan.id} className={`nexus-surface relative rounded-2xl bg-white p-6 ${plan.id === "team" ? "border-2 border-indigo-500 shadow-[0_16px_45px_rgba(99,102,241,0.12)]" : "border border-indigo-100"}`}>
               {plan.id === "team" ? <div className="absolute -top-3 left-5 rounded-full bg-violet-600 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">Más elegido por equipos</div> : null}
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -93,7 +93,7 @@ export default function PublicCreditsPage() {
             return (
               <div
                 key={p.id}
-                className="flex flex-col justify-between rounded-xl border border-zinc-200 bg-white px-4 py-4"
+                className="nexus-surface flex flex-col justify-between rounded-2xl border border-indigo-100 bg-white/90 px-4 py-4"
               >
                 <div>
                   <div className="text-2xl font-semibold text-zinc-900">

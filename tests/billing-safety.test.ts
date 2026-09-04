@@ -74,9 +74,9 @@ describe("wallet purchase economics", () => {
     assert.equal(chargeAmountCents(10), 1080);
   });
 
-  it("applies 5.5 percent once it exceeds the floor", () => {
-    assert.equal(creditPurchaseFeeUsd(100), 5.5);
-    assert.equal(chargeAmountCents(100), 10_550);
+  it("applies 5 percent once it exceeds the floor", () => {
+    assert.equal(creditPurchaseFeeUsd(100), 5);
+    assert.equal(chargeAmountCents(100), 10_500);
   });
 
   it("does not quote invalid or negative credit amounts", () => {
@@ -231,7 +231,7 @@ describe("finance reporting math", () => {
         { micros: 10_000_000, count: 2 },
         { micros: 100_000_000, count: 1 },
       ]),
-      7.1,
+      6.6,
     );
   });
 

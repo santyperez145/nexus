@@ -71,8 +71,8 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-const activeCls = "bg-zinc-100 text-zinc-950";
-const idleCls = "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950";
+const activeCls = "bg-indigo-400/15 text-white ring-1 ring-inset ring-indigo-300/15";
+const idleCls = "text-zinc-400 hover:bg-white/[0.06] hover:text-white";
 
 export function AppNav({
   variant = "sidebar",
@@ -91,8 +91,8 @@ export function AppNav({
 
   if (variant === "mobile") {
     return (
-      <div className="border-b border-zinc-200 bg-white md:hidden">
-        <nav className="flex items-center gap-1 px-3 py-2 text-xs">
+      <div className="border-b border-white/10 bg-[#0b0e1a] md:hidden">
+        <nav className="flex items-center gap-1 overflow-x-auto px-3 py-2 text-xs">
           {MOBILE_PRIMARY.map((item) => {
             const active = isActive(pathname, item.href);
             return (
@@ -115,10 +115,10 @@ export function AppNav({
           </button>
         </nav>
         {open ? (
-          <div className="max-h-[60vh] space-y-4 overflow-y-auto border-t border-zinc-200 bg-white px-3 py-3 text-sm">
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto border-t border-white/10 bg-[#0b0e1a] px-3 py-3 text-sm">
             {groups.map((group) => (
               <div key={group.title}>
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
                   {group.title}
                 </div>
                 <div className="grid grid-cols-2 gap-1">
@@ -137,11 +137,11 @@ export function AppNav({
                 </div>
               </div>
             ))}
-            <div className="grid grid-cols-2 gap-1 border-t border-zinc-200 pt-3">
-              <Link href="/status" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-600">
+            <div className="grid grid-cols-2 gap-1 border-t border-white/10 pt-3">
+              <Link href="/status" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-400">
                 Estado
               </Link>
-              <Link href="/docs" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-600">
+              <Link href="/docs" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-zinc-400">
                 Documentación
               </Link>
             </div>
@@ -156,7 +156,7 @@ export function AppNav({
       <nav className="flex-1 space-y-5 overflow-y-auto pb-4 text-sm">
         {groups.map((group) => (
           <div key={group.title}>
-            <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
+            <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
               {group.title}
             </div>
             <div className="grid gap-0.5">
@@ -176,7 +176,7 @@ export function AppNav({
           </div>
         ))}
         <div>
-          <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">Ayuda</div>
+          <div className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">Ayuda</div>
           <Link
             href="/status"
             className={`block rounded-md px-2 py-1.5 ${pathname.startsWith("/status") ? activeCls : idleCls}`}
@@ -194,14 +194,14 @@ export function AppNav({
       {userEmail ? (
         <Link
           href="/settings/account"
-          className={`rounded-lg border px-3 py-2 transition-colors ${
+          className={`rounded-xl border px-3 py-2 transition-colors ${
             pathname === "/settings/account"
-              ? "border-violet-200 bg-violet-50"
-              : "border-zinc-200 bg-zinc-50 hover:border-zinc-300"
+              ? "border-indigo-400/40 bg-indigo-400/10"
+              : "border-white/10 bg-white/[0.04] hover:border-white/20"
           }`}
         >
           <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500">Cuenta</div>
-          <div className="mt-0.5 truncate text-xs text-zinc-800" title={userEmail}>{userEmail}</div>
+          <div className="mt-0.5 truncate text-xs text-zinc-300" title={userEmail}>{userEmail}</div>
         </Link>
       ) : null}
       <SignOutButton />

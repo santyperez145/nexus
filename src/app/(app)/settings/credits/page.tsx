@@ -132,7 +132,7 @@ function CreditsInner() {
   );
   const displayMessage =
     settledSubscriptionNotice ?? subscriptionReturn.notice ?? msg;
-  const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
+  const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(0);
   const thresholdValue =
     threshold ?? String(prefs?.autoTopupThresholdUsd ?? "5");
   const amountValue = amount ?? String(prefs?.autoTopupAmountUsd ?? "25");

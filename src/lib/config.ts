@@ -12,7 +12,7 @@ export const APP_URL =
           : "http://localhost:3000");
 
 /** Fee sobre la carga de créditos, no sobre la inferencia de pool. */
-export const CREDIT_PURCHASE_FEE = 0.055;
+export const CREDIT_PURCHASE_FEE = 0.05;
 export const CREDIT_PURCHASE_MIN_FEE_USD = 0.8;
 
 /** Revenue collected on a wallet top-up before processor fees and taxes. */

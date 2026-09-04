@@ -39,24 +39,28 @@ const COLS = [
 export function SiteFooter({ tone = "light" }: { tone?: "dark" | "light" }) {
   const light = tone === "light";
   return (
-    <footer className={cn("border-t", light ? "border-zinc-200 bg-white" : "border-white/10 bg-zinc-950")}>
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
+    <footer className={cn("border-t", light ? "border-indigo-950/10 bg-[#0b0e1a]" : "border-white/10 bg-[#080a13]")}>
+      <div className="nexus-console-grid mx-auto grid max-w-[90rem] gap-10 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
         <div>
-          <div className={light ? "text-zinc-950" : "text-zinc-100"}>
-            <NexusWordmark tone={light ? "light" : "dark"} />
+          <div className="text-zinc-100">
+            <NexusWordmark tone="dark" />
           </div>
-          <p className="mt-3 max-w-xs text-sm leading-relaxed text-zinc-500">
-            Todos tus modelos de IA en un solo lugar, con costos claros y control compartido.
+          <p className="mt-3 max-w-xs text-sm leading-relaxed text-zinc-400">
+            Infraestructura neutral para descubrir, ejecutar y gobernar modelos de múltiples proveedores.
           </p>
+          <div className="mt-5 inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-300">
+            <span className="size-1.5 rounded-full bg-cyan-400" />
+            Gateway independiente
+          </div>
         </div>
         {COLS.map((col) => (
           <div key={col.title} className="grid gap-2 text-sm">
-            <div className="font-medium text-zinc-900">{col.title}</div>
+            <div className="font-medium text-zinc-100">{col.title}</div>
             {col.links.map(([href, label]) => (
               <Link
                 key={`${col.title}-${href}-${label}`}
                 href={href}
-                className={light ? "text-zinc-500 hover:text-zinc-950" : "text-zinc-400 hover:text-white"}
+                className="text-zinc-400 transition-colors hover:text-white"
               >
                 {label}
               </Link>

@@ -39,22 +39,23 @@ export function SiteSearch({ models }: { models: Row[] }) {
   }
 
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full max-w-lg">
       <button
         type="button"
         onClick={() => {
           setOpen(true);
           queueMicrotask(() => inputRef.current?.focus());
         }}
-        className="flex h-9 w-full items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 text-left text-sm text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-white"
+        className="flex h-9 w-full items-center gap-2 rounded-full border border-indigo-100 bg-white/80 px-3 text-left text-sm text-zinc-500 shadow-sm shadow-indigo-950/5 transition-all hover:border-indigo-200 hover:bg-white hover:shadow-md"
       >
-        <span className="flex-1 truncate">Buscar modelos…</span>
-        <kbd className="hidden rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 sm:inline">
+        <span aria-hidden className="size-1.5 rounded-full bg-cyan-500" />
+        <span className="flex-1 truncate">Buscar modelos, autores o proveedores…</span>
+        <kbd className="hidden rounded border border-indigo-100 bg-indigo-50/70 px-1.5 py-0.5 font-mono text-[10px] text-indigo-500 sm:inline">
           ⌘K
         </kbd>
       </button>
       {open ? (
-        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
+        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-2xl shadow-indigo-950/10">
           <input
             ref={inputRef}
             value={q}
@@ -66,7 +67,7 @@ export function SiteSearch({ models }: { models: Row[] }) {
               }
             }}
             placeholder="openai/gpt-4o, claude, groq…"
-            className="h-10 w-full border-b border-zinc-100 px-3 text-sm outline-none"
+            className="h-11 w-full border-b border-indigo-50 px-3 text-sm outline-none placeholder:text-zinc-400 focus:bg-indigo-50/30"
             autoComplete="off"
           />
           <ul className="max-h-72 overflow-auto py-1">
@@ -74,7 +75,7 @@ export function SiteSearch({ models }: { models: Row[] }) {
               <li key={m.id}>
                 <button
                   type="button"
-                  className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-zinc-50"
+                  className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-indigo-50/60"
                   onClick={() => go(`/models/${m.id}`)}
                 >
                   <span className="font-medium text-zinc-900">{m.name}</span>

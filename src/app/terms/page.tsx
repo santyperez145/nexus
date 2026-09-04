@@ -15,7 +15,7 @@ export default function TermsPage() {
             <p>
               Nexus ofrece API unificada, SDK, dashboard y billing sobre modelos de terceros. El
               precio de inferencia es el de lista del catálogo (0% markup). Al cargar créditos se
-              aplica un fee de plataforma (5.5%, con un mínimo de USD 0.80). Toda acreditación real queda documentada en el ledger.
+              aplica un fee de plataforma (5%, con un mínimo de USD 0.80). Toda acreditación real queda documentada en el ledger.
             </p>
           </section>
 

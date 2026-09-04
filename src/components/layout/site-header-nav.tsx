@@ -13,24 +13,24 @@ import {
 
 const LINKS = [
   { href: "/models", label: "Modelos" },
-  { href: "/chat", label: "Chat" },
-  { href: "/rankings", label: "Ranking" },
+  { href: "/providers", label: "Proveedores" },
+  { href: "/chat", label: "Playground" },
   { href: "/apps", label: "Apps" },
-  { href: "/enterprise", label: "Equipos" },
-  { href: "/docs", label: "Documentación" },
+  { href: "/enterprise", label: "Empresas" },
+  { href: "/docs", label: "Docs" },
 ];
 
 const MORE_LINKS = [
   { href: "/compare", label: "Comparar" },
   { href: "/arena", label: "Arena" },
-  { href: "/providers", label: "Proveedores" },
+  { href: "/rankings", label: "Ranking" },
   { href: "/credits", label: "Precios" },
 ] as const;
 
 export function SiteHeaderNav({ light }: { light: boolean }) {
   return (
     <>
-      <nav className={cn("hidden items-center gap-5 text-sm lg:flex", light ? "text-zinc-600" : "text-zinc-400")}>
+      <nav className={cn("hidden items-center gap-5 text-[13px] font-medium lg:flex", light ? "text-zinc-600" : "text-zinc-400")}>
         {LINKS.map((item) => (
           <Link
             key={item.href}

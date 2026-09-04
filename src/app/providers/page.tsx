@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
-import { allModels } from "@/lib/catalog";
+import { allModels, isExecutableEndpoint } from "@/lib/catalog";
 import { providerSnapshot } from "@/lib/gateway/health";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
 import { isProviderZdrConfirmed } from "@/lib/providers/privacy";
@@ -19,9 +19,13 @@ export default async function ProvidersPage() {
     operational = new Set();
   }
   const counts = new Map<string, number>();
+  const executableCounts = new Map<string, number>();
   for (const m of allModels()) {
     for (const e of m.endpoints) {
       counts.set(e.adapter, (counts.get(e.adapter) ?? 0) + 1);
+      if (isExecutableEndpoint(e)) {
+        executableCounts.set(e.adapter, (executableCounts.get(e.adapter) ?? 0) + 1);
+      }
     }
   }
   let circuits: Array<{ name: string; circuit: string; failures: number }> = [];
@@ -38,7 +42,7 @@ export default async function ProvidersPage() {
       <div className="relative mx-auto max-w-6xl px-4 py-12 md:py-16">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-8 h-48 bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.08),_transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-8 h-64 bg-[radial-gradient(circle_at_25%_0%,rgba(99,102,241,0.14),transparent_48%),radial-gradient(circle_at_75%_0%,rgba(6,182,212,0.1),transparent_42%)]"
         />
         <MarketingPageHeader title="Proveedores">
           Compará el catálogo disponible en cada proveedor y elegí cómo ejecutar tus modelos desde
@@ -52,9 +56,9 @@ export default async function ProvidersPage() {
             { k: "Configurados", v: String(wired) },
             { k: "Verificados ahora", v: String(operational.size) },
           ].map((s) => (
-            <div key={s.k} className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.k}</div>
-              <div className="mt-1 text-2xl font-semibold text-zinc-900">
+            <div key={s.k} className="nexus-surface rounded-2xl border border-indigo-100 bg-white/90 px-4 py-4">
+              <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-500">{s.k}</div>
+              <div className="mt-1 font-[family-name:var(--font-syne)] text-2xl font-semibold text-[#111326]">
                 {s.v}
               </div>
             </div>
@@ -65,6 +69,7 @@ export default async function ProvidersPage() {
           {NEXUS_PROVIDERS.map((p) => {
             const on = live.has(p.id);
             const n = counts.get(p.id) ?? 0;
+            const executable = executableCounts.get(p.id) ?? 0;
             const cb = circuitBy.get(p.id);
             const circuit = cb?.circuit ?? "closed";
             const zdr = isProviderZdrConfirmed(p.id);
@@ -73,12 +78,21 @@ export default async function ProvidersPage() {
               <Link
                 key={p.id}
                 href={`/providers/${p.id}`}
-                className="group rounded-2xl border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300"
+                className="nexus-surface group rounded-2xl border border-indigo-100 bg-white/90 p-4 transition-all hover:-translate-y-0.5 hover:border-indigo-300"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-lg font-semibold text-zinc-950 group-hover:text-zinc-950">
                       {p.label}
+                    </div>
+                    <div className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-400">
+                      {p.kind === "anthropic"
+                        ? "Anthropic Messages"
+                        : p.kind === "google"
+                          ? "Google Gemini"
+                          : p.kind === "mistral"
+                            ? "Mistral native"
+                            : "OpenAI-compatible"}
                     </div>
                   </div>
                   <span
@@ -95,8 +109,13 @@ export default async function ProvidersPage() {
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
                   <span className="rounded border border-zinc-200 px-1.5 py-0.5 font-mono text-zinc-500">
-                    {n ? `${n} modelos` : "Integración disponible"}
+                    {n ? `${n} en catálogo` : "Integración disponible"}
                   </span>
+                  {executable ? (
+                    <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-mono text-emerald-700">
+                      {executable} tarifa{executable === 1 ? "" : "s"} verificada{executable === 1 ? "" : "s"}
+                    </span>
+                  ) : null}
                   <span
                     className={`rounded border px-1.5 py-0.5 ${
                       circuit === "open"
