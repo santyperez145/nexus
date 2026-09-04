@@ -9,7 +9,14 @@ const MODS = new Set(["all", "text", "image", "video", "audio", "embeddings"]);
 export default async function ModelsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mod?: string; free?: string; author?: string; lab?: string; sort?: string }>;
+  searchParams: Promise<{
+    mod?: string;
+    free?: string;
+    author?: string;
+    lab?: string;
+    sort?: string;
+    page?: string;
+  }>;
 }) {
   const q = await searchParams;
   const initialMod = MODS.has(q.mod ?? "")
@@ -19,6 +26,8 @@ export default async function ModelsPage({
   const initialSort = sortOk.has(q.sort ?? "")
     ? (q.sort as "new" | "price" | "context" | "latency")
     : "new";
+  const requestedPage = Number.parseInt(q.page ?? "1", 10);
+  const initialPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const models = allModels().map((m) => ({
     id: m.id,
     name: m.name,
@@ -59,6 +68,7 @@ export default async function ModelsPage({
           initialAuthor={q.author ?? "all"}
           initialLab={q.lab ?? "all"}
           initialSort={initialSort}
+          initialPage={initialPage}
         />
       </div>
     </MarketingShell>

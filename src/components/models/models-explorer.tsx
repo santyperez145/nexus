@@ -99,6 +99,8 @@ const OUTPUT_LABELS: Record<string, string> = {
   embeddings: "Vectores",
 };
 
+const PAGE_SIZE = 24;
+
 export function ModelsExplorer({
   models,
   initialMod = "all",
@@ -106,6 +108,7 @@ export function ModelsExplorer({
   initialAuthor = "all",
   initialLab = "all",
   initialSort = "new",
+  initialPage = 1,
 }: {
   models: Row[];
   initialMod?: (typeof MODALITIES)[number]["id"];
@@ -113,6 +116,7 @@ export function ModelsExplorer({
   initialAuthor?: string;
   initialLab?: string;
   initialSort?: "new" | "price" | "context" | "latency";
+  initialPage?: number;
 }) {
   const [q, setQ] = useState("");
   const [lab, setLab] = useState(initialLab);
@@ -122,6 +126,7 @@ export function ModelsExplorer({
   const [sort, setSort] = useState<"new" | "price" | "context" | "latency">(initialSort);
   const [table, setTable] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const [page, setPage] = useState(initialPage);
   const [latencyByModel, setLatencyByModel] = useState<Map<string, number>>(new Map());
   const [tokensByModel, setTokensByModel] = useState<Map<string, number>>(new Map());
   const router = useRouter();
@@ -175,6 +180,7 @@ export function ModelsExplorer({
     author?: string;
     lab?: string;
     sort?: string;
+    page?: number;
   }) {
     const params = new URLSearchParams();
     const m = next.mod ?? mod;
@@ -182,13 +188,25 @@ export function ModelsExplorer({
     const a = next.author ?? author;
     const l = next.lab ?? lab;
     const s = next.sort ?? sort;
+    const p = next.page ?? page;
     if (m !== "all") params.set("mod", m);
     if (f) params.set("free", "1");
     if (a !== "all") params.set("author", a);
     if (l !== "all") params.set("lab", l);
     if (s !== "new") params.set("sort", s);
+    if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     router.replace(qs ? `/models?${qs}` : "/models", { scroll: false });
+  }
+
+  function resetPage() {
+    setPage(1);
+  }
+
+  function goToPage(nextPage: number) {
+    setPage(nextPage);
+    syncUrl({ page: nextPage });
+    document.getElementById("model-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function toggleSelect(id: string) {
@@ -226,6 +244,12 @@ export function ModelsExplorer({
       }
       return b.created - a.created;
     });
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(Math.max(page, 1), pageCount);
+  const rangeStart = filtered.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filtered.length);
+  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const trending = useMemo(() => {
     return [...tokensByModel.entries()]
@@ -268,7 +292,7 @@ export function ModelsExplorer({
         </div>
       ) : null}
 
-      <div className="sticky top-0 z-10 -mx-1 mb-5 space-y-3 border-b border-zinc-200 bg-white/95 px-1 pb-4 pt-1 backdrop-blur">
+      <div className="sticky top-14 z-10 -mx-1 mb-5 space-y-3 border-b border-zinc-200 bg-white/95 px-1 pb-4 pt-1 backdrop-blur">
         <div className="flex flex-wrap gap-1.5">
           {MODALITIES.map((item) => {
             const active = mod === item.id;
@@ -278,7 +302,8 @@ export function ModelsExplorer({
                 type="button"
                 onClick={() => {
                   setMod(item.id);
-                  syncUrl({ mod: item.id });
+                  resetPage();
+                  syncUrl({ mod: item.id, page: 1 });
                 }}
                 className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                   active
@@ -298,7 +323,8 @@ export function ModelsExplorer({
             onClick={() => {
               const next = !freeOnly;
               setFreeOnly(next);
-              syncUrl({ free: next });
+              resetPage();
+              syncUrl({ free: next, page: 1 });
             }}
             className={`rounded-full border px-3 py-1 text-xs transition-colors ${
               freeOnly
@@ -312,7 +338,10 @@ export function ModelsExplorer({
         <div className="grid gap-2 md:grid-cols-[1fr_160px_170px_140px_auto]">
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              resetPage();
+            }}
             placeholder="Buscar por modelo o creador…"
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 shadow-sm"
             aria-label="Buscar modelos"
@@ -321,7 +350,8 @@ export function ModelsExplorer({
             value={author}
             onChange={(e) => {
               setAuthor(e.target.value);
-              syncUrl({ author: e.target.value });
+              resetPage();
+              syncUrl({ author: e.target.value, page: 1 });
             }}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
             aria-label="Filtrar por creador"
@@ -337,7 +367,8 @@ export function ModelsExplorer({
             value={lab}
             onChange={(e) => {
               setLab(e.target.value);
-              syncUrl({ lab: e.target.value });
+              resetPage();
+              syncUrl({ lab: e.target.value, page: 1 });
             }}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
             aria-label="Filtrar por proveedor"
@@ -354,7 +385,8 @@ export function ModelsExplorer({
             onChange={(e) => {
               const next = e.target.value as typeof sort;
               setSort(next);
-              syncUrl({ sort: next });
+              resetPage();
+              syncUrl({ sort: next, page: 1 });
             }}
             className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900"
             aria-label="Ordenar"
@@ -374,7 +406,8 @@ export function ModelsExplorer({
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
           <p>
-            <span className="font-medium text-zinc-700">{filtered.length}</span> modelos disponibles
+            <span className="font-medium text-zinc-700">{rangeStart}–{rangeEnd}</span> de{" "}
+            <span className="font-medium text-zinc-700">{filtered.length}</span> modelos
             {sort === "latency" ? " · según datos de los últimos 30 días" : ""}
           </p>
           {selected.length ? (
@@ -400,7 +433,29 @@ export function ModelsExplorer({
         </div>
       </div>
 
-      {table ? (
+      <div id="model-results" className="scroll-mt-40" />
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/60 px-6 py-16 text-center">
+          <h2 className="text-lg font-semibold text-zinc-900">No encontramos modelos</h2>
+          <p className="mt-2 text-sm text-zinc-500">Probá otra búsqueda o quitá alguno de los filtros.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setQ("");
+              setLab("all");
+              setMod("all");
+              setFreeOnly(false);
+              setAuthor("all");
+              setSort("new");
+              resetPage();
+              router.replace("/models", { scroll: false });
+            }}
+            className="mt-5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 hover:border-zinc-400"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      ) : table ? (
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
@@ -417,7 +472,7 @@ export function ModelsExplorer({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m, i) => {
+                {visible.map((m, i) => {
                   const on = selected.includes(m.id);
                   const lat = latencyByModel.get(m.id);
                   const kind = modelKind(m);
@@ -533,7 +588,7 @@ export function ModelsExplorer({
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {filtered.map((m) => {
+          {visible.map((m) => {
             const lat = latencyByModel.get(m.id);
             const on = selected.includes(m.id);
             const kind = modelKind(m);
@@ -639,6 +694,37 @@ export function ModelsExplorer({
           })}
         </div>
       )}
+      {filtered.length > PAGE_SIZE ? (
+        <nav
+          aria-label="Paginación del catálogo"
+          className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-zinc-200 pt-5 sm:flex-row"
+        >
+          <p className="text-sm text-zinc-500">
+            Mostrando {rangeStart}–{rangeEnd} de {filtered.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => goToPage(currentPage - 1)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <span className="min-w-24 text-center text-sm tabular-nums text-zinc-600">
+              Página {currentPage} de {pageCount}
+            </span>
+            <button
+              type="button"
+              disabled={currentPage === pageCount}
+              onClick={() => goToPage(currentPage + 1)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Siguiente
+            </button>
+          </div>
+        </nav>
+      ) : null}
     </div>
   );
 }
