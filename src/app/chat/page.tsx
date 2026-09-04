@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Playground } from "@/components/chat/playground";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
-import { allModels } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { isTextModelExecutionReady } from "@/lib/catalog/presentation";
 import { getSession } from "@/lib/auth";
 import { db, ensureDb, schema } from "@/lib/db";
@@ -29,7 +29,8 @@ export default async function ChatPage({
         .where(and(eq(schema.byokCredentials.userId, userId), eq(schema.byokCredentials.deleted, false)))
         .limit(1)
     : [];
-  const models = allModels()
+  const runtimeModels = await allRuntimeModels();
+  const models = runtimeModels
     .filter(isTextModelExecutionReady)
     .map((m) => ({ id: m.id, name: m.name }));
   const guest = !userId && guestPlaygroundEnabled();
@@ -62,7 +63,12 @@ export default async function ChatPage({
           models={models}
           defaultModel={q.model ?? user?.defaultModel ?? "nexus/auto"}
           compareModel={q.compare}
-          platformLabs={wiredProviders().length}
+          platformLabs={new Set([
+            ...wiredProviders().map((provider) => provider.id),
+            ...runtimeModels.flatMap((model) =>
+              model.endpoints.filter((endpoint) => endpoint.providerConnectionId).map((endpoint) => endpoint.adapter),
+            ),
+          ]).size}
           hasByok={byok.length > 0}
           guest={guest}
         />

@@ -15,11 +15,11 @@ after(async () => {
 });
 
 describe("fresh migration replay", () => {
-  it("applies every reviewed migration and creates artifact plus model-governance shapes", async () => {
+  it("applies every reviewed migration and creates artifact, governance and provider-control shapes", async () => {
     const migrationResult = await client.query<{ count: number }>(
       "select count(*)::integer as count from drizzle.__drizzle_migrations",
     );
-    assert.equal(migrationResult.rows[0]?.count, 18);
+    assert.equal(migrationResult.rows[0]?.count, 19);
 
     const columnResult = await client.query<{ column_name: string }>(
       "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'file' order by ordinal_position",
@@ -44,6 +44,22 @@ describe("fresh migration replay", () => {
       "select indexname from pg_indexes where schemaname = 'public' and tablename = 'hub_model_promotion_request'",
     );
     assert.ok(promotionIndexes.rows.some((row) => row.indexname === "hub_model_promotion_pending_uidx"));
+
+    const providerTables = await client.query<{ table_name: string }>(
+      "select table_name from information_schema.tables where table_schema = 'public' and table_name in ('provider_connection', 'provider_offering') order by table_name",
+    );
+    assert.deepEqual(
+      providerTables.rows.map((row) => row.table_name),
+      ["provider_connection", "provider_offering"],
+    );
+    const providerIndexes = await client.query<{ indexname: string }>(
+      "select indexname from pg_indexes where schemaname = 'public' and tablename = 'provider_offering'",
+    );
+    assert.ok(
+      providerIndexes.rows.some(
+        (row) => row.indexname === "provider_offering_connection_model_uidx",
+      ),
+    );
 
     await client.query(`
       insert into "user" (id, name, email, plan)

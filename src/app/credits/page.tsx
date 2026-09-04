@@ -2,7 +2,7 @@ import Link from "next/link";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { Button } from "@/components/ui/button";
-import { allModels } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import {
   CREDIT_PACKS,
   CREDIT_PURCHASE_FEE,
@@ -14,9 +14,9 @@ import { formatUsd } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
-export default function PublicCreditsPage() {
+export default async function PublicCreditsPage() {
   const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(0);
-  const freeModels = allModels().filter((m) => m.free && !m.id.startsWith("nexus/")).length;
+  const freeModels = (await allRuntimeModels()).filter((m) => m.free && !m.id.startsWith("nexus/")).length;
   const planCopy: Record<string, string> = {
     pro: "Para crear, lanzar y escalar productos con más capacidad.",
     team: "Para equipos que necesitan colaborar, controlar gastos y crecer juntos.",

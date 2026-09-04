@@ -4,11 +4,11 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { RankingsClient } from "@/components/models/rankings-client";
 import {
-  allModels,
   hasExecutableEndpoint,
   isTextGenerationModel,
   usdPerMillion,
 } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { db, ensureDb, schema } from "@/lib/db";
 import { GUEST_USER_ID } from "@/lib/gateway/guest";
 
@@ -52,7 +52,7 @@ export default async function RankingsPage({
     .groupBy(schema.generations.routedModel);
 
   const byUsage = new Map(usage.map((u) => [u.model, u]));
-  const rows = allModels()
+  const rows = (await allRuntimeModels())
     .filter((model) => !model.id.startsWith("nexus/") && isTextGenerationModel(model))
     .map((m) => {
       const u = byUsage.get(m.id);

@@ -45,7 +45,9 @@ npm run dev
 
 PGlite es exclusivamente un fallback efímero de un solo proceso y no soporta flujos HTTP concurrentes de la app.
 No ejecutes `dev`, tests o workers sobre el mismo `PGLITE_DATA_DIR`; para validación integral, staging y producción
-usá PostgreSQL/Neon.
+usá PostgreSQL/Neon. El catálogo de proveedores gestionados sólo consulta PGlite cuando `ENABLE_PGLITE=true` está
+declarado explícitamente; sin una base durable, el routing dinámico falla cerrado y conserva únicamente el catálogo
+estático.
 
 Las cargas de wallet cobran 5% con un mínimo de USD 0,80; la inferencia del pool mantiene 0% de
 markup. El mínimo evita que el costo fijo del procesador vuelva deficitarios los packs pequeños.
@@ -54,6 +56,10 @@ El eco guest existe únicamente como ayuda de desarrollo y nunca forma parte de 
 En producción, inferencia requiere sesión o Bearer y al menos un proveedor de plataforma o BYOK.
 Sin Stripe no hay carga de wallet ni suscripción; `ENABLE_MANUAL_CREDITS=true` funciona solo fuera de
 producción.
+El recorrido HTTP local de contención se valida con
+`NEXUS_GUEST=1 NEXUS_EXPECT_FAIL_CLOSED=1 npm run tip-to-tip`: exige readiness negativa sin infraestructura,
+cero hops conectados y una única respuesta local guest. Staging/producción usa `NEXUS_API_KEY` y
+`NEXUS_STRICT_LIVE=1` para exigir un proveedor externo real y consultar después la generación persistida.
 
 Cuando `GATEWAY_URL` está configurado, Chat Completions, Completions, Embeddings, Responses y
 Anthropic Messages se enrutan al data plane independiente. Responses y Messages conservan sus
@@ -78,6 +84,17 @@ Los horarios evitan el comienzo de la hora, cuando GitHub advierte mayor probabi
 gateway conserva además el primer intento inmediato de cada entrega.
 Un proveedor sólo figura operativo tras responder 2xx durante los últimos 30 minutos; 401/403,
 timeouts y pruebas vencidas mantienen `/status` en atención.
+
+Además de los adapters declarados por entorno, Superadmin puede incorporar proveedores desde el
+control plane existente en `/admin/operations`. El onboarding soporta APIs OpenAI-compatible y los
+protocolos nativos de Anthropic, Google y Mistral: guarda la credencial con AES-256-GCM, consulta el
+endpoint `/models` con la misma defensa SSRF/DNS-rebinding y deja cada oferta en staging. Activar una
+conexión exige una sonda reciente y revisión explícita de privacidad; activar una oferta exige
+`is_ready`, mapeo canónico y costo por token verificado. Precio, modalidades, features, deprecación o
+readiness modificados cambian el hash del contrato y revocan la aprobación hasta una nueva revisión.
+La sonda recurrente del cron de health vuelve a descubrir esos contratos y una falla retira el
+proveedor del routing sin exponer ni devolver su secreto. El precio de lista se traslada sin markup:
+el ingreso de Nexus continúa siendo el 5% transparente en recargas y uso BYOK.
 
 Cada despliegue ejecuta `node scripts/migrate.mjs migrate` como predeploy y no inicia la nueva versión
 si el esquema no coincide con el snapshot de Drizzle. En producción `DATABASE_URL_UNPOOLED` es
@@ -107,8 +124,9 @@ antes de invocar Stripe. La creación admite 10 operaciones cada 10 minutos, el 
 y el polling post-pago 30 por minuto; los bloqueos responden `429` con `Retry-After` y una falla del
 almacén distribuido cierra estas operaciones con `503`.
 El mismo control persistente protege operaciones con costo o impacto elevado: 3 emails de prueba por
-hora, 2 sincronizaciones de catálogo y 6 probes cada 10 minutos, 10 replays Stripe, 30 ajustes de saldo
-y 10 verificaciones de auto-recarga cada 10 minutos. Cada cuota está aislada por operador y operación.
+hora, 2 sincronizaciones de catálogo, 6 probes generales y 12 sondas de onboarding cada 10 minutos,
+10 replays Stripe, 30 ajustes de saldo y 10 verificaciones de auto-recarga cada 10 minutos. Cada cuota
+está aislada por operador y operación.
 El inbox de Stripe es idempotente y conserva estado, intentos y error sin duplicar el payload. Un
 superadmin puede reprocesar un evento fallido desde `/admin/operations`; Nexus recupera el evento
 canónico con la API de Stripe, valida su tipo, reutiliza el mismo procesador del webhook y registra la

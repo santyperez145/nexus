@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
-import { allModels } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { wiredProviders } from "@/lib/providers/registry";
 import {
@@ -9,11 +9,14 @@ import {
   recentOperationalProviderIds,
 } from "@/lib/providers/health-store";
 import { connectionStatus } from "@/lib/connections";
+import { listPublicManagedProviders } from "@/lib/providers/onboarding";
 
 export const dynamic = "force-dynamic";
 
 export default async function StatusPage() {
-  const wired = wiredProviders();
+  const builtInWired = wiredProviders();
+  const managed = await listPublicManagedProviders().catch(() => []);
+  const wiredCount = builtInWired.length + managed.length;
   let verified = 0;
   let stripeVerified = false;
   try {
@@ -21,13 +24,13 @@ export default async function StatusPage() {
       recentOperationalProviderIds(),
       isStripeOperational(),
     ]);
-    verified = providerIds.size;
+    verified = providerIds.size + managed.filter((provider) => provider.operational).length;
     stripeVerified = stripeHealth;
   } catch {
     verified = 0;
     stripeVerified = false;
   }
-  const catalog = allModels().filter((model) => !model.id.startsWith("nexus/"));
+  const catalog = (await allRuntimeModels()).filter((model) => !model.id.startsWith("nexus/"));
   const models = catalog.filter(isModelExecutionReady).length;
   const connections = connectionStatus();
   const stripeConfigured = connections.stripe.ready;
@@ -39,8 +42,8 @@ export default async function StatusPage() {
       name: "Modelos de IA",
       description: verified
         ? `${verified} proveedores verificados · ${models} modelos con tarifa ejecutable`
-        : wired.length
-          ? `${wired.length} configurados, sin una prueba válida reciente`
+        : wiredCount
+          ? `${wiredCount} configurados, sin una prueba válida reciente`
           : "Sin proveedores de plataforma configurados",
       ok: verified > 0,
     },

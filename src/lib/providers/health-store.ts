@@ -3,6 +3,7 @@ import { id } from "@/lib/ids";
 import { NEXUS_PROVIDERS, isWired } from "./registry";
 import { isRecentHealthy, probeProvider } from "./probe";
 import { probeStripe } from "@/lib/billing/stripe-probe";
+import { probeActiveProviderConnections } from "./onboarding";
 
 export async function readProviderHealthRows() {
   await ensureDb();
@@ -75,9 +76,10 @@ export async function probeAndPersistStripe() {
 }
 
 export async function probeAndPersistPlatformHealth() {
-  const [providers, stripe] = await Promise.all([
+  const [providers, managedProviders, stripe] = await Promise.all([
     probeAndPersistProviders(),
+    probeActiveProviderConnections(),
     probeAndPersistStripe(),
   ]);
-  return { providers, stripe };
+  return { providers, managedProviders, stripe };
 }

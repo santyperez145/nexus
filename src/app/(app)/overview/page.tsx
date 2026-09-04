@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { db, schema } from "@/lib/db";
 import { formatUsd, microsToUsd } from "@/lib/money";
-import { allModels } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { wiredProviders } from "@/lib/providers/registry";
 import { Button } from "@/components/ui/button";
@@ -79,8 +79,14 @@ export default async function OverviewPage() {
   const { week, spark, weekTokens, weekCost, weekErrors, topModels, topProviders, nowMs } =
     await loadWeekSeries(userId);
   const keys = await db.select().from(schema.apiKeys).where(eq(schema.apiKeys.userId, userId));
-  const labs = wiredProviders().length;
-  const models = allModels().filter(
+  const runtimeModels = await allRuntimeModels();
+  const labs = new Set([
+    ...wiredProviders().map((provider) => provider.id),
+    ...runtimeModels.flatMap((model) =>
+      model.endpoints.filter((endpoint) => endpoint.providerConnectionId).map((endpoint) => endpoint.adapter),
+    ),
+  ]).size;
+  const models = runtimeModels.filter(
     (model) => !model.id.startsWith("nexus/") && isModelExecutionReady(model),
   ).length;
   const unusedKeys = keys.filter((k) => !k.lastUsedAt);

@@ -2,7 +2,8 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { ModelsExplorer } from "@/components/models/models-explorer";
 import { Button } from "@/components/ui/button";
-import { allModels, hasExecutableEndpoint } from "@/lib/catalog";
+import { hasExecutableEndpoint } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { ensureDb } from "@/lib/db";
 import { listModelRepositories } from "@/lib/hub/model-repository-store";
@@ -35,8 +36,11 @@ export default async function ModelsPage({
     : "new";
   const requestedPage = Number.parseInt(q.page ?? "1", 10);
   const initialPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const hubModels = await listModelRepositories({ limit: 100 });
-  const catalogModels = allModels().map((m) => ({
+  const [hubModels, runtimeModels] = await Promise.all([
+    listModelRepositories({ limit: 100 }),
+    allRuntimeModels(),
+  ]);
+  const catalogModels = runtimeModels.map((m) => ({
     id: m.id,
     name: m.name,
     description: m.description,

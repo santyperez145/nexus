@@ -92,4 +92,16 @@ export async function ensureDb() {
   await globalForDb.nexusReady;
 }
 
+/** Test teardown only. Production connection lifecycle belongs to the process. */
+export async function closeDbForTests() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("closeDbForTests is unavailable in production");
+  }
+  const pglite = globalForDb.nexusPglite;
+  globalForDb.nexusReady = undefined;
+  globalForDb.nexusDb = undefined;
+  globalForDb.nexusPglite = undefined;
+  await pglite?.close();
+}
+
 export { schema };

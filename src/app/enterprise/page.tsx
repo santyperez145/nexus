@@ -2,7 +2,7 @@ import Link from "next/link";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { Button } from "@/components/ui/button";
-import { allModels } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 
 const CAPS = [
   {
@@ -47,8 +47,8 @@ const CAPS = [
   },
 ] as const;
 
-export default function EnterprisePage() {
-  const models = allModels();
+export default async function EnterprisePage() {
+  const models = await allRuntimeModels();
 
   return (
     <MarketingShell>

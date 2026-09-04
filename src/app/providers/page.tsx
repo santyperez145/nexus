@@ -1,26 +1,56 @@
 import Link from "next/link";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
-import { allModels, isExecutableEndpoint } from "@/lib/catalog";
+import { isExecutableEndpoint } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { providerSnapshot } from "@/lib/gateway/health";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
 import { isProviderZdrConfirmed } from "@/lib/providers/privacy";
 import { recentOperationalProviderIds } from "@/lib/providers/health-store";
+import { listPublicManagedProviders } from "@/lib/providers/onboarding";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProvidersPage() {
   const live = new Set(wiredProviders().map((p) => p.id));
-  const wired = live.size;
   let operational = new Set<string>();
+  let managed: Awaited<ReturnType<typeof listPublicManagedProviders>> = [];
   try {
-    operational = await recentOperationalProviderIds();
+    [operational, managed] = await Promise.all([
+      recentOperationalProviderIds(),
+      listPublicManagedProviders(),
+    ]);
   } catch {
     operational = new Set();
+    managed = [];
   }
+  const runtimeModels = await allRuntimeModels();
+  const providers = [
+    ...NEXUS_PROVIDERS.map((provider) => ({
+      id: provider.id,
+      label: provider.label,
+      kind: provider.kind,
+      wired: live.has(provider.id),
+      operational: operational.has(provider.id),
+      zdr: isProviderZdrConfirmed(provider.id),
+      zdrCapable: Boolean(provider.zdr),
+      managed: false,
+    })),
+    ...managed.map((provider) => ({
+      id: provider.id,
+      label: provider.label,
+      kind: provider.kind,
+      wired: true,
+      operational: provider.operational,
+      zdr: provider.zdr,
+      zdrCapable: provider.zdrCapable,
+      managed: true,
+    })),
+  ];
+  const wired = providers.filter((provider) => provider.wired).length;
   const counts = new Map<string, number>();
   const executableCounts = new Map<string, number>();
-  for (const m of allModels()) {
+  for (const m of runtimeModels) {
     for (const e of m.endpoints) {
       counts.set(e.adapter, (counts.get(e.adapter) ?? 0) + 1);
       if (isExecutableEndpoint(e)) {
@@ -35,7 +65,7 @@ export default async function ProvidersPage() {
     circuits = [];
   }
   const circuitBy = new Map(circuits.map((c) => [c.name, c]));
-  const modelCount = allModels().filter((model) => !model.id.startsWith("nexus/")).length;
+  const modelCount = runtimeModels.filter((model) => !model.id.startsWith("nexus/")).length;
 
   return (
     <MarketingShell>
@@ -51,7 +81,7 @@ export default async function ProvidersPage() {
 
         <div className="mb-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { k: "Proveedores compatibles", v: String(NEXUS_PROVIDERS.length) },
+            { k: "Proveedores compatibles", v: String(providers.length) },
             { k: "Modelos en catálogo", v: modelCount.toLocaleString() },
             { k: "Configurados", v: String(wired) },
             { k: "Verificados ahora", v: String(operational.size) },
@@ -66,14 +96,14 @@ export default async function ProvidersPage() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {NEXUS_PROVIDERS.map((p) => {
-            const on = live.has(p.id);
+          {providers.map((p) => {
+            const on = p.wired;
             const n = counts.get(p.id) ?? 0;
             const executable = executableCounts.get(p.id) ?? 0;
             const cb = circuitBy.get(p.id);
             const circuit = cb?.circuit ?? "closed";
-            const zdr = isProviderZdrConfirmed(p.id);
-            const verified = operational.has(p.id);
+            const zdr = p.zdr;
+            const verified = p.operational;
             return (
               <Link
                 key={p.id}
@@ -91,7 +121,7 @@ export default async function ProvidersPage() {
                         : p.kind === "google"
                           ? "Google Gemini"
                           : p.kind === "mistral"
-                            ? "Mistral native"
+                        ? "Mistral native"
                             : "OpenAI-compatible"}
                     </div>
                   </div>
@@ -129,7 +159,7 @@ export default async function ProvidersPage() {
                       ? "Interrupción detectada"
                       : zdr
                         ? "ZDR confirmado"
-                        : p.zdr
+                        : p.zdrCapable
                           ? "ZDR sujeto a contrato"
                           : "Estándar"}
                   </span>

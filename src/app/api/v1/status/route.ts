@@ -1,30 +1,38 @@
 import { connectionStatus } from "@/lib/connections";
 import {
-  allModels,
   hasExecutableEndpoint,
   isExecutableEndpoint,
   isTokenGatewayModel,
 } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { isStripeOperational, recentOperationalProviderIds } from "@/lib/providers/health-store";
+import { listPublicManagedProviders } from "@/lib/providers/onboarding";
 
 export async function GET() {
   const c = connectionStatus();
   const configuredProviders = new Set(c.providers.filter((p) => p.wired).map((p) => p.id));
   let operationalProviders = new Set<string>();
+  let managed: Awaited<ReturnType<typeof listPublicManagedProviders>> = [];
   let stripeVerified = false;
   try {
-    [operationalProviders, stripeVerified] = await Promise.all([
+    [operationalProviders, stripeVerified, managed] = await Promise.all([
       recentOperationalProviderIds(),
       isStripeOperational(),
+      listPublicManagedProviders(),
     ]);
   } catch {
     operationalProviders = new Set();
     stripeVerified = false;
+    managed = [];
+  }
+  for (const provider of managed) {
+    configuredProviders.add(provider.id);
+    if (provider.operational) operationalProviders.add(provider.id);
   }
   const configuredLabs = configuredProviders.size;
   const verifiedLabs = operationalProviders.size;
-  const catalog = allModels();
+  const catalog = await allRuntimeModels();
   const executableModels = catalog.filter(
     (model) => !model.id.startsWith("nexus/") && isModelExecutionReady(model),
   );
@@ -71,7 +79,13 @@ export async function GET() {
     commerce_ok: commerceOk,
     redis: c.redis.wired,
     postgres: c.database.wired,
-    providers: Object.fromEntries(c.providers.map((p) => [p.id, operationalProviders.has(p.id)])),
-    configured_providers: Object.fromEntries(c.providers.map((p) => [p.id, p.wired])),
+    providers: Object.fromEntries([
+      ...c.providers.map((p) => [p.id, operationalProviders.has(p.id)] as const),
+      ...managed.map((p) => [p.id, p.operational] as const),
+    ]),
+    configured_providers: Object.fromEntries([
+      ...c.providers.map((p) => [p.id, p.wired] as const),
+      ...managed.map((p) => [p.id, true] as const),
+    ]),
   });
 }

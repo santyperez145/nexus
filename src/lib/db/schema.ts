@@ -747,6 +747,143 @@ export const providerHealth = pgTable("provider_health", {
   detail: text("detail"),
 });
 
+export const providerConnections = pgTable(
+  "provider_connection",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    label: text("label").notNull(),
+    protocol: text("protocol").notNull(),
+    authScheme: text("auth_scheme").notNull().default("bearer"),
+    baseUrl: text("base_url").notNull(),
+    modelsPath: text("models_path").notNull().default("/models"),
+    encryptedKey: text("encrypted_key").notNull(),
+    secretHint: text("secret_hint").notNull(),
+    status: text("status").notNull().default("draft"),
+    zdrCapable: boolean("zdr_capable").notNull().default(false),
+    zdrVerified: boolean("zdr_verified").notNull().default(false),
+    noTrainingVerified: boolean("no_training_verified").notNull().default(false),
+    privacyPolicyUrl: text("privacy_policy_url"),
+    termsUrl: text("terms_url"),
+    statusPageUrl: text("status_page_url"),
+    lastProbeOk: boolean("last_probe_ok").notNull().default(false),
+    lastProbeStatus: integer("last_probe_status"),
+    lastProbeLatencyMs: integer("last_probe_latency_ms"),
+    lastProbeError: text("last_probe_error"),
+    lastProbedAt: timestamp("last_probed_at"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    verifiedBy: text("verified_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    verifiedAt: timestamp("verified_at"),
+    activatedAt: timestamp("activated_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("provider_connection_status_idx").on(t.status, t.updatedAt),
+    check(
+      "provider_connection_slug_check",
+      sql`${t.slug} ~ '^[a-z0-9][a-z0-9-]{1,62}$'`,
+    ),
+    check(
+      "provider_connection_protocol_check",
+      sql`${t.protocol} IN ('openai', 'anthropic', 'google', 'mistral')`,
+    ),
+    check(
+      "provider_connection_auth_scheme_check",
+      sql`${t.authScheme} IN ('bearer', 'anthropic', 'google-query')`,
+    ),
+    check(
+      "provider_connection_status_check",
+      sql`${t.status} IN ('draft', 'verifying', 'active', 'suspended')`,
+    ),
+    check(
+      "provider_connection_privacy_check",
+      sql`(${t.zdrVerified} = false OR (${t.zdrCapable} = true AND ${t.privacyPolicyUrl} IS NOT NULL)) AND (${t.noTrainingVerified} = false OR ${t.privacyPolicyUrl} IS NOT NULL)`,
+    ),
+    check(
+      "provider_connection_active_check",
+      sql`${t.status} <> 'active' OR (${t.lastProbedAt} IS NOT NULL AND ${t.verifiedBy} IS NOT NULL AND ${t.verifiedAt} IS NOT NULL AND ${t.activatedAt} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export const providerOfferings = pgTable(
+  "provider_offering",
+  {
+    id: text("id").primaryKey(),
+    connectionId: text("connection_id")
+      .notNull()
+      .references(() => providerConnections.id, { onDelete: "cascade" }),
+    providerModelId: text("provider_model_id").notNull(),
+    canonicalModelId: text("canonical_model_id").notNull(),
+    displayName: text("display_name").notNull(),
+    description: text("description").notNull().default(""),
+    createdUnix: integer("created_unix").notNull().default(0),
+    contextLength: integer("context_length").notNull().default(0),
+    maxCompletionTokens: integer("max_completion_tokens").notNull().default(0),
+    inputModalities: jsonb("input_modalities").$type<string[]>().notNull().default(["text"]),
+    outputModalities: jsonb("output_modalities").$type<string[]>().notNull().default(["text"]),
+    supportedParameters: jsonb("supported_parameters").$type<string[]>().notNull().default([]),
+    quantization: text("quantization").notNull().default("unknown"),
+    providerReady: boolean("provider_ready").notNull().default(true),
+    free: boolean("free").notNull().default(false),
+    reportedPromptPrice: numeric("reported_prompt_price", { precision: 30, scale: 15 }),
+    reportedCompletionPrice: numeric("reported_completion_price", { precision: 30, scale: 15 }),
+    costPromptPrice: numeric("cost_prompt_price", { precision: 30, scale: 15 }),
+    costCompletionPrice: numeric("cost_completion_price", { precision: 30, scale: 15 }),
+    /** Retail provider markup. Kept at zero; Nexus monetizes wallet loads and BYOK at 5%. */
+    commissionBps: integer("commission_bps").notNull().default(0),
+    pricingVerified: boolean("pricing_verified").notNull().default(false),
+    pricingVerifiedBy: text("pricing_verified_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    pricingVerifiedAt: timestamp("pricing_verified_at"),
+    capacityTpm: bigint("capacity_tpm", { mode: "number" }),
+    deprecationAt: timestamp("deprecation_at"),
+    sourceHash: text("source_hash").notNull(),
+    status: text("status").notNull().default("staged"),
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("provider_offering_connection_model_uidx").on(
+      t.connectionId,
+      t.providerModelId,
+    ),
+    index("provider_offering_canonical_status_idx").on(t.canonicalModelId, t.status),
+    index("provider_offering_connection_status_idx").on(t.connectionId, t.status),
+    check(
+      "provider_offering_status_check",
+      sql`${t.status} IN ('staged', 'active', 'suspended')`,
+    ),
+    check(
+      "provider_offering_commission_check",
+      sql`${t.commissionBps} BETWEEN 0 AND 10000`,
+    ),
+    check(
+      "provider_offering_capacity_check",
+      sql`${t.capacityTpm} IS NULL OR ${t.capacityTpm} >= 0`,
+    ),
+    check(
+      "provider_offering_token_limits_check",
+      sql`${t.contextLength} >= 0 AND ${t.maxCompletionTokens} >= 0`,
+    ),
+    check(
+      "provider_offering_price_check",
+      sql`(${t.costPromptPrice} IS NULL OR ${t.costPromptPrice} >= 0) AND (${t.costCompletionPrice} IS NULL OR ${t.costCompletionPrice} >= 0)`,
+    ),
+    check(
+      "provider_offering_active_check",
+      sql`${t.status} <> 'active' OR (${t.providerReady} = true AND ${t.pricingVerified} = true AND ${t.pricingVerifiedBy} IS NOT NULL AND ${t.pricingVerifiedAt} IS NOT NULL AND ${t.costPromptPrice} IS NOT NULL AND ${t.costCompletionPrice} IS NOT NULL AND ((${t.free} = true AND ${t.costPromptPrice} = 0 AND ${t.costCompletionPrice} = 0) OR (${t.free} = false AND (${t.costPromptPrice} > 0 OR ${t.costCompletionPrice} > 0))))`,
+    ),
+  ],
+);
+
 export const catalogSnapshots = pgTable("catalog_snapshot", {
   id: text("id").primaryKey(),
   source: text("source").notNull(),

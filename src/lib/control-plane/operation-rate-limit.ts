@@ -17,6 +17,8 @@ export type ControlPlaneOperation =
   | "observability_ping"
   | "organization_invite"
   | "organization_invite_recipient"
+  | "provider_onboarding"
+  | "provider_probe"
   | "stripe_event_replay";
 
 const CONTROL_PLANE_OPERATION_LIMITS: Record<
@@ -33,6 +35,8 @@ const CONTROL_PLANE_OPERATION_LIMITS: Record<
   observability_ping: { limit: 20, windowSeconds: 10 * 60 },
   organization_invite: { limit: 20, windowSeconds: 60 * 60 },
   organization_invite_recipient: { limit: 3, windowSeconds: 24 * 60 * 60 },
+  provider_onboarding: { limit: 60, windowSeconds: 10 * 60 },
+  provider_probe: { limit: 12, windowSeconds: 10 * 60 },
   stripe_event_replay: { limit: 10, windowSeconds: 10 * 60 },
 };
 

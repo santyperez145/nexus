@@ -5,6 +5,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
 import type { ModelEndpoint } from "@/lib/catalog";
 import { envFor, liveBaseURL, providerById } from "@/lib/providers/registry";
+import { loadActiveProviderCredential } from "@/lib/providers/onboarding";
 import type { ChatMessage } from "./types";
 
 function envKey(adapter: string, override?: string) {
@@ -128,26 +129,43 @@ export function mapChatMessagesForProvider(messages: ChatMessage[]) {
   return toCoreMessages(messages);
 }
 
-function languageModel(endpoint: ModelEndpoint, apiKey: string) {
+type ProviderAccess = {
+  apiKey: string;
+  protocol?: "openai" | "anthropic" | "google" | "mistral";
+  baseUrl?: string;
+};
+
+function languageModel(endpoint: ModelEndpoint, access: ProviderAccess) {
   const model = endpoint.providerModel;
   const spec = providerById(endpoint.adapter);
+  const kind = access.protocol ?? endpoint.runtimeProtocol ?? spec?.kind ?? "openai";
+  const baseURL = access.baseUrl ?? endpoint.runtimeBaseUrl ?? (spec ? liveBaseURL(spec) : undefined);
+  const apiKey = access.apiKey;
 
-  if (spec?.kind === "anthropic") {
-    return createAnthropic({ apiKey })(model);
+  if (kind === "anthropic") {
+    return createAnthropic({ apiKey, ...(baseURL ? { baseURL } : {}) })(model);
   }
-  if (spec?.kind === "google") {
-    return createGoogleGenerativeAI({ apiKey })(model);
+  if (kind === "google") {
+    return createGoogleGenerativeAI({ apiKey, ...(baseURL ? { baseURL } : {}) })(model);
   }
-  if (spec?.kind === "mistral") {
-    return createMistral({ apiKey })(model);
+  if (kind === "mistral") {
+    return createMistral({ apiKey, ...(baseURL ? { baseURL } : {}) })(model);
   }
 
-  const baseURL = spec ? liveBaseURL(spec) : undefined;
   return createOpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) })(model);
 }
 
 export function hasProviderKey(endpoint: ModelEndpoint, byok?: string) {
-  return Boolean(envKey(endpoint.adapter, byok));
+  return Boolean(byok || endpoint.providerConnectionId || envKey(endpoint.adapter));
+}
+
+async function runtimeProviderAccess(endpoint: ModelEndpoint, byok?: string): Promise<ProviderAccess | null> {
+  if (byok) return { apiKey: byok };
+  if (endpoint.providerConnectionId) {
+    return loadActiveProviderCredential(endpoint);
+  }
+  const apiKey = envKey(endpoint.adapter);
+  return apiKey ? { apiKey } : null;
 }
 
 export async function completeChat(opts: {
@@ -170,8 +188,8 @@ export async function completeChat(opts: {
   reasoningEffort?: "low" | "medium" | "high";
   signal?: AbortSignal;
 }) {
-  const apiKey = opts.forceLocal ? undefined : envKey(opts.endpoint.adapter, opts.byok);
-  if (!apiKey) {
+  const access = opts.forceLocal ? null : await runtimeProviderAccess(opts.endpoint, opts.byok);
+  if (!access) {
     if (opts.forceLocal) return localComplete(opts.messages, opts.endpoint);
     throw Object.assign(new Error("No provider credentials for this route. Configure BYOK or a platform key."), {
       status: 503,
@@ -190,7 +208,7 @@ export async function completeChat(opts: {
   }
   if (opts.reasoningEffort) openai.reasoningEffort = opts.reasoningEffort;
   const result = await generateText({
-    model: languageModel(opts.endpoint, apiKey),
+    model: languageModel(opts.endpoint, access),
     messages: toCoreMessages(opts.messages),
     temperature: opts.temperature,
     maxOutputTokens: opts.maxTokens,
@@ -241,8 +259,8 @@ export async function streamChat(opts: {
   stop?: string | string[];
   signal?: AbortSignal;
 }) {
-  const apiKey = opts.forceLocal ? undefined : envKey(opts.endpoint.adapter, opts.byok);
-  if (!apiKey) {
+  const access = opts.forceLocal ? null : await runtimeProviderAccess(opts.endpoint, opts.byok);
+  if (!access) {
     if (opts.forceLocal) {
       const local = await localComplete(opts.messages, opts.endpoint);
       return { ...local, stream: null as ReadableStream<string> | null };
@@ -254,7 +272,7 @@ export async function streamChat(opts: {
   }
   const stop = opts.stop == null ? undefined : Array.isArray(opts.stop) ? opts.stop : [opts.stop];
   const result = streamText({
-    model: languageModel(opts.endpoint, apiKey),
+    model: languageModel(opts.endpoint, access),
     messages: toCoreMessages(opts.messages),
     temperature: opts.temperature,
     maxOutputTokens: opts.maxTokens,

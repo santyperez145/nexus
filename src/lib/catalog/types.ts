@@ -16,6 +16,15 @@ export type ModelEndpoint = {
   verified?: boolean;
   /** latency/throughput/uptime are unavailable, not measured. */
   metricsEstimated?: boolean;
+  /** Durable platform-managed provider binding. Never contains the secret. */
+  providerConnectionId?: string;
+  providerOfferingId?: string;
+  providerSourceHash?: string;
+  runtimeProtocol?: "openai" | "anthropic" | "google" | "mistral";
+  runtimeBaseUrl?: string;
+  /** Contract review results copied into the immutable route candidate. */
+  zdrVerified?: boolean;
+  noTrainingVerified?: boolean;
 };
 
 export type CatalogModel = {

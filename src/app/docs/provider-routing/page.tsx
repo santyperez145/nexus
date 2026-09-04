@@ -84,6 +84,15 @@ export default function ProviderRoutingDocsPage() {
           instancia. Guest = prefs default; una sesión aplica el mismo preset, guardrails, ZDR,
           BYOK y privacy que la inferencia antes de resolver los hops.
         </p>
+        <h2 className="mb-2 text-lg font-medium text-zinc-900">Proveedores incorporados por Nexus</h2>
+        <p className="mb-8 text-sm leading-6 text-zinc-600">
+          El catálogo combina adapters versionados con proveedores incorporados desde el control
+          plane. Estos últimos sólo entran al routing después de una sonda HTTPS protegida contra
+          SSRF, revisión de privacidad, precio de lista y readiness por modelo. Nexus vuelve a
+          comprobarlos cada 15 minutos; un health vencido o un cambio de contrato retira la ruta
+          hasta que un operador la apruebe otra vez. La API pública nunca expone credenciales ni la
+          URL privada de configuración.
+        </p>
         <p className="text-sm text-zinc-500">
           Ver hosts:{" "}
           <Link href="/providers" className="text-violet-700 hover:underline">

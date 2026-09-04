@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   allModels,
@@ -20,6 +20,11 @@ const auth: AuthContext = {
   allowTraining: true,
   logPrompts: false,
 };
+
+after(async () => {
+  const database = await import("../src/lib/db");
+  await database.closeDbForTests();
+});
 
 function endpoint(overrides: Partial<ModelEndpoint> = {}): ModelEndpoint {
   return {

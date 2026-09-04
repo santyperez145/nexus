@@ -1,7 +1,7 @@
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { hasProviderKey } from "@/lib/gateway/providers";
 import { resolveByokKey } from "@/lib/gateway/byok";
-import { resolveRoute } from "@/lib/gateway/router";
+import { resolveRuntimeRoute } from "@/lib/gateway/router";
 import { hasAuthCredentials } from "@/lib/gateway/request-credentials";
 import type { ChatRequest } from "@/lib/gateway/types";
 import { assertZdrCompatible, canUseByokForRequest } from "@/lib/gateway/handle-chat";
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       await enforceGuardrails(auth, body);
       assertZdrCompatible(body, auth);
     }
-    const plan = resolveRoute(body, auth);
+    const plan = await resolveRuntimeRoute(body, auth);
     const allowByokForRequest = canUseByokForRequest(body, auth);
     const adapters = new Set<string>();
     const hops: Array<{

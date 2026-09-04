@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 import { eq, sql, desc } from "drizzle-orm";
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
-import { allModels } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { providerSnapshot } from "@/lib/gateway/health";
 import { NEXUS_PROVIDERS, wiredProviders } from "@/lib/providers/registry";
 import { isProviderZdrConfirmed } from "@/lib/providers/privacy";
 import { recentOperationalProviderIds } from "@/lib/providers/health-store";
+import { listPublicManagedProviders } from "@/lib/providers/onboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -19,21 +20,45 @@ export default async function ProviderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const provider = NEXUS_PROVIDERS.find((p) => p.id === id);
-  if (!provider) notFound();
+  const builtIn = NEXUS_PROVIDERS.find((provider) => provider.id === id);
+  const managed = (await listPublicManagedProviders().catch(() => [])).find(
+    (provider) => provider.id === id,
+  );
+  if (!builtIn && !managed) notFound();
+  const provider = builtIn
+    ? {
+        id: builtIn.id,
+        label: builtIn.label,
+        kind: builtIn.kind,
+        zdrCapable: Boolean(builtIn.zdr),
+        zdrConfirmed: isProviderZdrConfirmed(builtIn.id),
+        env: builtIn.env,
+        extraEnv: builtIn.extraEnv ?? [],
+        managed: false,
+      }
+    : {
+        id: managed!.id,
+        label: managed!.label,
+        kind: managed!.kind,
+        zdrCapable: managed!.zdrCapable,
+        zdrConfirmed: managed!.zdr,
+        env: null,
+        extraEnv: [] as string[],
+        managed: true,
+      };
 
   const live = new Set(wiredProviders().map((p) => p.id));
-  const wired = live.has(provider.id);
-  const zdrConfirmed = isProviderZdrConfirmed(provider.id);
-  let verified = false;
-  const models = allModels()
+  const wired = provider.managed || live.has(provider.id);
+  const zdrConfirmed = provider.zdrConfirmed;
+  let verified = managed?.operational ?? false;
+  const models = (await allRuntimeModels())
     .filter((m) => m.endpoints.some((e) => e.adapter === provider.id))
     .sort((a, b) => a.id.localeCompare(b.id));
 
   let circuit = "closed";
   let failures = 0;
   try {
-    verified = (await recentOperationalProviderIds()).has(provider.id);
+    if (!provider.managed) verified = (await recentOperationalProviderIds()).has(provider.id);
     const snap = await providerSnapshot();
     const row = snap.find((c) => c.name === provider.id);
     if (row) {
@@ -91,7 +116,7 @@ export default async function ProviderDetailPage({
           Host de inferencia · kind <code className="text-zinc-800">{provider.kind}</code>
           {zdrConfirmed
             ? " · acuerdo ZDR confirmado para esta instalación"
-            : provider.zdr
+            : provider.zdrCapable
               ? " · ZDR disponible sólo con acuerdo confirmado"
               : ""}. Stats de generaciones
           son de esta instancia (no uptime inventado).
@@ -129,14 +154,15 @@ export default async function ProviderDetailPage({
   "allow_fallbacks": false
 }`}
           </pre>
-          <p className="mt-3 text-sm text-zinc-500">
-            Env de plataforma: <code className="text-zinc-700">{provider.env}</code>
-            {provider.extraEnv?.length ? ` (+ ${provider.extraEnv.join(", ")})` : ""}. BYOK en{" "}
-            <Link href="/settings/byok" className="text-violet-700 hover:underline">
-              Settings → BYOK
-            </Link>
-            .
-          </p>
+          {provider.managed ? (
+            <p className="mt-3 text-sm text-zinc-500">Conexión administrada y cifrada por Nexus. Sólo las ofertas con health, privacidad y tarifa vigentes reciben tráfico.</p>
+          ) : (
+            <p className="mt-3 text-sm text-zinc-500">
+              Env de plataforma: <code className="text-zinc-700">{provider.env}</code>
+              {provider.extraEnv.length ? ` (+ ${provider.extraEnv.join(", ")})` : ""}. BYOK en{" "}
+              <Link href="/settings/byok" className="text-violet-700 hover:underline">Settings → BYOK</Link>.
+            </p>
+          )}
         </section>
 
         <section className="mb-10">

@@ -1,4 +1,5 @@
-import { findModel } from "@/lib/catalog";
+import type { ModelEndpoint } from "@/lib/catalog";
+import { allRuntimeModels, findModelInCatalog } from "@/lib/catalog/runtime";
 import { authenticateOptionalRequest, authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { writeAudit } from "@/lib/gateway/audit";
 import { listModelEvaluations } from "@/lib/hub/model-governance";
@@ -13,7 +14,7 @@ import {
 } from "@/lib/hub/model-repository-store";
 import { isEndpointNoTrainingConfirmed, isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
-function publicEndpoint(endpoint: NonNullable<ReturnType<typeof findModel>>["endpoints"][number]) {
+function publicEndpoint(endpoint: ModelEndpoint) {
   return {
     name: endpoint.adapter,
     tag: endpoint.adapter,
@@ -41,7 +42,7 @@ export async function GET(req: Request, ctx: Context) {
   const { slug } = await ctx.params;
   const wantsEndpoints = slug.at(-1) === "endpoints";
   const id = (wantsEndpoints ? slug.slice(0, -1) : slug).join("/");
-  const model = findModel(id);
+  const model = findModelInCatalog(id, await allRuntimeModels());
   if (!model) {
     if (wantsEndpoints || slug.length !== 2) {
       return Response.json({ error: { message: "Model not found" } }, { status: 404 });

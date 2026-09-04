@@ -22,9 +22,13 @@ export function isProviderNoTrainingConfirmed(providerId: string) {
 }
 
 export function isEndpointZdrConfirmed(endpoint: ModelEndpoint) {
+  if (endpoint.providerConnectionId) {
+    return Boolean(endpoint.zdr && endpoint.zdrVerified === true);
+  }
   return Boolean(endpoint.zdr && isProviderZdrConfirmed(endpoint.adapter));
 }
 
 export function isEndpointNoTrainingConfirmed(endpoint: ModelEndpoint) {
+  if (endpoint.providerConnectionId) return endpoint.noTrainingVerified === true;
   return isProviderNoTrainingConfirmed(endpoint.adapter);
 }

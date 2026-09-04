@@ -1,15 +1,18 @@
 import {
   allModels,
-  findModel,
   isExecutableEndpoint,
   isFreeEndpoint,
   isTextGenerationModel,
   parseVariant,
-  resolveModelSlug,
   usdPerMillion,
   type CatalogModel,
   type ModelEndpoint,
 } from "@/lib/catalog";
+import {
+  allRuntimeModels,
+  findModelInCatalog,
+  resolveModelSlugFromCatalog,
+} from "@/lib/catalog/runtime";
 import type { AuthContext, ChatRequest, ProviderPreferences } from "./types";
 import {
   isEndpointNoTrainingConfirmed,
@@ -114,8 +117,8 @@ function filterEndpoints(
   return list;
 }
 
-function pickAuto(prompt: string): CatalogModel[] {
-  const catalog = allModels().filter(
+function pickAuto(prompt: string, models: CatalogModel[]): CatalogModel[] {
+  const catalog = models.filter(
     (model) => !model.id.startsWith("nexus/") && isTextGenerationModel(model),
   );
   const length = prompt.length;
@@ -132,8 +135,18 @@ function pickAuto(prompt: string): CatalogModel[] {
 }
 
 export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
-  const requested = resolveModelSlug(req.model ?? "nexus/auto");
-  const fallbacks = (req.models ?? []).map(resolveModelSlug);
+  return resolveRouteFromCatalog(req, auth, allModels());
+}
+
+export function resolveRouteFromCatalog(
+  req: ChatRequest,
+  auth: AuthContext,
+  catalog: CatalogModel[],
+): RoutePlan {
+  const requested = resolveModelSlugFromCatalog(req.model ?? "nexus/auto", catalog);
+  const fallbacks = (req.models ?? []).map((slug) =>
+    resolveModelSlugFromCatalog(slug, catalog),
+  );
   const slugs = [requested, ...fallbacks];
   const models: RoutePlan["models"] = [];
   const needed = requestParams(req);
@@ -141,7 +154,7 @@ export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
   for (const slug of slugs) {
     const { id, variants } = parseVariant(slug);
     if (id === "nexus/free") {
-      for (const model of allModels().filter(
+      for (const model of catalog.filter(
         (candidate) =>
           candidate.free &&
           !candidate.id.startsWith("nexus/") &&
@@ -164,7 +177,7 @@ export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
           ? (req.messages!.at(-1)!.content as string)
           : req.prompt ?? "";
       let added = 0;
-      for (const model of pickAuto(prompt)) {
+      for (const model of pickAuto(prompt, catalog)) {
         if (req.provider?.require_parameters && needed.some((p) => !model.supportedParameters.includes(p))) {
           continue;
         }
@@ -184,7 +197,7 @@ export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
       }
       continue;
     }
-    const model = findModel(id);
+    const model = findModelInCatalog(id, catalog);
     if (!model || model.id.startsWith("nexus/") || !isTextGenerationModel(model)) continue;
     if (variants.includes("free") && !model.free) continue;
     if (req.provider?.require_parameters && needed.some((p) => !model.supportedParameters.includes(p))) {
@@ -202,4 +215,8 @@ export function resolveRoute(req: ChatRequest, auth: AuthContext): RoutePlan {
   }
 
   return { requested, models };
+}
+
+export async function resolveRuntimeRoute(req: ChatRequest, auth: AuthContext) {
+  return resolveRouteFromCatalog(req, auth, await allRuntimeModels());
 }

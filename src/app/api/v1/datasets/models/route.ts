@@ -1,6 +1,6 @@
 import { sql, gte } from "drizzle-orm";
 import { db, ensureDb, schema } from "@/lib/db";
-import { allModels } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 
 export async function GET(req: Request) {
   await ensureDb();
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
         .from(schema.generations)
         .groupBy(schema.generations.routedModel);
 
-  const catalog = allModels();
+  const catalog = await allRuntimeModels();
   const data = (rows.length
     ? rows
     : catalog.slice(0, 20).map((m) => ({

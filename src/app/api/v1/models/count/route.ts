@@ -1,8 +1,8 @@
-import { allModels } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { isModelExecutionReady } from "@/lib/catalog/presentation";
 
 export async function GET() {
-  const models = allModels().filter((m) => !m.id.startsWith("nexus/"));
+  const models = (await allRuntimeModels()).filter((m) => !m.id.startsWith("nexus/"));
   return Response.json({
     data: {
       count: models.length,

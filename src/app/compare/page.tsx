@@ -2,10 +2,10 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { CompareClient } from "@/components/models/compare-client";
 import {
-  allModels,
   hasExecutableEndpoint,
   isTextGenerationModel,
 } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 export default async function ComparePage({
@@ -14,7 +14,7 @@ export default async function ComparePage({
   searchParams: Promise<{ a?: string; b?: string }>;
 }) {
   const q = await searchParams;
-  const models = allModels()
+  const models = (await allRuntimeModels())
     .filter((model) => !model.id.startsWith("nexus/") && isTextGenerationModel(model))
     .map((m) => ({
     id: m.id,

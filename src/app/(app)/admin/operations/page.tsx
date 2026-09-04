@@ -1,6 +1,7 @@
 import { count, desc, eq } from "drizzle-orm";
 import { OperationsActions } from "@/components/admin/operations-actions";
 import { ModelGovernanceQueue } from "@/components/admin/model-governance-queue";
+import { ProviderOnboardingConsole } from "@/components/admin/provider-onboarding-console";
 import { StripeEventReplayButton } from "@/components/admin/stripe-event-replay-button";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { connectionStatus } from "@/lib/connections";
@@ -9,6 +10,7 @@ import { commercialLaunchReady, readinessSnapshot } from "@/lib/health/readiness
 import { listPendingModelGovernance } from "@/lib/hub/model-governance";
 import { readProviderHealthRows } from "@/lib/providers/health-store";
 import { isRecentHealthy } from "@/lib/providers/probe";
+import { listProviderConnectionsForAdmin } from "@/lib/providers/onboarding";
 
 export default async function AdminOperationsPage() {
   await ensureDb();
@@ -23,6 +25,7 @@ export default async function AdminOperationsPage() {
     stripeFailed,
     stripeEvents,
     governance,
+    providerConnections,
   ] = await Promise.all([
     readinessSnapshot(),
     readProviderHealthRows(),
@@ -33,6 +36,7 @@ export default async function AdminOperationsPage() {
     db.select({ count: count() }).from(schema.stripeWebhookEvents).where(eq(schema.stripeWebhookEvents.status, "failed")),
     db.select().from(schema.stripeWebhookEvents).orderBy(desc(schema.stripeWebhookEvents.receivedAt)).limit(8),
     listPendingModelGovernance(),
+    listProviderConnectionsForAdmin(),
   ]);
   const healthByProvider = new Map(health.map((row) => [row.provider, row]));
   const infrastructure = [status.database, status.auth, status.stripe, status.redis, status.objectStorage];
@@ -80,6 +84,16 @@ export default async function AdminOperationsPage() {
       promotions={governance.promotions.map((row) => ({
         ...row,
         created_at: new Date(row.created_at).toISOString(),
+      }))}
+    />
+    <ProviderOnboardingConsole
+      connections={providerConnections.map((connection) => ({
+        ...connection,
+        lastProbedAt: connection.lastProbedAt?.toISOString() ?? null,
+        offerings: connection.offerings.map((offering) => ({
+          ...offering,
+          updatedAt: offering.updatedAt.toISOString(),
+        })),
       }))}
     />
     <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{infrastructure.map((item)=><section key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-4"><div className="flex items-center justify-between gap-2"><div className="font-medium">{item.label}</div><span className={`size-2.5 rounded-full ${item.wired ? "bg-emerald-500" : "bg-zinc-300"}`} /></div><p className="mt-2 text-xs leading-5 text-zinc-500">{item.hint}</p></section>)}</div>

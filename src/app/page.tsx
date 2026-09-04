@@ -3,7 +3,8 @@ import { ArrowRight, Check, Code2, Gauge, ShieldCheck, Workflow } from "lucide-r
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { Button } from "@/components/ui/button";
-import { allModels, executableEndpoints, featuredModels, usdPerMillion } from "@/lib/catalog";
+import { executableEndpoints, featuredModels, usdPerMillion } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { CREDIT_PURCHASE_FEE, CREDIT_PURCHASE_MIN_FEE_USD } from "@/lib/config";
 import { NEXUS_PROVIDERS } from "@/lib/providers/registry";
 import { getSession } from "@/lib/auth";
@@ -92,7 +93,7 @@ function GatewayConsole({ executableProviderCount }: { executableProviderCount: 
 
 export default async function HomePage() {
   const session = await getSession();
-  const models = allModels().filter((model) => !model.id.startsWith("nexus/"));
+  const models = (await allRuntimeModels()).filter((model) => !model.id.startsWith("nexus/"));
   const featured = featuredModels(8).filter((model) => !model.id.startsWith("nexus/")).slice(0, 4);
   const executableProviderIds = new Set(
     models.flatMap((model) => executableEndpoints(model).map((endpoint) => endpoint.adapter)),

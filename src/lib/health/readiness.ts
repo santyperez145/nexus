@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { allModels, isExecutableEndpoint, isTokenGatewayModel } from "@/lib/catalog";
+import { isExecutableEndpoint, isTokenGatewayModel } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { db, ensureDb } from "@/lib/db";
 import { NEXUS_PROVIDERS } from "@/lib/providers/registry";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/lib/providers/health-store";
 import { cache } from "@/lib/redis";
 import { probeArtifactStorage } from "@/lib/files/blob-store";
+import { listPublicManagedProviders } from "@/lib/providers/onboarding";
 
 type RuntimeEnv = Record<string, string | undefined>;
 
@@ -169,20 +171,27 @@ export async function readinessSnapshot(): Promise<ReadinessSnapshot> {
   const checks = { configuration, database, redis, objectStorage };
   const configured = configuredCapabilities();
   let operationalProviders = new Set<string>();
+  let managedProviders: Awaited<ReturnType<typeof listPublicManagedProviders>> = [];
   let stripeOperational = false;
   if (database.ok) {
     try {
-      [operationalProviders, stripeOperational] = await Promise.all([
+      [operationalProviders, stripeOperational, managedProviders] = await Promise.all([
         recentOperationalProviderIds(),
         isStripeOperational(),
+        listPublicManagedProviders(),
       ]);
     } catch {
       operationalProviders = new Set();
       stripeOperational = false;
+      managedProviders = [];
     }
   }
+  for (const provider of managedProviders) {
+    if (provider.operational) operationalProviders.add(provider.id);
+  }
+  const runtimeCatalog = await allRuntimeModels();
   const executableProviderIds = new Set(
-    allModels().flatMap((model) =>
+    runtimeCatalog.flatMap((model) =>
       isTokenGatewayModel(model)
         ? model.endpoints.filter(isExecutableEndpoint).map((endpoint) => endpoint.adapter)
         : [],
@@ -198,6 +207,8 @@ export async function readinessSnapshot(): Promise<ReadinessSnapshot> {
     checks,
     capabilities: {
       ...configured,
+      inferenceConfigured:
+        configured.inferenceConfigured || managedProviders.length > 0,
       inferenceOperational,
       commerceOperational: configured.commerceConfigured && stripeOperational,
     },

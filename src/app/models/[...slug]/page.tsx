@@ -7,12 +7,11 @@ import { CostEstimator } from "@/components/models/cost-estimator";
 import { ModelArtwork } from "@/components/models/model-artwork";
 import { HubModelProfile } from "@/components/models/hub-model-profile";
 import {
-  allModels,
-  findModel,
   isExecutableEndpoint,
   usdPerMillion,
   type CatalogModel,
 } from "@/lib/catalog";
+import { allRuntimeModels, findModelInCatalog } from "@/lib/catalog/runtime";
 import {
   isBuiltinRouterModel,
   isModelRouteSupported,
@@ -163,15 +162,19 @@ function apiSample(id: string, kind: ModelKind) {
 export default async function ModelDetailPage({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params;
   const id = slug.join("/");
-  const model = findModel(id);
+  const runtimeCatalog = await allRuntimeModels();
+  const model = findModelInCatalog(id, runtimeCatalog);
   if (!model) {
     if (slug.length !== 2) notFound();
     return <HubModelProfile namespace={slug[0]} slug={slug[1]} />;
   }
 
-  const configured = new Set(wiredProviders().map((p) => p.id));
+  const configured = new Set([
+    ...wiredProviders().map((provider) => provider.id),
+    ...model.endpoints.filter((endpoint) => endpoint.providerConnectionId).map((endpoint) => endpoint.adapter),
+  ]);
   let operational = new Set<string>();
-  const related = allModels()
+  const related = runtimeCatalog
     .filter((m) => m.author === model.author && m.id !== model.id && !m.id.startsWith("nexus/"))
     .slice(0, 8);
 
@@ -179,6 +182,9 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
   try {
     await ensureDb();
     operational = await recentOperationalProviderIds();
+    for (const endpoint of model.endpoints) {
+      if (endpoint.providerConnectionId) operational.add(endpoint.adapter);
+    }
     const [agg] = await db
       .select({
         requests: sql<number>`count(*)::int`,

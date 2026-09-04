@@ -2,7 +2,7 @@ import { db, schema } from "@/lib/db";
 import { generationId } from "@/lib/ids";
 import type { ToolSet } from "ai";
 import type { AuthContext, ChatMessage, ChatRequest } from "./types";
-import { resolveRoute } from "./router";
+import { resolveRuntimeRoute, type RoutePlan } from "./router";
 import { completeChat, estimateTokens, hasProviderKey, streamChat } from "./providers";
 import {
   checkFreeRateLimit,
@@ -60,7 +60,7 @@ export function assertZdrCompatible(req: ChatRequest, auth: AuthContext) {
   }
 }
 
-function summarizeRouteHops(plan: ReturnType<typeof resolveRoute>) {
+function summarizeRouteHops(plan: RoutePlan) {
   const hops: Array<{ model: string; adapter: string; zdr: boolean }> = [];
   for (const candidate of plan.models) {
     for (const endpoint of candidate.endpoints) {
@@ -254,7 +254,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
   if (req.transforms?.includes("middle-out")) {
     messages = applyMiddleOut(messages);
   }
-  const plan = resolveRoute(req, auth);
+  const plan = await resolveRuntimeRoute(req, auth);
   const routeHops = summarizeRouteHops(plan);
   if (!plan.models.length) {
     throw Object.assign(new Error("No available providers match your routing and privacy settings"), {
@@ -494,7 +494,7 @@ async function streamCompletion(opts: {
   auth: AuthContext;
   headers: Headers;
   messages: ChatMessage[];
-  candidate: ReturnType<typeof resolveRoute>["models"][number];
+  candidate: RoutePlan["models"][number];
   endpoint: (typeof opts)["candidate"]["endpoints"][number];
   byok?: string;
   forceLocal?: boolean;

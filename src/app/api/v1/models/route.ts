@@ -1,6 +1,6 @@
-import { allModels } from "@/lib/catalog";
 import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { usdPerMillion } from "@/lib/catalog";
+import { allRuntimeModels } from "@/lib/catalog/runtime";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { writeAudit } from "@/lib/gateway/audit";
 import {
@@ -38,7 +38,7 @@ async function getModels(req: Request) {
   const category = url.searchParams.get("category");
   const supported = url.searchParams.get("supported_parameters");
   const includeReference = url.searchParams.get("include_reference") === "true";
-  let models = allModels();
+  let models = await allRuntimeModels();
   if (!includeReference) {
     models = models.filter(isModelExecutionReady);
   }

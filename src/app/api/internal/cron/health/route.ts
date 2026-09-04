@@ -11,7 +11,10 @@ export async function GET(req: Request) {
   const result = await probeAndPersistPlatformHealth();
   return Response.json({
     checked_at: new Date().toISOString(),
-    verified_providers: Object.values(result.providers).filter((probe) => probe.ok).length,
+    verified_providers:
+      Object.values(result.providers).filter((probe) => probe.ok).length +
+      Object.values(result.managedProviders).filter((probe) => probe.ok).length,
+    managed_providers: Object.values(result.managedProviders).filter((probe) => probe.ok).length,
     stripe: result.stripe.ok,
   });
 }
