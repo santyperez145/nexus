@@ -59,7 +59,8 @@ for await (const chunk of stream) {
           <li>
             Envelopes: <code className="text-zinc-800">/messages</code> y{" "}
             <code className="text-zinc-800">/responses</code> también aceptan{" "}
-            <code className="text-zinc-800">stream: true</code> — ver{" "}
+            <code className="text-zinc-800">stream: true</code> y emiten su ciclo SSE nativo,
+            incluidos texto, herramientas, uso acumulado y evento terminal — ver{" "}
             <Link href="/docs/envelopes" className="text-violet-700 hover:underline">
               Envelopes
             </Link>

@@ -20,6 +20,7 @@ export async function POST(req: Request) {
       top_k: body.top_k,
       stop: body.stop_sequences,
       stream: body.stream,
+      stream_options: body.stream ? { include_usage: true } : body.stream_options,
       tools: anthropicTools(body.tools),
       tool_choice: body.tool_choice,
       provider: body.provider,

@@ -238,6 +238,7 @@ export async function streamChat(opts: {
     textStream: result.textStream,
     usage: result.usage,
     finishReason: result.finishReason,
+    toolCalls: result.toolCalls,
     local: false,
   };
 }
@@ -262,8 +263,7 @@ export async function embedTexts(texts: string[], modelId: string, byok?: string
 }
 
 async function localComplete(messages: ChatMessage[], endpoint: ModelEndpoint) {
-  const last = messages.filter((m) => m.role === "user").at(-1);
-  const text = typeof last?.content === "string" ? last.content : "Hola";
+  const text = localEchoText(messages);
   const reply = `[Nexus local · ${endpoint.adapter}/${endpoint.providerModel}] Sin key de lab en este deploy. Agregá BYOK en Settings → Connections o configurá la key de plataforma. Echo: ${text.slice(0, 400)}`;
   return {
     text: reply,
@@ -276,6 +276,17 @@ async function localComplete(messages: ChatMessage[], endpoint: ModelEndpoint) {
     cachedTokens: 0,
     local: true,
   };
+}
+
+export function localEchoText(messages: ChatMessage[]) {
+  const last = messages.filter((message) => message.role === "user").at(-1);
+  if (typeof last?.content === "string") return last.content || "Hola";
+  const text = (last?.content ?? [])
+    .map((part) => part.text ?? (part.image_url || part.source ? "[image]" : ""))
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  return text || "Hola";
 }
 
 export function estimateTokens(input: string | ChatMessage[]) {

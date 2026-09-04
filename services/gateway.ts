@@ -30,6 +30,7 @@ app.use(
       "HTTP-Referer",
       "X-Title",
       "X-Requested-With",
+      "X-Nexus-Guest",
       "OpenAI-Beta",
       "OpenAI-Organization",
     ],

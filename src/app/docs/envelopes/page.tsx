@@ -76,7 +76,15 @@ const r = await nexus.responses.create({
 
         <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-600">
           <li>
-            Stream: pasá <code className="text-zinc-800">stream: true</code> — mismo SSE que chat.
+            Stream: pasá <code className="text-zinc-800">stream: true</code>. Responses emite{" "}
+            <code className="text-zinc-800">response.created → output_* → response.completed</code>;
+            Messages emite <code className="text-zinc-800">message_start → content_block_* → message_stop</code>.
+          </li>
+          <li>
+            Las llamadas de función se entregan como <code className="text-zinc-800">function_call</code>{" "}
+            en Responses y <code className="text-zinc-800">tool_use</code> en Messages, también al transmitir.
+            Los estados por límite de tokens terminan como <code className="text-zinc-800">incomplete</code>{" "}
+            / <code className="text-zinc-800">max_tokens</code>.
           </li>
           <li>
             Completions legacy: <code className="text-zinc-800">POST /api/v1/completions</code>{" "}

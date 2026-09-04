@@ -48,7 +48,9 @@ Sin Stripe no hay carga de wallet ni suscripción; `ENABLE_MANUAL_CREDITS=true` 
 producción.
 
 Cuando `GATEWAY_URL` está configurado, Chat Completions, Completions, Embeddings, Responses y
-Anthropic Messages se enrutan al data plane independiente. Ambos mounts (`/api/v1` y `/v1`) comparten
+Anthropic Messages se enrutan al data plane independiente. Responses y Messages conservan sus
+ciclos SSE nativos, incluidos tool calls, uso acumulado, estados incompletos y errores de stream.
+Ambos mounts (`/api/v1` y `/v1`) comparten
 la misma ACL, scopes, rate limiting y ledger; no existe una ruta rápida que evite el control plane.
 Los webhooks de observabilidad se persisten antes del primer intento, incluyen `x-nexus-delivery` y
 se reintentan desde el worker o `GET /api/internal/cron/webhooks` con backoff progresivo (máximo 6 intentos); el Delivery log permite

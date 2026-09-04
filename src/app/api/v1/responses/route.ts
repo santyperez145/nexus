@@ -18,6 +18,7 @@ export async function POST(req: Request) {
       model: body.model,
       messages,
       stream: body.stream,
+      stream_options: body.stream ? { include_usage: true } : body.stream_options,
       temperature: body.temperature,
       max_tokens: body.max_output_tokens ?? body.max_tokens,
       tools: body.tools,

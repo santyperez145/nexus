@@ -432,6 +432,7 @@ async function streamCompletion(opts: {
           }
           const usage = await streamed.usage;
           const finishReason = (await streamed.finishReason) ?? "stop";
+          const toolCalls = await streamed.toolCalls;
           const promptTokens = usage.inputTokens ?? estimateTokens(opts.messages);
           const completionTokens = usage.outputTokens ?? estimateTokens(full);
           const billed = await settleUsage({
@@ -445,6 +446,17 @@ async function streamCompletion(opts: {
             reservation: opts.reservation,
           });
           const includeUsage = opts.req.stream_options?.include_usage === true;
+          if (toolCalls.length) {
+            send(
+              chatChunkPayload({
+                id: opts.genId,
+                model: opts.candidate.model.id,
+                provider: opts.endpoint.adapter,
+                delta: { tool_calls: toolCalls },
+                finishReason: null,
+              }),
+            );
+          }
           send(
             chatChunkPayload({
               id: opts.genId,

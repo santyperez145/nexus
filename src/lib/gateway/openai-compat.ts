@@ -18,7 +18,7 @@ type CanonicalToolCall = {
   function: { name: string; arguments: string };
 };
 
-function canonicalToolCall(raw: unknown, index: number): CanonicalToolCall {
+export function canonicalToolCall(raw: unknown, index: number): CanonicalToolCall {
   const call = (raw ?? {}) as {
     id?: string;
     toolCallId?: string;
@@ -121,6 +121,7 @@ export function chatChunkPayload(opts: {
   usage?: CompletionUsage;
   created?: number;
 }) {
+  const finishReason = opts.finishReason == null ? null : canonicalFinishReason(opts.finishReason);
   return {
     id: opts.id,
     object: "chat.completion.chunk" as const,
@@ -131,7 +132,7 @@ export function chatChunkPayload(opts: {
       {
         index: 0,
         delta: opts.delta,
-        finish_reason: opts.finishReason,
+        finish_reason: finishReason,
         native_finish_reason: opts.finishReason,
         logprobs: null,
       },
@@ -157,27 +158,35 @@ export function toResponseEnvelope(chat: ChatLike) {
   const msg = chat.choices?.[0]?.message;
   const text = typeof msg?.content === "string" ? msg.content : "";
   const finish = chat.choices?.[0]?.finish_reason ?? "stop";
+  const incomplete = finish === "length" || finish === "max_tokens";
+  const message = text
+    ? [
+        {
+          type: "message" as const,
+          id: `msg_${chat.id}`,
+          status: incomplete ? ("incomplete" as const) : ("completed" as const),
+          role: "assistant" as const,
+          content: [
+            {
+              type: "output_text" as const,
+              text,
+              annotations: [] as unknown[],
+              logprobs: [] as unknown[],
+            },
+          ],
+        },
+      ]
+    : [];
   return {
     id: chat.id.startsWith("gen-") ? `resp_${chat.id.slice(4)}` : `resp_${chat.id}`,
     object: "response" as const,
     created_at: chat.created ?? Math.floor(Date.now() / 1000),
-    status: finish === "stop" || finish === "end_turn" ? "completed" : "incomplete",
+    status: incomplete ? ("incomplete" as const) : ("completed" as const),
     error: null,
-    incomplete_details: null,
+    incomplete_details: incomplete ? { reason: "max_output_tokens" as const } : null,
     model: chat.model,
     output: [
-      {
-        type: "message" as const,
-        id: `msg_${chat.id}`,
-        status: "completed" as const,
-        role: "assistant" as const,
-        content: [
-          {
-            type: "output_text" as const,
-            text,
-          },
-        ],
-      },
+      ...message,
       ...(msg?.tool_calls ?? []).map((call, i) => {
         const toolCall = canonicalToolCall(call, i);
         return {
@@ -329,7 +338,7 @@ export function chatChunkToProtocolSse(chunk: ReturnType<typeof chatChunkPayload
   }
   if (done) {
     const stopReason =
-      chunk.choices[0]?.finish_reason === "length"
+      chunk.choices[0]?.finish_reason === "length" || chunk.choices[0]?.finish_reason === "max_tokens"
         ? "max_tokens"
         : chunk.choices[0]?.finish_reason === "tool_calls"
           ? "tool_use"
@@ -352,78 +361,351 @@ function reshapeChatStream(res: Response, shape: "response" | "anthropic") {
   const decoder = new TextDecoder();
   let buffer = "";
   let started = false;
+  let finished = false;
+  let fullText = "";
+  let textItemOpen = false;
+  let anthropicBlockIndex = 0;
+  let sequenceNumber = 0;
+  let responseId = "";
+  let messageId = "";
+  let createdAt = 0;
+  let model = "";
+  let provider = "";
+  let usage: CompletionUsage | undefined;
+  const responseOutput: Array<Record<string, unknown>> = [];
   const body = new ReadableStream({
     async start(controller) {
       const send = (chunk: string) => {
         if (chunk) controller.enqueue(encoder.encode(chunk));
+      };
+      const responseEvent = (event: string, data: Record<string, unknown>) => {
+        send(sseEvent(event, { ...data, sequence_number: sequenceNumber++ }));
+      };
+      const responseSnapshot = (status: "in_progress" | "completed" | "incomplete") => ({
+        id: responseId,
+        object: "response",
+        created_at: createdAt,
+        status,
+        error: null,
+        incomplete_details: status === "incomplete" ? { reason: "max_output_tokens" } : null,
+        model,
+        output: status === "in_progress" ? [] : responseOutput,
+        usage:
+          status === "in_progress"
+            ? null
+            : {
+                input_tokens: usage?.prompt_tokens ?? 0,
+                input_tokens_details: {
+                  cached_tokens: usage?.prompt_tokens_details.cached_tokens ?? 0,
+                },
+                output_tokens: usage?.completion_tokens ?? 0,
+                output_tokens_details: {
+                  reasoning_tokens: usage?.completion_tokens_details.reasoning_tokens ?? 0,
+                },
+                total_tokens: usage?.total_tokens ?? 0,
+              },
+        metadata: { provider },
+      });
+      const ensureResponseTextItem = () => {
+        if (textItemOpen) return;
+        textItemOpen = true;
+        responseEvent("response.output_item.added", {
+          type: "response.output_item.added",
+          output_index: responseOutput.length,
+          item: {
+            id: messageId,
+            type: "message",
+            status: "in_progress",
+            role: "assistant",
+            content: [],
+          },
+        });
+        responseEvent("response.content_part.added", {
+          type: "response.content_part.added",
+          item_id: messageId,
+          output_index: responseOutput.length,
+          content_index: 0,
+          part: { type: "output_text", text: "", annotations: [], logprobs: [] },
+        });
+      };
+      const closeResponseTextItem = (status: "completed" | "incomplete") => {
+        if (!textItemOpen) return;
+        const outputIndex = responseOutput.length;
+        const part = {
+          type: "output_text",
+          text: fullText,
+          annotations: [] as unknown[],
+          logprobs: [] as unknown[],
+        };
+        const item = {
+          id: messageId,
+          type: "message",
+          status,
+          role: "assistant",
+          content: [part],
+        };
+        responseEvent("response.output_text.done", {
+          type: "response.output_text.done",
+          item_id: messageId,
+          output_index: outputIndex,
+          content_index: 0,
+          text: fullText,
+          logprobs: [],
+        });
+        responseEvent("response.content_part.done", {
+          type: "response.content_part.done",
+          item_id: messageId,
+          output_index: outputIndex,
+          content_index: 0,
+          part,
+        });
+        responseEvent("response.output_item.done", {
+          type: "response.output_item.done",
+          output_index: outputIndex,
+          item,
+        });
+        responseOutput.push(item);
+        textItemOpen = false;
+      };
+      const ensureAnthropicTextBlock = () => {
+        if (textItemOpen) return;
+        textItemOpen = true;
+        send(
+          sseEvent("content_block_start", {
+            type: "content_block_start",
+            index: anthropicBlockIndex,
+            content_block: { type: "text", text: "" },
+          }),
+        );
+      };
+      const closeAnthropicTextBlock = () => {
+        if (!textItemOpen) return;
+        send(sseEvent("content_block_stop", { type: "content_block_stop", index: anthropicBlockIndex }));
+        anthropicBlockIndex += 1;
+        textItemOpen = false;
+      };
+      const sendProtocolError = (message: string) => {
+        if (shape === "response") {
+          responseEvent("error", {
+            type: "error",
+            code: "invalid_stream_event",
+            message,
+            param: null,
+          });
+        } else {
+          send(
+            sseEvent("error", {
+              type: "error",
+              error: { type: "api_error", message },
+            }),
+          );
+        }
+      };
+      const startProtocol = (json: ReturnType<typeof chatChunkPayload>) => {
+        if (started) return;
+        started = true;
+        responseId = json.id.startsWith("gen-")
+          ? `resp_${json.id.slice(4)}`
+          : `resp_${json.id}`;
+        messageId = json.id.startsWith("gen-")
+          ? `msg_${json.id.slice(4)}`
+          : `msg_${json.id}`;
+        createdAt = json.created;
+        model = json.model;
+        provider = json.provider ?? "";
+        if (shape === "response") {
+          responseEvent("response.created", {
+            type: "response.created",
+            response: responseSnapshot("in_progress"),
+          });
+          responseEvent("response.in_progress", {
+            type: "response.in_progress",
+            response: responseSnapshot("in_progress"),
+          });
+        } else {
+          send(
+            sseEvent("message_start", {
+              type: "message_start",
+              message: {
+                id: messageId,
+                type: "message",
+                role: "assistant",
+                model,
+                content: [],
+                stop_reason: null,
+                stop_sequence: null,
+                usage: { input_tokens: 0, output_tokens: 0 },
+              },
+            }),
+          );
+        }
+      };
+      const processChunk = (json: ReturnType<typeof chatChunkPayload>) => {
+        startProtocol(json);
+        provider = json.provider ?? provider;
+        usage = json.usage ?? usage;
+        const choice = json.choices[0];
+        const delta = choice?.delta;
+        const textDelta = typeof delta?.content === "string" ? delta.content : "";
+        if (textDelta) {
+          fullText += textDelta;
+          if (shape === "response") {
+            ensureResponseTextItem();
+            responseEvent("response.output_text.delta", {
+              type: "response.output_text.delta",
+              item_id: messageId,
+              output_index: responseOutput.length,
+              content_index: 0,
+              delta: textDelta,
+              logprobs: [],
+            });
+          } else {
+            ensureAnthropicTextBlock();
+            send(
+              sseEvent("content_block_delta", {
+                type: "content_block_delta",
+                index: anthropicBlockIndex,
+                delta: { type: "text_delta", text: textDelta },
+              }),
+            );
+          }
+        }
+
+        const rawToolCalls = Array.isArray(delta?.tool_calls) ? delta.tool_calls : [];
+        if (rawToolCalls.length) {
+          if (shape === "response") closeResponseTextItem("completed");
+          else closeAnthropicTextBlock();
+          for (const [index, raw] of rawToolCalls.entries()) {
+            const call = canonicalToolCall(raw, index);
+            if (shape === "response") {
+              const outputIndex = responseOutput.length;
+              const itemId = `fc_${json.id}_${outputIndex}`;
+              responseEvent("response.output_item.added", {
+                type: "response.output_item.added",
+                output_index: outputIndex,
+                item: {
+                  type: "function_call",
+                  id: itemId,
+                  call_id: call.id,
+                  name: call.function.name,
+                  arguments: "",
+                  status: "in_progress",
+                },
+              });
+              responseEvent("response.function_call_arguments.delta", {
+                type: "response.function_call_arguments.delta",
+                item_id: itemId,
+                output_index: outputIndex,
+                delta: call.function.arguments,
+              });
+              responseEvent("response.function_call_arguments.done", {
+                type: "response.function_call_arguments.done",
+                item_id: itemId,
+                output_index: outputIndex,
+                arguments: call.function.arguments,
+              });
+              const item = {
+                type: "function_call",
+                id: itemId,
+                call_id: call.id,
+                name: call.function.name,
+                arguments: call.function.arguments,
+                status: "completed",
+              };
+              responseEvent("response.output_item.done", {
+                type: "response.output_item.done",
+                output_index: outputIndex,
+                item,
+              });
+              responseOutput.push(item);
+            } else {
+              send(
+                sseEvent("content_block_start", {
+                  type: "content_block_start",
+                  index: anthropicBlockIndex,
+                  content_block: { type: "tool_use", id: call.id, name: call.function.name, input: {} },
+                }),
+              );
+              send(
+                sseEvent("content_block_delta", {
+                  type: "content_block_delta",
+                  index: anthropicBlockIndex,
+                  delta: { type: "input_json_delta", partial_json: call.function.arguments },
+                }),
+              );
+              send(sseEvent("content_block_stop", { type: "content_block_stop", index: anthropicBlockIndex }));
+              anthropicBlockIndex += 1;
+            }
+          }
+        }
+
+        if (choice?.finish_reason != null) {
+          const incomplete = choice.finish_reason === "length" || choice.finish_reason === "max_tokens";
+          if (shape === "response") {
+            if (!responseOutput.length && !textItemOpen) ensureResponseTextItem();
+            closeResponseTextItem(incomplete ? "incomplete" : "completed");
+            const status = incomplete ? "incomplete" : "completed";
+            responseEvent(`response.${status}`, {
+              type: `response.${status}`,
+              response: responseSnapshot(status),
+            });
+          } else {
+            if (anthropicBlockIndex === 0 && !textItemOpen) ensureAnthropicTextBlock();
+            closeAnthropicTextBlock();
+            const stopReason = incomplete
+              ? "max_tokens"
+              : choice.finish_reason === "tool_calls"
+                ? "tool_use"
+                : "end_turn";
+            send(
+              sseEvent("message_delta", {
+                type: "message_delta",
+                delta: { stop_reason: stopReason, stop_sequence: null },
+                usage: { output_tokens: usage?.completion_tokens ?? 0 },
+              }) + sseEvent("message_stop", { type: "message_stop" }),
+            );
+          }
+          finished = true;
+        }
       };
       const reader = res.body?.getReader();
       if (!reader) {
         controller.close();
         return;
       }
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() ?? "";
-        for (const part of parts) {
-          const line = part.split("\n").find((l) => l.startsWith("data: "));
-          if (!line) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") continue;
-          try {
-            const json = JSON.parse(raw) as ReturnType<typeof chatChunkPayload>;
-            if (!started) {
-              started = true;
-              if (shape === "response") {
-                const responseId = json.id.startsWith("gen-")
-                  ? `resp_${json.id.slice(4)}`
-                  : `resp_${json.id}`;
-                send(
-                  sseEvent("response.created", {
-                    type: "response.created",
-                    response: {
-                      id: responseId,
-                      object: "response",
-                      created_at: json.created,
-                      status: "in_progress",
-                      model: json.model,
-                      output: [],
-                    },
-                  }),
-                );
-              } else {
-                send(
-                  sseEvent("message_start", {
-                    type: "message_start",
-                    message: {
-                      id: json.id.startsWith("gen-") ? `msg_${json.id.slice(4)}` : json.id,
-                      type: "message",
-                      role: "assistant",
-                      model: json.model,
-                      content: [],
-                      stop_reason: null,
-                      stop_sequence: null,
-                      usage: { input_tokens: 0, output_tokens: 0 },
-                    },
-                  }),
-                );
-                send(
-                  sseEvent("content_block_start", {
-                    type: "content_block_start",
-                    index: 0,
-                    content_block: { type: "text", text: "" },
-                  }),
-                );
-              }
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split(/\r?\n\r?\n/);
+          buffer = parts.pop() ?? "";
+          for (const part of parts) {
+            const data = part
+              .split(/\r?\n/)
+              .filter((line) => line.startsWith("data:"))
+              .map((line) => line.slice(5).trimStart())
+              .join("\n")
+              .trim();
+            if (!data || data === "[DONE]") continue;
+            let json: ReturnType<typeof chatChunkPayload>;
+            try {
+              json = JSON.parse(data) as ReturnType<typeof chatChunkPayload>;
+            } catch {
+              sendProtocolError("Upstream emitted malformed JSON in its event stream.");
+              controller.close();
+              await reader.cancel();
+              return;
             }
-            send(chatChunkToProtocolSse(json, shape));
-          } catch {
-            /* skip malformed */
+            processChunk(json);
           }
         }
+        buffer += decoder.decode();
+        if (!finished) {
+          sendProtocolError("Upstream event stream ended before a terminal response event.");
+        }
+      } catch (error) {
+        sendProtocolError(error instanceof Error ? error.message : "Upstream event stream failed.");
       }
       controller.close();
     },
