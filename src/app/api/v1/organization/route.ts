@@ -1,10 +1,15 @@
-import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { db, schema, withTransaction } from "@/lib/db";
 import { APP_URL } from "@/lib/config";
 import { sendMail } from "@/lib/email";
 import { id } from "@/lib/ids";
 import { canManageOrg, normalizeInviteRole } from "@/lib/orgs/acl";
+import {
+  canAllocateTeamSeat,
+  lockTeamSeatAccount,
+  teamSeatUsageForOwner,
+} from "@/lib/orgs/seats";
 import { slugify } from "@/lib/slug";
 import { randomKey } from "@/lib/crypto";
 
@@ -37,27 +42,9 @@ async function pendingInvites(organizationId: string) {
       and(
         eq(schema.organizationInvites.organizationId, organizationId),
         isNull(schema.organizationInvites.acceptedAt),
+        gt(schema.organizationInvites.expiresAt, new Date()),
       ),
     );
-}
-
-async function teamSeats(organizationId: string) {
-  const [organization] = await db
-    .select({ ownerId: schema.organizations.ownerId, plan: schema.users.plan })
-    .from(schema.organizations)
-    .innerJoin(schema.users, eq(schema.users.id, schema.organizations.ownerId))
-    .where(eq(schema.organizations.id, organizationId))
-    .limit(1);
-  if (!organization || organization.plan !== "team") return { capacity: 0, used: 0 };
-  const subscriptions = await db
-    .select({ quantity: schema.subscriptions.quantity, status: schema.subscriptions.status })
-    .from(schema.subscriptions)
-    .where(and(eq(schema.subscriptions.userId, organization.ownerId), eq(schema.subscriptions.plan, "team")))
-    .orderBy(desc(schema.subscriptions.updatedAt));
-  const active = subscriptions.find((row) => row.status === "active" || row.status === "trialing");
-  const members = await membersOf(organizationId);
-  const invites = await pendingInvites(organizationId);
-  return { capacity: active?.quantity ?? 0, used: members.length + invites.length };
 }
 
 export async function GET(req: Request) {
@@ -73,6 +60,7 @@ export async function GET(req: Request) {
       .where(eq(schema.organizationMembers.userId, auth.userId));
     const ids = new Set([...owned.map((o) => o.id), ...memberships.map((m) => m.organizationId)]);
     const orgs = [];
+    const seatsByOwner = new Map<string, Awaited<ReturnType<typeof teamSeatUsageForOwner>>>();
     for (const orgId of ids) {
       const [org] = await db
         .select()
@@ -81,11 +69,17 @@ export async function GET(req: Request) {
         .limit(1);
       if (!org) continue;
       const mine = memberships.find((m) => m.organizationId === org.id);
+      let seats = seatsByOwner.get(org.ownerId);
+      if (!seats) {
+        seats = await teamSeatUsageForOwner(org.ownerId);
+        seatsByOwner.set(org.ownerId, seats);
+      }
       orgs.push({
         ...org,
         role: mine?.role ?? (org.ownerId === auth.userId ? "owner" : "member"),
         members: await membersOf(org.id),
         pending_invites: await pendingInvites(org.id),
+        team_seats: { capacity: seats.capacity, used: seats.used },
       });
     }
     return Response.json({ data: orgs });
@@ -112,16 +106,26 @@ export async function POST(req: Request) {
       if (!user || user.email.toLowerCase() !== invite.email.toLowerCase()) {
         return jsonError(Object.assign(new Error("invite email mismatch"), { status: 403 }));
       }
-      const seats = await teamSeats(invite.organizationId);
-      if (seats.capacity <= 0 || seats.used > seats.capacity) {
-        return jsonError(
-          Object.assign(new Error("The organization does not have an available active Team seat"), {
-            status: 403,
-            code: "plan_limit",
-          }),
-        );
+      const [inviteOrganization] = await db
+        .select({ ownerId: schema.organizations.ownerId })
+        .from(schema.organizations)
+        .where(eq(schema.organizations.id, invite.organizationId))
+        .limit(1);
+      if (!inviteOrganization) {
+        return jsonError(Object.assign(new Error("invite organization not found"), { status: 404 }));
       }
       await withTransaction(async (tx) => {
+        await lockTeamSeatAccount(tx, inviteOrganization.ownerId);
+        const seats = await teamSeatUsageForOwner(inviteOrganization.ownerId, tx);
+        if (
+          seats.used > seats.capacity ||
+          !canAllocateTeamSeat(seats, { userId: auth.userId, email: user.email })
+        ) {
+          throw Object.assign(new Error("The billing account does not have an available active Team seat"), {
+            status: 403,
+            code: "plan_limit",
+          });
+        }
         const [claimed] = await tx
           .update(schema.organizationInvites)
           .set({ acceptedAt: new Date() })
@@ -204,15 +208,6 @@ export async function POST(req: Request) {
       if (!role) {
         return jsonError(Object.assign(new Error("invalid role"), { status: 400 }));
       }
-      const seats = await teamSeats(org.id);
-      if (seats.capacity <= 0) {
-        return jsonError(
-          Object.assign(new Error("An active Team subscription is required to invite members"), {
-            status: 403,
-            code: "plan_required",
-          }),
-        );
-      }
       const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
       if (user) {
         const [existing] = await db
@@ -228,13 +223,37 @@ export async function POST(req: Request) {
         if (existing) {
           return Response.json({ data: { organization_id: org.id, user_id: user.id, status: "already_member" } });
         }
-        if (seats.used >= seats.capacity) {
-          return jsonError(Object.assign(new Error("Team seat limit reached; add seats in Billing"), { status: 403, code: "plan_limit" }));
-        }
         await withTransaction(async (tx) => {
+          await lockTeamSeatAccount(tx, org.ownerId);
+          const seats = await teamSeatUsageForOwner(org.ownerId, tx);
+          if (seats.capacity <= 0) {
+            throw Object.assign(new Error("An active Team subscription is required to invite members"), {
+              status: 403,
+              code: "plan_required",
+            });
+          }
+          if (!canAllocateTeamSeat(seats, { userId: user.id, email: user.email })) {
+            throw Object.assign(new Error("Team seat limit reached; add seats in Billing"), {
+              status: 403,
+              code: "plan_limit",
+            });
+          }
           await tx
             .insert(schema.organizationMembers)
-            .values({ id: id("om"), organizationId: org.id, userId: user.id, role });
+            .values({ id: id("om"), organizationId: org.id, userId: user.id, role })
+            .onConflictDoNothing({
+              target: [schema.organizationMembers.organizationId, schema.organizationMembers.userId],
+            });
+          await tx
+            .update(schema.organizationInvites)
+            .set({ acceptedAt: new Date() })
+            .where(
+              and(
+                eq(schema.organizationInvites.organizationId, org.id),
+                eq(schema.organizationInvites.email, email),
+                isNull(schema.organizationInvites.acceptedAt),
+              ),
+            );
           const defaultWorkspaces = await tx
             .select({ id: schema.workspaces.id })
             .from(schema.workspaces)
@@ -263,20 +282,6 @@ export async function POST(req: Request) {
           data: { organization_id: org.id, user_id: user.id, email: user.email, status: "joined" },
         });
       }
-      const [existingInvite] = await db
-        .select()
-        .from(schema.organizationInvites)
-        .where(
-          and(
-            eq(schema.organizationInvites.organizationId, org.id),
-            eq(schema.organizationInvites.email, email),
-            isNull(schema.organizationInvites.acceptedAt),
-          ),
-        )
-        .limit(1);
-      if (!existingInvite && seats.used >= seats.capacity) {
-        return jsonError(Object.assign(new Error("Team seat limit reached; add seats in Billing"), { status: 403, code: "plan_limit" }));
-      }
       const token = randomKey("nxi_", 24);
       const invite = {
         id: id("oi"),
@@ -287,13 +292,29 @@ export async function POST(req: Request) {
         invitedBy: auth.userId,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       };
-      await db
-        .insert(schema.organizationInvites)
-        .values(invite)
-        .onConflictDoUpdate({
-          target: [schema.organizationInvites.organizationId, schema.organizationInvites.email],
-          set: { role, token, invitedBy: auth.userId, acceptedAt: null, expiresAt: invite.expiresAt },
-        });
+      await withTransaction(async (tx) => {
+        await lockTeamSeatAccount(tx, org.ownerId);
+        const seats = await teamSeatUsageForOwner(org.ownerId, tx);
+        if (seats.capacity <= 0) {
+          throw Object.assign(new Error("An active Team subscription is required to invite members"), {
+            status: 403,
+            code: "plan_required",
+          });
+        }
+        if (!canAllocateTeamSeat(seats, { email })) {
+          throw Object.assign(new Error("Team seat limit reached; add seats in Billing"), {
+            status: 403,
+            code: "plan_limit",
+          });
+        }
+        await tx
+          .insert(schema.organizationInvites)
+          .values(invite)
+          .onConflictDoUpdate({
+            target: [schema.organizationInvites.organizationId, schema.organizationInvites.email],
+            set: { role, token, invitedBy: auth.userId, acceptedAt: null, expiresAt: invite.expiresAt },
+          });
+      });
       const acceptUrl = `${APP_URL}/settings/organizations?invite=${token}`;
       await sendMail({
         to: email,
@@ -316,26 +337,28 @@ export async function POST(req: Request) {
       });
     }
 
-    if (auth.plan !== "team") {
-      return jsonError(
-        Object.assign(new Error("Team plan required to create organizations"), {
-          status: 403,
-          code: "plan_required",
-        }),
-      );
-    }
     const row = {
       id: id("org"),
       name: body.name ?? "Organization",
       slug: slugify(String(body.slug ?? body.name ?? "org"), "org"),
       ownerId: auth.userId,
     };
-    await db.insert(schema.organizations).values(row);
-    await db.insert(schema.organizationMembers).values({
-      id: id("om"),
-      organizationId: row.id,
-      userId: auth.userId,
-      role: "owner",
+    await withTransaction(async (tx) => {
+      await lockTeamSeatAccount(tx, auth.userId);
+      const seats = await teamSeatUsageForOwner(auth.userId, tx);
+      if (seats.capacity <= 0) {
+        throw Object.assign(new Error("An active Team subscription is required to create organizations"), {
+          status: 403,
+          code: "plan_required",
+        });
+      }
+      await tx.insert(schema.organizations).values(row);
+      await tx.insert(schema.organizationMembers).values({
+        id: id("om"),
+        organizationId: row.id,
+        userId: auth.userId,
+        role: "owner",
+      });
     });
     return Response.json({ data: row });
   } catch (error) {

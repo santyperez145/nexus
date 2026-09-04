@@ -17,7 +17,12 @@ type Org = {
   ownerId: string;
   members: Member[];
   pending_invites?: Pending[];
+  team_seats?: { capacity: number; used: number };
 };
+
+function roleLabel(role: string) {
+  return role === "owner" ? "propietario" : role === "admin" ? "administrador" : "miembro";
+}
 
 export default function OrgsPage() {
   const [rows, reload] = useRemoteData<Org[]>("/api/v1/organization");
@@ -120,25 +125,30 @@ export default function OrgsPage() {
 
   return (
     <div>
-      <AppPageHeader title="Organizations">
-        Equipos con roles owner/admin/member. Invites por email (7d): owner y admin pueden invitar.
-        Los seats Team controlan capacidad; owner/admin gestionan membresía y workspaces compartidos.
+      <AppPageHeader title="Organizaciones">
+        Equipos con roles de propietario, administrador y miembro. Las invitaciones vencen en 7 días.
+        Los asientos Team se comparten entre todas las organizaciones de la misma cuenta pagadora.
       </AppPageHeader>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
-        <Stat label="Orgs" value={String(list.length)} />
+        <Stat label="Organizaciones" value={String(list.length)} />
         <Stat
           label="Miembros"
           value={String(list.reduce((n, o) => n + (o.members?.length ?? 0), 0))}
         />
         <Stat
-          label="Pending"
+          label="Invitaciones"
           value={String(list.reduce((n, o) => n + (o.pending_invites?.length ?? 0), 0))}
         />
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre org" />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nombre de la organización"
+          className="min-w-[14rem] flex-1"
+        />
         <Button disabled={!name.trim()} onClick={() => void createOrg()}>
           Crear
         </Button>
@@ -146,13 +156,13 @@ export default function OrgsPage() {
 
       <div className="mb-6 rounded-2xl border border-dashed border-zinc-200 p-3">
         <div className="mb-2 text-xs font-medium uppercase tracking-[0.1em] text-zinc-600">
-          Aceptar invite (token)
+          Aceptar invitación con token
         </div>
         <div className="flex flex-wrap gap-2">
           <Input
             value={acceptToken}
             onChange={(e) => setAcceptToken(e.target.value)}
-            placeholder="nxi_… o token del mail"
+            placeholder="nxi_… o token del correo"
             className="max-w-md"
           />
           <Button variant="outline" disabled={!acceptToken.trim()} onClick={() => void acceptManual()}>
@@ -164,7 +174,7 @@ export default function OrgsPage() {
       {msg ? <p className="mb-4 text-sm text-zinc-950">{msg}</p> : null}
       {lastAcceptUrl ? (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-violet-200 bg-violet-500/5 px-3 py-2 text-xs">
-          <span className="text-zinc-600">Link invite:</span>
+          <span className="text-zinc-600">Enlace de invitación:</span>
           <code className="max-w-full truncate font-mono text-zinc-800/80">{lastAcceptUrl}</code>
           <Button
             size="sm"
@@ -180,7 +190,7 @@ export default function OrgsPage() {
         <p className="text-sm text-zinc-500">Cargando…</p>
       ) : list.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-10 text-center text-sm text-zinc-500">
-          Sin organizaciones. Creá una o aceptá un invite.
+          Sin organizaciones. Creá una o aceptá una invitación.
         </div>
       ) : (
         <div className="grid gap-3">
@@ -192,10 +202,13 @@ export default function OrgsPage() {
                     {o.name}
                   </div>
                   <div className="font-mono text-xs text-zinc-600">
-                    /{o.slug} · {o.role} · {o.members?.length ?? 0} members
+                    /{o.slug} · {roleLabel(o.role)} · {o.members?.length ?? 0} miembros
                     {(o.pending_invites?.length ?? 0) > 0
-                      ? ` · ${o.pending_invites!.length} pending`
+                      ? ` · ${o.pending_invites!.length} pendientes`
                       : ""}
+                  </div>
+                  <div className={`mt-1 text-xs ${(o.team_seats?.used ?? 0) >= (o.team_seats?.capacity ?? 0) ? "text-amber-700" : "text-emerald-700"}`}>
+                    Asientos de la cuenta: {o.team_seats?.used ?? 0} / {o.team_seats?.capacity ?? 0}
                   </div>
                 </div>
                 {o.role === "owner" ? (
@@ -216,7 +229,7 @@ export default function OrgsPage() {
                 {o.members?.map((m) => (
                   <div key={m.id} className="flex justify-between gap-2">
                     <span>
-                      {m.email || m.name} · {m.role}
+                      {m.email || m.name} · {roleLabel(m.role)}
                     </span>
                     {(o.role === "owner" || o.role === "admin") && m.role !== "owner" ? (
                       <span className="flex items-center gap-2">
@@ -226,8 +239,8 @@ export default function OrgsPage() {
                           className="rounded-md border border-zinc-200 bg-white px-2 py-1"
                           aria-label={`Rol de ${m.email}`}
                         >
-                          <option value="member">member</option>
-                          <option value="admin">admin</option>
+                          <option value="member">Miembro</option>
+                          <option value="admin">Administrador</option>
                         </select>
                         <ConfirmAction
                           triggerLabel="Quitar"
@@ -242,7 +255,7 @@ export default function OrgsPage() {
                 ))}
                 {o.pending_invites?.map((p) => (
                   <div key={p.id} className="text-violet-700">
-                    {p.email} · pending · {p.role}
+                    {p.email} · pendiente · {roleLabel(p.role)}
                     {p.expiresAt
                       ? ` · exp ${new Date(p.expiresAt).toISOString().slice(0, 10)}`
                       : ""}
@@ -255,17 +268,17 @@ export default function OrgsPage() {
                   <Input
                     value={invite}
                     onChange={(e) => setInvite(e.target.value)}
-                    placeholder="email a invitar"
+                    placeholder="Correo a invitar"
                     className="min-w-[12rem] flex-1"
                   />
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
-                    aria-label="Rol invite"
+                    aria-label="Rol de la invitación"
                   >
-                    <option value="member">member</option>
-                    <option value="admin">admin</option>
+                    <option value="member">Miembro</option>
+                    <option value="admin">Administrador</option>
                   </select>
                   <Button
                     variant="outline"

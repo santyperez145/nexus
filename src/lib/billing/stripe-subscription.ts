@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { SUBSCRIPTION_PLANS, stripePriceForPlan } from "@/lib/config";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
+import { lockTeamSeatAccount } from "@/lib/orgs/seats";
 
 function objectId(value: unknown): string | null {
   if (typeof value === "string") return value;
@@ -96,6 +97,7 @@ export async function syncStripeSubscription(subscription: Stripe.Subscription) 
   const quantity = Math.max(1, Number(firstItem?.quantity ?? 1));
 
   await withTransaction(async (tx) => {
+    await lockTeamSeatAccount(tx, userId);
     await tx
       .insert(schema.subscriptions)
       .values({
