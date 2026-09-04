@@ -111,6 +111,9 @@ canónico con la API de Stripe, valida su tipo, reutiliza el mismo procesador de
 acción del operador en el audit log.
 CI aplica todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build; una
 migración inválida bloquea el merge.
+GitHub mantiene alertas de vulnerabilidades y correcciones automáticas activas; Dependabot revisa
+semanalmente las dependencias npm y las acciones, agrupando actualizaciones minor y patch para evitar
+ruido sin mezclar upgrades mayores de riesgo.
 
 Railway usa `GET /api/internal/health/live` para confirmar que una nueva revisión inició sin convertir
 credenciales externas pendientes en un bucle de rollback. El monitor operativo y la apertura de tráfico
