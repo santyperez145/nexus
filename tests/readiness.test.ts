@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  commercialLaunchReady,
   configuredCapabilities,
   productionConfigIssues,
 } from "../src/lib/health/readiness";
@@ -49,6 +50,28 @@ describe("production readiness configuration", () => {
         STRIPE_PRICE_TEAM_MONTHLY: "price_team",
       }),
       { inferenceConfigured: true, commerceConfigured: true },
+    );
+  });
+
+  it("does not declare customer traffic ready without inference and commerce", () => {
+    const snapshot = {
+      ok: true,
+      service: "nexus-control-plane" as const,
+      checkedAt: new Date(0).toISOString(),
+      checks: {
+        configuration: { ok: true, latencyMs: 0 },
+        database: { ok: true, latencyMs: 1 },
+        redis: { ok: true, latencyMs: 1 },
+      },
+      capabilities: { inferenceConfigured: false, commerceConfigured: false },
+    };
+    assert.equal(commercialLaunchReady(snapshot), false);
+    assert.equal(
+      commercialLaunchReady({
+        ...snapshot,
+        capabilities: { inferenceConfigured: true, commerceConfigured: true },
+      }),
+      true,
     );
   });
 });

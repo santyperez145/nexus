@@ -3,7 +3,7 @@ import { OperationsActions } from "@/components/admin/operations-actions";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { connectionStatus } from "@/lib/connections";
 import { db, ensureDb, schema } from "@/lib/db";
-import { readinessSnapshot } from "@/lib/health/readiness";
+import { commercialLaunchReady, readinessSnapshot } from "@/lib/health/readiness";
 import { readProviderHealthRows } from "@/lib/providers/health-store";
 import { isRecentHealthy } from "@/lib/providers/probe";
 
@@ -20,15 +20,29 @@ export default async function AdminOperationsPage() {
   const healthByProvider = new Map(health.map((row) => [row.provider, row]));
   const infrastructure = [status.database, status.auth, status.stripe, status.redis];
   const runtimeChecks = Object.entries(readiness.checks);
+  const launchReady = commercialLaunchReady(readiness);
   return <div>
     <AppPageHeader title="Operaciones" actions={<OperationsActions />}>Configuración, salud observada y tareas operatorias. “Configurado” sólo confirma el entorno; “operativo” exige una sonda reciente exitosa.</AppPageHeader>
+    <section className={`mb-4 rounded-2xl border p-4 ${launchReady ? "border-emerald-200 bg-emerald-50/70" : "border-amber-200 bg-amber-50/70"}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-zinc-950">Disponibilidad comercial</h2>
+          <p className="mt-1 text-xs text-zinc-600">
+            Exige proceso sano, inferencia configurada y cobros conectados. No equivale a conciliación financiera ni a un SLA externo.
+          </p>
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${launchReady ? "border-emerald-300 text-emerald-800" : "border-amber-300 text-amber-900"}`}>
+          {launchReady ? "Lista para clientes" : "Bloqueada para clientes"}
+        </span>
+      </div>
+    </section>
     <section className={`mb-6 rounded-2xl border p-4 ${readiness.ok ? "border-emerald-200 bg-emerald-50/70" : "border-rose-200 bg-rose-50/70"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-zinc-950">Readiness del control plane</h2>
           <p className="mt-1 text-xs text-zinc-600">Prueba viva de configuración, Postgres y Redis. Railway retira la instancia si responde 503.</p>
         </div>
-        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${readiness.ok ? "border-emerald-300 text-emerald-800" : "border-rose-300 text-rose-800"}`}>{readiness.ok ? "Lista para tráfico" : "No lista"}</span>
+        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${readiness.ok ? "border-emerald-300 text-emerald-800" : "border-rose-300 text-rose-800"}`}>{readiness.ok ? "Control plane sano" : "Control plane no listo"}</span>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {runtimeChecks.map(([name, check]) => <div key={name} className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-xs"><div className="flex items-center justify-between gap-2"><span className="capitalize text-zinc-700">{name}</span><span className={check.ok ? "text-emerald-700" : "text-rose-700"}>{check.ok ? "OK" : "Falla"}</span></div><div className="mt-1 text-[10px] text-zinc-500">{check.latencyMs} ms{check.detail ? ` · ${check.detail}` : ""}</div></div>)}

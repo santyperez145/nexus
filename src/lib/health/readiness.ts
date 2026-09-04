@@ -27,6 +27,14 @@ export type ReadinessSnapshot = {
   };
 };
 
+export function commercialLaunchReady(snapshot: ReadinessSnapshot) {
+  return (
+    snapshot.ok &&
+    snapshot.capabilities.inferenceConfigured &&
+    snapshot.capabilities.commerceConfigured
+  );
+}
+
 function present(value?: string) {
   return Boolean(value?.trim());
 }
