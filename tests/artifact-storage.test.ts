@@ -19,6 +19,7 @@ let files: typeof import("../src/app/api/v1/files/route");
 let content: typeof import("../src/app/api/v1/files/[id]/content/route");
 let uploads: typeof import("../src/app/api/v1/files/uploads/route");
 let complete: typeof import("../src/app/api/v1/files/uploads/[id]/complete/route");
+let parts: typeof import("../src/app/api/v1/files/uploads/[id]/parts/route");
 
 function request(path: string, token: string, init?: RequestInit) {
   return new Request(`https://nexus.test/api/v1/files${path}`, {
@@ -34,6 +35,7 @@ before(async () => {
   content = await import("../src/app/api/v1/files/[id]/content/route");
   uploads = await import("../src/app/api/v1/files/uploads/route");
   complete = await import("../src/app/api/v1/files/uploads/[id]/complete/route");
+  parts = await import("../src/app/api/v1/files/uploads/[id]/parts/route");
   await database.ensureDb();
   await database.db.insert(database.schema.users).values([
     { id: "usr_artifact_paid", name: "Artifact Paid", email: "artifact-paid@nexus.test", plan: "pro" },
@@ -136,6 +138,15 @@ describe("artifact storage control plane", () => {
       { params: Promise.resolve({ id: "file_workspace_pending" }) },
     );
     assert.equal(response.status, 404);
+    const partResponse = await parts.POST(
+      request("/uploads/file_workspace_pending/parts", zeroToken, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ parts: [{ part_number: 1, sha256: "a".repeat(64) }] }),
+      }),
+      { params: Promise.resolve({ id: "file_workspace_pending" }) },
+    );
+    assert.equal(partResponse.status, 404);
   });
 
   it("keeps personal and workspace artifact listings in exact scopes", async () => {
@@ -174,6 +185,28 @@ describe("artifact storage control plane", () => {
           NEXUS_OBJECT_STORAGE_ENDPOINT: "http://storage.example.com",
         }),
       /HTTPS/,
+    );
+  });
+
+  it("derives the S3 composite SHA-256 from verified part digests", async () => {
+    const { createHash } = await import("node:crypto");
+    const { multipartCompositeSha256 } = await import("../src/lib/files/blob-store");
+    const checksums = ["part-one", "part-two"].map((value) =>
+      createHash("sha256").update(value).digest("base64"),
+    );
+    const expected = `${createHash("sha256")
+      .update(Buffer.concat(checksums.map((checksum) => Buffer.from(checksum, "base64"))))
+      .digest("base64")}-2`;
+    assert.equal(
+      multipartCompositeSha256(
+        checksums.map((checksumSha256, index) => ({
+          partNumber: index + 1,
+          size: 10,
+          etag: `etag-${index + 1}`,
+          checksumSha256,
+        })),
+      ),
+      expected,
     );
   });
 });

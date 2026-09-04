@@ -85,7 +85,7 @@ export function DatasetWorkspace({ namespace, slug }: { namespace: string; slug:
                   finally { setUploading(false); event.target.value = ""; }
                 }} />
               </label>
-              <span className="ml-3 text-xs text-zinc-500">hasta 5 GiB con object storage</span>
+              <span className="ml-3 text-xs text-zinc-500">hasta 50 GiB · multipart reintentable</span>
             </div>
             <form className="p-5" onSubmit={async (event) => {
               event.preventDefault(); setMessage("Publicando snapshot…");

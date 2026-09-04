@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.18.0
+  version: 0.19.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference. The X-Nexus-Guest local echo is development-only and disabled in production.
 servers:
   - url: /api/v1
@@ -635,8 +635,8 @@ paths:
         "409": { description: File is referenced by an immutable Hub revision }
   /files/uploads:
     post:
-      summary: Reserve a direct artifact upload (max 5 GiB)
-      description: Reserves tenant quota transactionally and returns a short-lived S3-compatible PUT URL. The SHA-256 header is signed and verified by object storage.
+      summary: Reserve a direct or multipart artifact upload (max 50 GiB)
+      description: Reserves tenant quota transactionally. Objects up to 100 MiB use one signed PUT; larger objects use retryable 64 MiB parts with a signed SHA-256 per part.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -648,13 +648,50 @@ paths:
               properties:
                 filename: { type: string, maxLength: 512 }
                 mime: { type: string, default: application/octet-stream }
-                bytes: { type: integer, minimum: 1, maximum: 5368709120 }
+                bytes: { type: integer, minimum: 1, maximum: 53687091200 }
                 sha256: { type: string, pattern: "^[a-fA-F0-9]{64}$" }
                 workspace_id: { type: [string, "null"] }
       responses:
-        "201": { description: Pending file and signed PUT request }
+        "201": { description: Pending file and single-PUT or multipart transfer plan }
         "413": { description: Artifact exceeds plan quota or direct-upload size }
         "503": { description: Object storage is not configured }
+  /files/uploads/{id}/parts:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      summary: List uploaded parts for a resumable artifact upload
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: "Uploaded part numbers, lengths, and storage-verified checksums" }
+        "409": { description: Upload is not an active multipart transfer }
+    post:
+      summary: Sign a batch of multipart artifact parts
+      description: Signs at most 16 consecutive-plan part numbers with exact lengths and caller-provided SHA-256 checksums. A repeated part number replaces that part in S3.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parts]
+              properties:
+                parts:
+                  type: array
+                  minItems: 1
+                  maxItems: 16
+                  items:
+                    type: object
+                    required: [part_number, sha256]
+                    properties:
+                      part_number: { type: integer, minimum: 1, maximum: 10000 }
+                      sha256: { type: string, pattern: "^[a-fA-F0-9]{64}$" }
+      responses:
+        "200": { description: Short-lived signed PUT requests for the selected parts }
+        "409": { description: Upload is not active }
   /files/uploads/{id}/complete:
     parameters:
       - in: path
@@ -662,8 +699,8 @@ paths:
         required: true
         schema: { type: string }
     post:
-      summary: Verify and finalize a direct artifact upload
-      description: HEAD-verifies exact byte length and SHA-256 before making the artifact revision-eligible.
+      summary: Verify and finalize a direct or multipart artifact upload
+      description: For multipart objects, verifies consecutive part numbers, exact lengths, every SHA-256, the composite checksum, final size, and immutable full-file digest metadata before making the artifact revision-eligible.
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Ready file metadata }

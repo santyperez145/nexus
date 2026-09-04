@@ -54,7 +54,7 @@ await nexus.chat.completions.create({
 });
 ```
 
-Artefactos grandes (reserva de cuota → PUT firmado → verificación):
+Artefactos grandes (reserva de cuota → PUT firmado o multipart reintentable → verificación):
 
 ```ts
 import { createHash } from "node:crypto";
@@ -67,8 +67,10 @@ await nexus.files.uploadArtifact(new Blob([bytes]), {
 });
 ```
 
-La suma SHA-256 es obligatoria: forma parte de la firma del upload y Nexus no habilita el archivo
-hasta que object storage confirma checksum y longitud exactos.
+La suma SHA-256 es obligatoria. Hasta 100 MiB se firma un único PUT; por encima, el SDK divide el
+objeto en partes de 64 MiB, reintenta cada parte y Nexus valida sus checksums, orden, longitud y
+checksum compuesto antes de habilitar el archivo. La reserva dura 24 horas y las URLs de partes se
+pueden volver a firmar durante ese período.
 
 ## Recursos
 
@@ -88,7 +90,7 @@ hasta que object storage confirma checksum y longitud exactos.
 | `nexus.videos.create` / `.get` | `/videos` |
 | `nexus.keys.list` / `.create` / `.rotate` / `.update` / `.delete` | `/keys` |
 | `nexus.providers.list` / `.health` | `/providers` |
-| `nexus.files.list` / `.upload` / `.createUpload` / `.completeUpload` / `.uploadArtifact` / `.delete` | `/files` |
+| `nexus.files.list` / `.upload` / `.createUpload` / `.signUploadParts` / `.listUploadParts` / `.completeUpload` / `.uploadArtifact` / `.delete` | `/files` |
 | `nexus.analytics.get(days?)` | `/analytics` |
 | `nexus.presets.*` | `/presets` |
 | `nexus.guardrails.*` | `/guardrails` |

@@ -312,6 +312,8 @@ export const SCHEMA_SQL = [
     content text,
     storage_backend text NOT NULL DEFAULT 'database',
     storage_key text,
+    storage_upload_id text,
+    storage_part_size bigint,
     checksum_sha256 text,
     etag text,
     status text NOT NULL DEFAULT 'ready',
@@ -322,6 +324,8 @@ export const SCHEMA_SQL = [
   `ALTER TABLE "file" ALTER COLUMN size TYPE bigint`,
   `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS storage_backend text NOT NULL DEFAULT 'database'`,
   `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS storage_key text`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS storage_upload_id text`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS storage_part_size bigint`,
   `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS checksum_sha256 text`,
   `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS etag text`,
   `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'ready'`,
@@ -331,6 +335,8 @@ export const SCHEMA_SQL = [
    ON "file"(storage_key) WHERE storage_key IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS file_user_status_created_idx ON "file"(user_id, status, created_at)`,
   `CREATE INDEX IF NOT EXISTS file_workspace_status_created_idx ON "file"(workspace_id, status, created_at)`,
+  `ALTER TABLE "file" DROP CONSTRAINT IF EXISTS file_status_check`,
+  `ALTER TABLE "file" DROP CONSTRAINT IF EXISTS file_storage_shape_check`,
   `DO $$ BEGIN
      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'file_size_check') THEN
        ALTER TABLE "file" ADD CONSTRAINT file_size_check CHECK (size >= 0);
@@ -338,15 +344,14 @@ export const SCHEMA_SQL = [
      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'file_storage_backend_check') THEN
        ALTER TABLE "file" ADD CONSTRAINT file_storage_backend_check CHECK (storage_backend IN ('database', 's3'));
      END IF;
-     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'file_status_check') THEN
-       ALTER TABLE "file" ADD CONSTRAINT file_status_check CHECK (status IN ('pending', 'ready', 'failed'));
-     END IF;
-     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'file_storage_shape_check') THEN
-       ALTER TABLE "file" ADD CONSTRAINT file_storage_shape_check CHECK (
-         (storage_backend = 'database' AND storage_key IS NULL) OR
-         (storage_backend = 's3' AND storage_key IS NOT NULL)
-       );
-     END IF;
+     ALTER TABLE "file" ADD CONSTRAINT file_status_check
+       CHECK (status IN ('pending', 'completing', 'ready', 'failed'));
+     ALTER TABLE "file" ADD CONSTRAINT file_storage_shape_check CHECK (
+       (storage_backend = 'database' AND storage_key IS NULL AND storage_upload_id IS NULL AND storage_part_size IS NULL) OR
+       (storage_backend = 's3' AND storage_key IS NOT NULL AND
+         ((storage_upload_id IS NULL AND storage_part_size IS NULL) OR
+          (storage_upload_id IS NOT NULL AND storage_part_size IS NOT NULL)))
+     );
    END $$`,
   `CREATE TABLE IF NOT EXISTS "hub_namespace" (
     id text PRIMARY KEY,

@@ -161,6 +161,7 @@ describe("nexus-sdk", () => {
             storage_backend: "s3",
             sha256: "a".repeat(64),
             upload: {
+              strategy: "single",
               method: "PUT",
               url: "https://storage.example/upload",
               headers: { "x-amz-checksum-sha256": "checksum" },
@@ -179,6 +180,80 @@ describe("nexus-sdk", () => {
     assert.equal(calls[1].url, "https://storage.example/upload");
     assert.equal(new Headers(calls[1].init.headers).get("authorization"), null);
     assert.equal(calls[2].url, "https://nexus.test/api/v1/files/uploads/file_large/complete");
+  });
+
+  it("uploads large artifacts through checksum-bound retryable parts", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        const target = String(url);
+        calls.push({ url: target, init: init ?? {} });
+        if (target.includes("storage.example/part-")) return new Response(null, { status: 200 });
+        if (target.endsWith("/files/uploads/file_multipart/parts")) {
+          const body = JSON.parse(String(init?.body)) as {
+            parts: Array<{ part_number: number; sha256: string }>;
+          };
+          return Response.json({
+            data: body.parts.map((part) => ({
+              part_number: part.part_number,
+              bytes: part.part_number === 3 ? 2 : 4,
+              sha256: part.sha256,
+              method: "PUT",
+              url: `https://storage.example/part-${part.part_number}`,
+              headers: { "x-amz-checksum-sha256": `checksum-${part.part_number}` },
+              expires_in: 900,
+            })),
+          });
+        }
+        if (target.endsWith("/files/uploads/file_multipart/complete")) {
+          return Response.json({ data: { id: "file_multipart", status: "ready" } });
+        }
+        return Response.json({
+          data: {
+            id: "file_multipart",
+            filename: "model.gguf",
+            bytes: 10,
+            status: "pending",
+            storage_backend: "s3",
+            sha256: "b".repeat(64),
+            upload: {
+              strategy: "multipart",
+              part_size: 4,
+              part_count: 3,
+              parts_url: "/api/v1/files/uploads/file_multipart/parts",
+              expires_at: new Date().toISOString(),
+            },
+          },
+        });
+      },
+    });
+    const completed = await nexus.files.uploadArtifact(new Blob(["0123456789"]), {
+      filename: "model.gguf",
+      sha256: "b".repeat(64),
+    });
+    assert.deepEqual(completed.data, { id: "file_multipart", status: "ready" });
+    const storageCalls = calls.filter((call) => call.url.includes("storage.example/part-"));
+    assert.deepEqual(
+      storageCalls.map((call) => call.url),
+      [
+        "https://storage.example/part-1",
+        "https://storage.example/part-2",
+        "https://storage.example/part-3",
+      ],
+    );
+    assert.deepEqual(
+      await Promise.all(storageCalls.map((call) => new Response(call.init.body).text())),
+      ["0123", "4567", "89"],
+    );
+    assert.ok(storageCalls.every((call) => new Headers(call.init.headers).get("authorization") === null));
+    const signatureCall = calls.find((call) => call.url.endsWith("/file_multipart/parts"));
+    const signatureBody = JSON.parse(String(signatureCall?.init.body)) as {
+      parts: Array<{ part_number: number; sha256: string }>;
+    };
+    assert.deepEqual(signatureBody.parts.map((part) => part.part_number), [1, 2, 3]);
+    assert.ok(signatureBody.parts.every((part) => /^[a-f0-9]{64}$/.test(part.sha256)));
   });
 
   it("rotates keys via rotate_id", async () => {

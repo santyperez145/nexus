@@ -125,6 +125,13 @@ export class Nexus {
         return this.#fetch(url, init);
     }
 }
+async function blobSha256Hex(blob) {
+    if (!globalThis.crypto?.subtle) {
+        throw new Error("This runtime does not provide Web Crypto SHA-256 support");
+    }
+    const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", await blob.arrayBuffer()));
+    return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 class ChatResource {
     client;
     completions;
@@ -367,6 +374,15 @@ class FilesResource {
     createUpload(input) {
         return this.client.request("/files/uploads", { method: "POST", body: input });
     }
+    signUploadParts(id, parts) {
+        return this.client.request(`/files/uploads/${encodeURIComponent(id)}/parts`, {
+            method: "POST",
+            body: { parts },
+        });
+    }
+    listUploadParts(id) {
+        return this.client.request(`/files/uploads/${encodeURIComponent(id)}/parts`);
+    }
     completeUpload(id) {
         return this.client.request(`/files/uploads/${encodeURIComponent(id)}/complete`, {
             method: "POST",
@@ -380,16 +396,49 @@ class FilesResource {
             sha256: input.sha256,
             workspace_id: input.workspace_id,
         });
-        const uploaded = await this.client.fetchSigned(reservation.data.upload.url, {
-            method: reservation.data.upload.method,
-            headers: reservation.data.upload.headers,
-            body: file,
-        });
-        if (!uploaded.ok) {
-            throw new NexusError(`Object storage rejected the upload (${uploaded.status})`, {
-                status: uploaded.status,
-                code: "object_storage_error",
+        if (reservation.data.upload.strategy === "single") {
+            const uploaded = await this.client.fetchSigned(reservation.data.upload.url, {
+                method: reservation.data.upload.method,
+                headers: reservation.data.upload.headers,
+                body: file,
             });
+            if (!uploaded.ok) {
+                throw new NexusError(`Object storage rejected the upload (${uploaded.status})`, {
+                    status: uploaded.status,
+                    code: "object_storage_error",
+                });
+            }
+        }
+        else {
+            const { part_count: partCount, part_size: partSize } = reservation.data.upload;
+            const concurrency = 4;
+            for (let start = 1; start <= partCount; start += concurrency) {
+                const numbers = Array.from({ length: Math.min(concurrency, partCount - start + 1) }, (_, index) => start + index);
+                const chunks = await Promise.all(numbers.map(async (partNumber) => {
+                    const offset = (partNumber - 1) * partSize;
+                    const blob = file.slice(offset, Math.min(offset + partSize, file.size));
+                    return { partNumber, blob, sha256: await blobSha256Hex(blob) };
+                }));
+                const signed = await this.signUploadParts(reservation.data.id, chunks.map((part) => ({ part_number: part.partNumber, sha256: part.sha256 })));
+                await Promise.all(signed.data.map(async (part) => {
+                    const chunk = chunks.find((item) => item.partNumber === part.part_number);
+                    if (!chunk || chunk.blob.size !== part.bytes) {
+                        throw new NexusError("Invalid multipart reservation", {
+                            status: 409,
+                            code: "invalid_upload_state",
+                        });
+                    }
+                    let response = null;
+                    for (let attempt = 0; attempt < 3 && !response?.ok; attempt += 1) {
+                        response = await this.client
+                            .fetchSigned(part.url, { method: part.method, headers: part.headers, body: chunk.blob })
+                            .catch(() => null);
+                    }
+                    if (!response?.ok) {
+                        throw new NexusError(`Object storage rejected upload part ${part.part_number} (${response?.status ?? "network"})`, { status: response?.status ?? 502, code: "object_storage_error" });
+                    }
+                }));
+            }
         }
         return this.completeUpload(reservation.data.id);
     }

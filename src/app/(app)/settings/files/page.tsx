@@ -100,7 +100,7 @@ export default function FilesPage() {
       >
         Nexus extrae el contenido de textos y PDF; las imágenes se adjuntan como
         entrada visual para modelos compatibles. Los artefactos grandes usan carga directa
-        S3-compatible con SHA-256, hasta 5 GiB por archivo según plan.
+        S3-compatible con SHA-256 y partes reintentables, hasta 50 GiB por archivo según plan.
       </AppPageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">

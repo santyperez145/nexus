@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { deleteArtifact } from "@/lib/files/blob-store";
+import { abortMultipartArtifactUpload, deleteArtifact } from "@/lib/files/blob-store";
 import { extractFileText } from "@/lib/files/extract";
 import {
   createInlineFile,
@@ -115,7 +115,15 @@ export async function DELETE(req: Request) {
         }),
       );
     }
-    if (row.storageBackend === "s3" && row.storageKey) await deleteArtifact(row.storageKey);
+    if (row.storageBackend === "s3" && row.storageKey) {
+      if (row.storageUploadId && ["pending", "completing"].includes(row.status)) {
+        await abortMultipartArtifactUpload({
+          key: row.storageKey,
+          uploadId: row.storageUploadId,
+        }).catch(() => undefined);
+      }
+      await deleteArtifact(row.storageKey);
+    }
     await db.delete(schema.files).where(eq(schema.files.id, fileId));
     await writeAudit(auth, "file.delete", {
       resource: "file",

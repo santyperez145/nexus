@@ -1,22 +1,31 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { limitsForPlan } from "@/lib/config";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import { resolveOwnedWorkspace } from "@/lib/gateway/tenant";
 import type { AuthContext } from "@/lib/gateway/types";
 import { id } from "@/lib/ids";
 import {
+  abortMultipartArtifactUpload,
   artifactObjectKey,
+  completeMultipartArtifactUpload,
+  createMultipartArtifactUpload,
   deleteArtifact,
+  listMultipartArtifactParts,
   objectStorageEnabled,
   putArtifact,
   signArtifactUpload,
+  signMultipartArtifactPart,
   verifyArtifact,
 } from "./blob-store";
 
 export const INLINE_FILE_MAX_BYTES = 8_000_000;
-export const DIRECT_UPLOAD_MAX_BYTES = 5 * 1024 ** 3;
+export const MULTIPART_UPLOAD_THRESHOLD_BYTES = 100 * 1024 ** 2;
+export const MULTIPART_PART_BYTES = 64 * 1024 ** 2;
+export const DIRECT_UPLOAD_MAX_BYTES = 50 * 1024 ** 3;
 export const DIRECT_UPLOAD_TTL_MS = 15 * 60 * 1000;
+export const MULTIPART_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
+export const MAX_PART_SIGNATURES_PER_REQUEST = 16;
 
 type FileInsert = typeof schema.files.$inferInsert;
 
@@ -65,7 +74,10 @@ async function usedBytes(executor: DbExecutor, userId: string, workspaceId: stri
         exactScope(userId, workspaceId),
         or(
           eq(schema.files.status, "ready"),
-          and(eq(schema.files.status, "pending"), gt(schema.files.uploadExpiresAt, new Date())),
+          and(
+            inArray(schema.files.status, ["pending", "completing"]),
+            gt(schema.files.uploadExpiresAt, new Date()),
+          ),
         ),
       ),
     );
@@ -199,8 +211,11 @@ export async function initiateDirectUpload(
   }
   const fileId = id("file");
   const storageKey = artifactObjectKey({ fileId, userId: auth.userId, workspaceId: input.workspaceId });
-  const expiresAt = new Date(Date.now() + DIRECT_UPLOAD_TTL_MS);
-  const row = await reserveRow(auth, input.workspaceId, input.size, {
+  const useMultipart = input.size > MULTIPART_UPLOAD_THRESHOLD_BYTES;
+  const expiresAt = new Date(
+    Date.now() + (useMultipart ? MULTIPART_UPLOAD_TTL_MS : DIRECT_UPLOAD_TTL_MS),
+  );
+  let row = await reserveRow(auth, input.workspaceId, input.size, {
     id: fileId,
     filename: input.filename,
     mime: input.mime,
@@ -213,13 +228,49 @@ export async function initiateDirectUpload(
     uploadExpiresAt: expiresAt,
   });
   try {
+    if (useMultipart) {
+      const multipart = await createMultipartArtifactUpload({
+        key: storageKey,
+        mime: input.mime,
+        checksumSha256: input.checksumSha256,
+      });
+      const [updated] = await db
+        .update(schema.files)
+        .set({
+          storageUploadId: multipart.uploadId,
+          storagePartSize: MULTIPART_PART_BYTES,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(schema.files.id, fileId), eq(schema.files.status, "pending")))
+        .returning();
+      if (!updated) {
+        await abortMultipartArtifactUpload({ key: storageKey, uploadId: multipart.uploadId }).catch(
+          () => undefined,
+        );
+        throw requestError("Artifact reservation changed during multipart setup", 409, "invalid_upload_state");
+      }
+      row = updated;
+      return {
+        row,
+        upload: {
+          strategy: "multipart" as const,
+          partSize: MULTIPART_PART_BYTES,
+          partCount: Math.ceil(input.size / MULTIPART_PART_BYTES),
+        },
+        expiresAt,
+      };
+    }
     const signed = await signArtifactUpload({
       key: storageKey,
       mime: input.mime,
       size: input.size,
       checksumSha256: input.checksumSha256,
     });
-    return { row, signed, expiresAt };
+    return {
+      row,
+      upload: { strategy: "single" as const, ...signed },
+      expiresAt,
+    };
   } catch (error) {
     await db
       .update(schema.files)
@@ -229,8 +280,154 @@ export async function initiateDirectUpload(
   }
 }
 
+function activeMultipart(row: typeof schema.files.$inferSelect) {
+  if (
+    row.status !== "pending" ||
+    row.storageBackend !== "s3" ||
+    !row.storageKey ||
+    !row.storageUploadId ||
+    !row.storagePartSize ||
+    !row.checksumSha256
+  ) {
+    throw requestError("Multipart upload is not active", 409, "invalid_upload_state");
+  }
+  if (!row.uploadExpiresAt || row.uploadExpiresAt.getTime() <= Date.now()) {
+    throw requestError("Artifact upload reservation expired", 410, "upload_expired");
+  }
+  return {
+    key: row.storageKey,
+    uploadId: row.storageUploadId,
+    partSize: row.storagePartSize,
+    partCount: Math.ceil(row.size / row.storagePartSize),
+    checksumSha256: row.checksumSha256,
+  };
+}
+
+export async function signMultipartParts(
+  row: typeof schema.files.$inferSelect,
+  requested: Array<{ partNumber: number; checksumSha256: string }>,
+) {
+  const upload = activeMultipart(row);
+  if (!requested.length || requested.length > MAX_PART_SIGNATURES_PER_REQUEST) {
+    throw requestError(
+      `Request between 1 and ${MAX_PART_SIGNATURES_PER_REQUEST} multipart signatures`,
+    );
+  }
+  const unique = new Set(requested.map((part) => part.partNumber));
+  if (unique.size !== requested.length) throw requestError("Multipart part numbers must be unique");
+  return Promise.all(
+    requested.map(async (part) => {
+      if (!Number.isInteger(part.partNumber) || part.partNumber < 1 || part.partNumber > upload.partCount) {
+        throw requestError("Multipart part number is outside the reservation");
+      }
+      const offset = (part.partNumber - 1) * upload.partSize;
+      const size = Math.min(upload.partSize, row.size - offset);
+      const signed = await signMultipartArtifactPart({
+        key: upload.key,
+        uploadId: upload.uploadId,
+        partNumber: part.partNumber,
+        size,
+        checksumSha256: part.checksumSha256,
+      });
+      return {
+        partNumber: part.partNumber,
+        size,
+        checksumSha256: part.checksumSha256.toLowerCase(),
+        ...signed,
+      };
+    }),
+  );
+}
+
+export async function multipartUploadParts(row: typeof schema.files.$inferSelect) {
+  const upload = activeMultipart(row);
+  return listMultipartArtifactParts({ key: upload.key, uploadId: upload.uploadId });
+}
+
+function validateCompleteParts(
+  row: typeof schema.files.$inferSelect,
+  parts: Awaited<ReturnType<typeof listMultipartArtifactParts>>,
+) {
+  if (!row.storagePartSize) throw requestError("Multipart upload has no part size", 409);
+  const expectedCount = Math.ceil(row.size / row.storagePartSize);
+  if (parts.length !== expectedCount) {
+    throw requestError(
+      `Multipart upload is incomplete (${parts.length}/${expectedCount} parts)`,
+      409,
+      "upload_incomplete",
+    );
+  }
+  let total = 0;
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index];
+    const expectedNumber = index + 1;
+    const expectedSize = Math.min(row.storagePartSize, row.size - index * row.storagePartSize);
+    if (part.partNumber !== expectedNumber || part.size !== expectedSize) {
+      throw requestError("Multipart upload parts do not match the reservation", 409, "upload_incomplete");
+    }
+    total += part.size;
+  }
+  if (total !== row.size) throw requestError("Multipart upload size is incomplete", 409, "upload_incomplete");
+  return parts;
+}
+
+async function failMultipart(row: typeof schema.files.$inferSelect) {
+  if (row.storageKey && row.storageUploadId) {
+    await abortMultipartArtifactUpload({ key: row.storageKey, uploadId: row.storageUploadId }).catch(
+      () => undefined,
+    );
+  }
+  if (row.storageKey) await deleteArtifact(row.storageKey).catch(() => undefined);
+  await db
+    .update(schema.files)
+    .set({ status: "failed", uploadExpiresAt: null, updatedAt: new Date() })
+    .where(and(eq(schema.files.id, row.id), inArray(schema.files.status, ["pending", "completing"])));
+}
+
+async function completeMultipart(row: typeof schema.files.$inferSelect) {
+  const upload = activeMultipart(row);
+  const parts = validateCompleteParts(
+    row,
+    await listMultipartArtifactParts({ key: upload.key, uploadId: upload.uploadId }),
+  );
+  const [claimed] = await db
+    .update(schema.files)
+    .set({ status: "completing", updatedAt: new Date() })
+    .where(and(eq(schema.files.id, row.id), eq(schema.files.status, "pending")))
+    .returning();
+  if (!claimed) {
+    const [current] = await db.select().from(schema.files).where(eq(schema.files.id, row.id)).limit(1);
+    if (current?.status === "ready") return current;
+    throw requestError("Multipart completion is already in progress", 409, "completion_in_progress");
+  }
+  try {
+    const completed = await completeMultipartArtifactUpload({
+      key: upload.key,
+      uploadId: upload.uploadId,
+      parts,
+    });
+    const verified = await verifyArtifact({
+      key: upload.key,
+      size: row.size,
+      checksumSha256: upload.checksumSha256,
+      multipartChecksumSha256: completed.checksumSha256,
+    });
+    const [ready] = await db
+      .update(schema.files)
+      .set({ status: "ready", etag: verified.etag ?? completed.etag, uploadExpiresAt: null, updatedAt: new Date() })
+      .where(and(eq(schema.files.id, row.id), eq(schema.files.status, "completing")))
+      .returning();
+    if (!ready) throw requestError("Multipart completion state changed", 409, "invalid_upload_state");
+    return ready;
+  } catch (error) {
+    await failMultipart(claimed);
+    throw error;
+  }
+}
+
 export async function completeDirectUpload(row: typeof schema.files.$inferSelect) {
   if (row.status === "ready") return row;
+  if (row.storageUploadId && row.storagePartSize) return completeMultipart(row);
   if (row.status !== "pending" || row.storageBackend !== "s3" || !row.storageKey || !row.checksumSha256) {
     throw requestError("Artifact upload is not completable", 409, "invalid_upload_state");
   }
@@ -239,6 +436,7 @@ export async function completeDirectUpload(row: typeof schema.files.$inferSelect
       .update(schema.files)
       .set({ status: "failed", uploadExpiresAt: null, updatedAt: new Date() })
       .where(eq(schema.files.id, row.id));
+    if (row.storageKey) await deleteArtifact(row.storageKey).catch(() => undefined);
     throw requestError("Artifact upload reservation expired", 410, "upload_expired");
   }
   let verified: Awaited<ReturnType<typeof verifyArtifact>>;
@@ -276,6 +474,7 @@ export function publicFile(row: typeof schema.files.$inferSelect) {
     purpose: "assistants",
     status: row.status,
     storage_backend: row.storageBackend,
+    upload_strategy: row.storagePartSize ? "multipart" : row.storageBackend === "s3" ? "single" : "inline",
     sha256: row.checksumSha256,
     created_at: row.createdAt,
   };
@@ -287,7 +486,7 @@ export async function cleanupExpiredArtifactUploads(limit = 100) {
     .from(schema.files)
     .where(
       and(
-        eq(schema.files.status, "pending"),
+        inArray(schema.files.status, ["pending", "completing"]),
         eq(schema.files.storageBackend, "s3"),
         lt(schema.files.uploadExpiresAt, new Date()),
       ),
@@ -299,11 +498,16 @@ export async function cleanupExpiredArtifactUploads(limit = 100) {
   for (const row of expired) {
     if (!row.storageKey) continue;
     try {
+      if (row.storageUploadId) {
+        await abortMultipartArtifactUpload({ key: row.storageKey, uploadId: row.storageUploadId }).catch(
+          () => undefined,
+        );
+      }
       await deleteArtifact(row.storageKey);
       const updated = await db
         .update(schema.files)
         .set({ status: "failed", uploadExpiresAt: null, updatedAt: new Date() })
-        .where(and(eq(schema.files.id, row.id), eq(schema.files.status, "pending")))
+        .where(and(eq(schema.files.id, row.id), inArray(schema.files.status, ["pending", "completing"])))
         .returning();
       if (updated.length) cleaned += 1;
     } catch {

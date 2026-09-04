@@ -401,6 +401,8 @@ export const files = pgTable(
     content: text("content"),
     storageBackend: text("storage_backend").notNull().default("database"),
     storageKey: text("storage_key"),
+    storageUploadId: text("storage_upload_id"),
+    storagePartSize: bigint("storage_part_size", { mode: "number" }),
     checksumSha256: text("checksum_sha256"),
     etag: text("etag"),
     status: text("status").notNull().default("ready"),
@@ -416,10 +418,10 @@ export const files = pgTable(
     index("file_workspace_status_created_idx").on(t.workspaceId, t.status, t.createdAt),
     check("file_size_check", sql`${t.size} >= 0`),
     check("file_storage_backend_check", sql`${t.storageBackend} IN ('database', 's3')`),
-    check("file_status_check", sql`${t.status} IN ('pending', 'ready', 'failed')`),
+    check("file_status_check", sql`${t.status} IN ('pending', 'completing', 'ready', 'failed')`),
     check(
       "file_storage_shape_check",
-      sql`(${t.storageBackend} = 'database' AND ${t.storageKey} IS NULL) OR (${t.storageBackend} = 's3' AND ${t.storageKey} IS NOT NULL)`,
+      sql`(${t.storageBackend} = 'database' AND ${t.storageKey} IS NULL AND ${t.storageUploadId} IS NULL AND ${t.storagePartSize} IS NULL) OR (${t.storageBackend} = 's3' AND ${t.storageKey} IS NOT NULL AND ((${t.storageUploadId} IS NULL AND ${t.storagePartSize} IS NULL) OR (${t.storageUploadId} IS NOT NULL AND ${t.storagePartSize} IS NOT NULL)))`,
     ),
   ],
 );

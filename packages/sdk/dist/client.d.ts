@@ -340,12 +340,40 @@ declare class FilesResource {
             storage_backend: "s3";
             sha256: string;
             upload: {
+                strategy: "single";
                 method: "PUT";
                 url: string;
                 headers: Record<string, string>;
                 expires_at: string;
+            } | {
+                strategy: "multipart";
+                part_size: number;
+                part_count: number;
+                parts_url: string;
+                expires_at: string;
             };
         };
+    }>;
+    signUploadParts(id: string, parts: Array<{
+        part_number: number;
+        sha256: string;
+    }>): Promise<{
+        data: Array<{
+            part_number: number;
+            bytes: number;
+            sha256: string;
+            method: "PUT";
+            url: string;
+            headers: Record<string, string>;
+            expires_in: number;
+        }>;
+    }>;
+    listUploadParts(id: string): Promise<{
+        data: Array<{
+            part_number: number;
+            bytes: number;
+            sha256_base64: string;
+        }>;
     }>;
     completeUpload(id: string): Promise<{
         data: unknown;

@@ -149,6 +149,14 @@ export class Nexus {
   }
 }
 
+async function blobSha256Hex(blob: Blob) {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error("This runtime does not provide Web Crypto SHA-256 support");
+  }
+  const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", await blob.arrayBuffer()));
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 class ChatResource {
   completions: { create: ChatResource["send"] };
   constructor(private readonly client: Nexus) {
@@ -462,14 +470,44 @@ class FilesResource {
         status: "pending";
         storage_backend: "s3";
         sha256: string;
-        upload: {
-          method: "PUT";
-          url: string;
-          headers: Record<string, string>;
-          expires_at: string;
-        };
+        upload:
+          | {
+              strategy: "single";
+              method: "PUT";
+              url: string;
+              headers: Record<string, string>;
+              expires_at: string;
+            }
+          | {
+              strategy: "multipart";
+              part_size: number;
+              part_count: number;
+              parts_url: string;
+              expires_at: string;
+            };
       };
     }>("/files/uploads", { method: "POST", body: input });
+  }
+  signUploadParts(id: string, parts: Array<{ part_number: number; sha256: string }>) {
+    return this.client.request<{
+      data: Array<{
+        part_number: number;
+        bytes: number;
+        sha256: string;
+        method: "PUT";
+        url: string;
+        headers: Record<string, string>;
+        expires_in: number;
+      }>;
+    }>(`/files/uploads/${encodeURIComponent(id)}/parts`, {
+      method: "POST",
+      body: { parts },
+    });
+  }
+  listUploadParts(id: string) {
+    return this.client.request<{
+      data: Array<{ part_number: number; bytes: number; sha256_base64: string }>;
+    }>(`/files/uploads/${encodeURIComponent(id)}/parts`);
   }
   completeUpload(id: string) {
     return this.client.request<{ data: unknown }>(`/files/uploads/${encodeURIComponent(id)}/complete`, {
@@ -487,16 +525,61 @@ class FilesResource {
       sha256: input.sha256,
       workspace_id: input.workspace_id,
     });
-    const uploaded = await this.client.fetchSigned(reservation.data.upload.url, {
-      method: reservation.data.upload.method,
-      headers: reservation.data.upload.headers,
-      body: file,
-    });
-    if (!uploaded.ok) {
-      throw new NexusError(`Object storage rejected the upload (${uploaded.status})`, {
-        status: uploaded.status,
-        code: "object_storage_error",
+    if (reservation.data.upload.strategy === "single") {
+      const uploaded = await this.client.fetchSigned(reservation.data.upload.url, {
+        method: reservation.data.upload.method,
+        headers: reservation.data.upload.headers,
+        body: file,
       });
+      if (!uploaded.ok) {
+        throw new NexusError(`Object storage rejected the upload (${uploaded.status})`, {
+          status: uploaded.status,
+          code: "object_storage_error",
+        });
+      }
+    } else {
+      const { part_count: partCount, part_size: partSize } = reservation.data.upload;
+      const concurrency = 4;
+      for (let start = 1; start <= partCount; start += concurrency) {
+        const numbers = Array.from(
+          { length: Math.min(concurrency, partCount - start + 1) },
+          (_, index) => start + index,
+        );
+        const chunks = await Promise.all(
+          numbers.map(async (partNumber) => {
+            const offset = (partNumber - 1) * partSize;
+            const blob = file.slice(offset, Math.min(offset + partSize, file.size));
+            return { partNumber, blob, sha256: await blobSha256Hex(blob) };
+          }),
+        );
+        const signed = await this.signUploadParts(
+          reservation.data.id,
+          chunks.map((part) => ({ part_number: part.partNumber, sha256: part.sha256 })),
+        );
+        await Promise.all(
+          signed.data.map(async (part) => {
+            const chunk = chunks.find((item) => item.partNumber === part.part_number);
+            if (!chunk || chunk.blob.size !== part.bytes) {
+              throw new NexusError("Invalid multipart reservation", {
+                status: 409,
+                code: "invalid_upload_state",
+              });
+            }
+            let response: Response | null = null;
+            for (let attempt = 0; attempt < 3 && !response?.ok; attempt += 1) {
+              response = await this.client
+                .fetchSigned(part.url, { method: part.method, headers: part.headers, body: chunk.blob })
+                .catch(() => null);
+            }
+            if (!response?.ok) {
+              throw new NexusError(
+                `Object storage rejected upload part ${part.part_number} (${response?.status ?? "network"})`,
+                { status: response?.status ?? 502, code: "object_storage_error" },
+              );
+            }
+          }),
+        );
+      }
     }
     return this.completeUpload(reservation.data.id);
   }

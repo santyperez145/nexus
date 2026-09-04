@@ -50,7 +50,7 @@ export function ModelRepositoryWorkspace({ namespace, slug }: { namespace: strin
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,.65fr)]">
         <div className="space-y-6">
           <section className="overflow-hidden rounded-2xl border border-indigo-950/10 bg-white">
-            <div className="border-b border-zinc-200 px-5 py-4"><h2 className="font-semibold text-zinc-950">Publicar revisión</h2><p className="mt-0.5 text-xs text-zinc-500">Snapshot inmutable con SHA-256. Carga directa S3-compatible hasta 5 GiB cuando está configurada.</p></div>
+            <div className="border-b border-zinc-200 px-5 py-4"><h2 className="font-semibold text-zinc-950">Publicar revisión</h2><p className="mt-0.5 text-xs text-zinc-500">Snapshot inmutable con SHA-256. Carga S3-compatible reintentable hasta 50 GiB.</p></div>
             <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3">
               <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-indigo-700 hover:text-indigo-800"><Upload className="size-4" />{uploading ? "Subiendo…" : "Subir archivo"}<input type="file" className="hidden" disabled={uploading} onChange={async (event) => {
                 const file = event.target.files?.[0]; if (!file) return; setUploading(true); setMessage(null);

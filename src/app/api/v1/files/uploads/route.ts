@@ -43,12 +43,22 @@ export async function POST(req: Request) {
       {
         data: {
           ...publicFile(reserved.row),
-          upload: {
-            method: "PUT",
-            url: reserved.signed.url,
-            headers: reserved.signed.headers,
-            expires_at: reserved.expiresAt,
-          },
+          upload:
+            reserved.upload.strategy === "single"
+              ? {
+                  strategy: reserved.upload.strategy,
+                  method: "PUT",
+                  url: reserved.upload.url,
+                  headers: reserved.upload.headers,
+                  expires_at: reserved.expiresAt,
+                }
+              : {
+                  strategy: reserved.upload.strategy,
+                  part_size: reserved.upload.partSize,
+                  part_count: reserved.upload.partCount,
+                  parts_url: `/api/v1/files/uploads/${reserved.row.id}/parts`,
+                  expires_at: reserved.expiresAt,
+                },
         },
       },
       { status: 201 },

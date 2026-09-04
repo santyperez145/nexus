@@ -182,7 +182,10 @@ por usuario o workspace dentro de una transacción, firma un `PUT` de corta dura
 archivo como `ready` después de verificar longitud y SHA-256. Las revisiones rechazan archivos
 `pending` o fallidos. El API es S3-compatible y portable entre Neon Object Storage, AWS S3, R2 y
 MinIO; Postgres base64 queda como fallback local para archivos de hasta 8 MB. Free incluye 1 GiB,
-Pro 25 GiB y Team 250 GiB; el upload directo admite hasta 5 GiB por objeto.
+Pro 25 GiB y Team 250 GiB; el upload directo admite hasta 50 GiB por objeto. Desde 100 MiB,
+Nexus usa partes reintentables de 64 MiB, firma el SHA-256 de cada parte y valida el checksum
+compuesto antes de publicar el artefacto. La reserva multipart vive 24 horas; cada URL de parte
+vence a los 15 minutos y puede regenerarse sin reiniciar la carga.
 Para uploads desde la consola, el CORS del bucket debe aceptar `PUT` desde `NEXT_PUBLIC_APP_URL` y
 los headers `content-type` y `x-amz-checksum-sha256`. `NEXUS_OBJECT_STORAGE_REQUIRED=true` incorpora
 el bucket al gate de configuración; si está cableado, readiness ejecuta además un `HeadBucket` real.

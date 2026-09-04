@@ -32,7 +32,7 @@ describe("production migration runner", () => {
   it("pins the legacy baseline and replays only its reviewed data migrations", () => {
     const bundle = readMigrationBundle();
     assert.equal(bundle.baselineMigrations.at(-1)?.tag, "0009_dark_franklin_richards");
-    assert.equal(bundle.latest.tag, "0015_mysterious_mystique");
+    assert.equal(bundle.latest.tag, "0016_public_colleen_wing");
     assert.deepEqual(
       [
         ...new Set(

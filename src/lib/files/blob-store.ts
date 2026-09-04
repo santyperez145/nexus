@@ -1,10 +1,16 @@
+import { createHash } from "node:crypto";
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListPartsCommand,
   PutObjectCommand,
   S3Client,
+  UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -137,6 +143,148 @@ export async function signArtifactUpload(input: {
   };
 }
 
+export async function createMultipartArtifactUpload(input: {
+  key: string;
+  mime: string;
+  checksumSha256: string;
+}) {
+  const { client, config } = storage();
+  sha256HexToBase64(input.checksumSha256);
+  const result = await client.send(
+    new CreateMultipartUploadCommand({
+      Bucket: config.bucket,
+      Key: input.key,
+      ContentType: input.mime,
+      ChecksumAlgorithm: "SHA256",
+      ChecksumType: "COMPOSITE",
+      Metadata: { "nexus-sha256": input.checksumSha256.toLowerCase() },
+    }),
+  );
+  if (!result.UploadId) throw new Error("Object storage did not return a multipart upload id");
+  return { uploadId: result.UploadId };
+}
+
+export async function signMultipartArtifactPart(input: {
+  key: string;
+  uploadId: string;
+  partNumber: number;
+  size: number;
+  checksumSha256: string;
+}) {
+  const { client, config } = storage();
+  const checksum = sha256HexToBase64(input.checksumSha256);
+  const command = new UploadPartCommand({
+    Bucket: config.bucket,
+    Key: input.key,
+    UploadId: input.uploadId,
+    PartNumber: input.partNumber,
+    ContentLength: input.size,
+    ChecksumSHA256: checksum,
+  });
+  const url = await getSignedUrl(client, command, {
+    expiresIn: SIGNED_URL_TTL_SECONDS,
+    unhoistableHeaders: new Set(["x-amz-checksum-sha256"]),
+  });
+  return {
+    url,
+    expiresIn: SIGNED_URL_TTL_SECONDS,
+    headers: { "x-amz-checksum-sha256": checksum },
+  };
+}
+
+export type MultipartArtifactPart = {
+  partNumber: number;
+  size: number;
+  etag: string;
+  checksumSha256: string;
+};
+
+export async function listMultipartArtifactParts(input: { key: string; uploadId: string }) {
+  const { client, config } = storage();
+  const parts: MultipartArtifactPart[] = [];
+  let marker: string | undefined;
+  do {
+    const result = await client.send(
+      new ListPartsCommand({
+        Bucket: config.bucket,
+        Key: input.key,
+        UploadId: input.uploadId,
+        MaxParts: 1_000,
+        ...(marker ? { PartNumberMarker: marker } : {}),
+      }),
+    );
+    for (const part of result.Parts ?? []) {
+      if (
+        !part.PartNumber ||
+        part.Size == null ||
+        !part.ETag ||
+        !part.ChecksumSHA256
+      ) {
+        throw new Error("Object storage returned incomplete multipart metadata");
+      }
+      parts.push({
+        partNumber: part.PartNumber,
+        size: part.Size,
+        etag: part.ETag,
+        checksumSha256: part.ChecksumSHA256,
+      });
+    }
+    marker = result.IsTruncated ? result.NextPartNumberMarker : undefined;
+    if (result.IsTruncated && !marker) {
+      throw new Error("Object storage returned an invalid multipart continuation token");
+    }
+  } while (marker);
+  return parts.sort((a, b) => a.partNumber - b.partNumber);
+}
+
+export function multipartCompositeSha256(parts: MultipartArtifactPart[]) {
+  const digest = createHash("sha256");
+  for (const part of parts) digest.update(Buffer.from(part.checksumSha256, "base64"));
+  return `${digest.digest("base64")}-${parts.length}`;
+}
+
+export async function completeMultipartArtifactUpload(input: {
+  key: string;
+  uploadId: string;
+  parts: MultipartArtifactPart[];
+}) {
+  const { client, config } = storage();
+  const checksumSha256 = multipartCompositeSha256(input.parts);
+  const result = await client.send(
+    new CompleteMultipartUploadCommand({
+      Bucket: config.bucket,
+      Key: input.key,
+      UploadId: input.uploadId,
+      ChecksumType: "COMPOSITE",
+      MultipartUpload: {
+        Parts: input.parts.map((part) => ({
+          PartNumber: part.partNumber,
+          ETag: part.etag,
+          ChecksumSHA256: part.checksumSha256,
+        })),
+      },
+    }),
+  );
+  if (result.ChecksumSHA256 && result.ChecksumSHA256 !== checksumSha256) {
+    throw new Error("Object storage returned an unexpected multipart checksum");
+  }
+  return {
+    etag: result.ETag?.replaceAll('"', "") ?? null,
+    checksumSha256,
+  };
+}
+
+export async function abortMultipartArtifactUpload(input: { key: string; uploadId: string }) {
+  const { client, config } = storage();
+  await client.send(
+    new AbortMultipartUploadCommand({
+      Bucket: config.bucket,
+      Key: input.key,
+      UploadId: input.uploadId,
+    }),
+  );
+}
+
 export async function putArtifact(input: {
   key: string;
   mime: string;
@@ -161,12 +309,13 @@ export async function verifyArtifact(input: {
   key: string;
   size: number;
   checksumSha256: string;
+  multipartChecksumSha256?: string;
 }) {
   const { client, config } = storage();
   const result = await client.send(
     new HeadObjectCommand({ Bucket: config.bucket, Key: input.key, ChecksumMode: "ENABLED" }),
   );
-  const expectedChecksum = sha256HexToBase64(input.checksumSha256);
+  const expectedChecksum = input.multipartChecksumSha256 ?? sha256HexToBase64(input.checksumSha256);
   if (Number(result.ContentLength) !== input.size) {
     throw Object.assign(new Error("Uploaded artifact size does not match the reservation"), {
       status: 409,
@@ -175,6 +324,12 @@ export async function verifyArtifact(input: {
   }
   if (result.ChecksumSHA256 !== expectedChecksum) {
     throw Object.assign(new Error("Uploaded artifact SHA-256 could not be verified"), {
+      status: 409,
+      code: "artifact_checksum_mismatch",
+    });
+  }
+  if (result.Metadata?.["nexus-sha256"] !== input.checksumSha256.toLowerCase()) {
+    throw Object.assign(new Error("Uploaded artifact SHA-256 metadata does not match the reservation"), {
       status: 409,
       code: "artifact_checksum_mismatch",
     });
