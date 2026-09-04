@@ -3,7 +3,13 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { Button } from "@/components/ui/button";
 import { allModels } from "@/lib/catalog";
-import { CREDIT_PACKS, CREDIT_PURCHASE_FEE, SUBSCRIPTION_PLANS } from "@/lib/config";
+import {
+  CREDIT_PACKS,
+  CREDIT_PURCHASE_FEE,
+  CREDIT_PURCHASE_MIN_FEE_USD,
+  SUBSCRIPTION_PLANS,
+  creditPurchaseFeeUsd,
+} from "@/lib/config";
 import { formatUsd } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +37,7 @@ export default function PublicCreditsPage() {
         <div className="mb-10 grid gap-3 sm:grid-cols-3">
           {[
             { t: "Sin recargo por uso", d: "El precio por token coincide con el publicado en el catálogo." },
-            { t: `${feePct}% al cargar`, d: "Una única comisión visible al comprar saldo." },
+            { t: `${feePct}% al cargar`, d: `Comisión visible; mínimo ${formatUsd(CREDIT_PURCHASE_MIN_FEE_USD, 2)}.` },
             { t: "Tus propias cuentas", d: "Conectá proveedores que ya usás y mantené el control." },
           ].map((c) => (
             <div key={c.t} className="rounded-xl border border-zinc-200 bg-white px-4 py-4">
@@ -82,8 +88,8 @@ export default function PublicCreditsPage() {
         </p>
         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
           {CREDIT_PACKS.map((p) => {
-            const charge = p.usd * (1 + CREDIT_PURCHASE_FEE);
-            const fee = charge - p.usd;
+            const fee = creditPurchaseFeeUsd(p.usd);
+            const charge = p.usd + fee;
             return (
               <div
                 key={p.id}

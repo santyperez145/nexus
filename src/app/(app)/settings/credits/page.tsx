@@ -4,7 +4,13 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppPageHeader } from "@/components/layout/app-page-header";
-import { CREDIT_PACKS, CREDIT_PURCHASE_FEE, SUBSCRIPTION_PLANS } from "@/lib/config";
+import {
+  CREDIT_PACKS,
+  CREDIT_PURCHASE_FEE,
+  CREDIT_PURCHASE_MIN_FEE_USD,
+  SUBSCRIPTION_PLANS,
+  creditPurchaseFeeUsd,
+} from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatUsd } from "@/lib/money";
@@ -183,8 +189,7 @@ function CreditsInner() {
   return (
     <div>
       <AppPageHeader title="Credits">
-        Pass-through del precio del laboratorio. Fee {feePct}% al cargar con Stripe · 0% markup en
-        inferencia.
+        Pass-through del precio del laboratorio. Fee {feePct}% al cargar con Stripe (mínimo {formatUsd(CREDIT_PURCHASE_MIN_FEE_USD, 2)}) · 0% markup en inferencia.
       </AppPageHeader>
 
       {credits ? (
@@ -331,8 +336,8 @@ function CreditsInner() {
       <h2 className="mb-3 mt-10 text-lg font-medium">Packs</h2>
       <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {CREDIT_PACKS.map((p) => {
-          const charge = p.usd * (1 + CREDIT_PURCHASE_FEE);
-          const fee = charge - p.usd;
+          const fee = creditPurchaseFeeUsd(p.usd);
+          const charge = p.usd + fee;
           return (
             <div key={p.id} className="rounded-xl border border-zinc-200 p-4">
               <div className="text-2xl font-semibold">

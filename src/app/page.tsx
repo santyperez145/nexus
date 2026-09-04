@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { Button } from "@/components/ui/button";
 import { RoutingViz } from "@/components/brand/routing-viz";
 import { allModels, featuredModels, usdPerMillion } from "@/lib/catalog";
-import { CREDIT_PURCHASE_FEE } from "@/lib/config";
+import { CREDIT_PURCHASE_FEE, CREDIT_PURCHASE_MIN_FEE_USD } from "@/lib/config";
 import { NEXUS_PROVIDERS } from "@/lib/providers/registry";
 import { getSession } from "@/lib/auth";
 import { formatUsd } from "@/lib/money";
@@ -50,7 +50,7 @@ export default async function HomePage() {
             { n: `${models.length}+`, l: "Modelos" },
             { n: `${labs}+`, l: "Proveedores" },
             { n: "0%", l: "Recargo por uso" },
-            { n: `${fee}%`, l: "Comisión al cargar" },
+            { n: `${fee}%`, l: `Comisión al cargar (mín. $${CREDIT_PURCHASE_MIN_FEE_USD.toFixed(2)})` },
           ].map((s) => (
             <div key={s.l} className="text-center">
               <div className="text-2xl font-semibold tabular-nums text-zinc-950 md:text-3xl">{s.n}</div>

@@ -17,7 +17,7 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       "Nexus expone /api/v1 compatible con el SDK de OpenAI y con envelopes Responses / Messages.",
       "El catálogo vive en el repo (full.json + overlays). Sin providers cableados, producción falla de forma explícita con provider_unwired.",
-      "Precio de inferencia = lista. Fee de plataforma al cargar créditos (4.9%) y planes Pro/Team con Stripe.",
+      "Precio de inferencia = lista. Fee de plataforma al cargar créditos (5.5%, mínimo USD 0.80) y planes Pro/Team con Stripe.",
     ],
   },
   {

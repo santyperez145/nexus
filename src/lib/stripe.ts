@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { randomBytes } from "node:crypto";
-import { CREDIT_PURCHASE_FEE } from "./config";
+import { creditPurchaseFeeUsd } from "./config";
 
 export function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -18,6 +18,6 @@ export function checkoutIntegrationId(flow: string) {
 }
 
 export function chargeAmountCents(usd: number) {
-  const withFee = usd * (1 + CREDIT_PURCHASE_FEE);
+  const withFee = usd + creditPurchaseFeeUsd(usd);
   return Math.round(withFee * 100);
 }

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
-import { CREDIT_PURCHASE_FEE, SUBSCRIPTION_PLANS, stripePriceForPlan } from "@/lib/config";
+import { SUBSCRIPTION_PLANS, creditPurchaseFeeUsd, stripePriceForPlan } from "@/lib/config";
 import { creditPurchaseOnce } from "@/lib/billing/stripe-credit";
 import { db, ensureDb, schema, withTransaction } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
@@ -107,7 +107,7 @@ async function creditCheckout(session: Stripe.Checkout.Session) {
     creditsUsd,
     stripeSessionId: session.id,
     customerId: objectId(session.customer),
-    note: `Compra Stripe ${creditsUsd} USD (fee ${(CREDIT_PURCHASE_FEE * 100).toFixed(1)}% en el cargo)`,
+    note: `Compra Stripe ${creditsUsd} USD (fee ${creditPurchaseFeeUsd(creditsUsd).toFixed(2)} USD en el cargo)`,
   });
 }
 

@@ -1,6 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { BYOK_FEE, stripeAutomaticTaxEnabled } from "../src/lib/config";
+import {
+  BYOK_FEE,
+  CREDIT_PURCHASE_MIN_FEE_USD,
+  creditPurchaseFeeUsd,
+  stripeAutomaticTaxEnabled,
+} from "../src/lib/config";
+import { chargeAmountCents } from "../src/lib/stripe";
 import { usdToMicros, tokenCostUsd } from "../src/lib/money";
 import { estimateReservationMicros } from "../src/lib/gateway/billing";
 
@@ -48,6 +54,24 @@ describe("stripe session idempotency shape", () => {
     assert.equal(once("cs_test_1"), true);
     assert.equal(once("cs_test_1"), false);
     assert.equal(once("cs_test_2"), true);
+  });
+});
+
+describe("wallet purchase economics", () => {
+  it("applies the fixed fee floor to small top-ups", () => {
+    assert.equal(creditPurchaseFeeUsd(10), CREDIT_PURCHASE_MIN_FEE_USD);
+    assert.equal(chargeAmountCents(10), 1080);
+  });
+
+  it("applies 5.5 percent once it exceeds the floor", () => {
+    assert.equal(creditPurchaseFeeUsd(100), 5.5);
+    assert.equal(chargeAmountCents(100), 10_550);
+  });
+
+  it("does not quote invalid or negative credit amounts", () => {
+    assert.equal(creditPurchaseFeeUsd(0), 0);
+    assert.equal(creditPurchaseFeeUsd(-10), 0);
+    assert.equal(creditPurchaseFeeUsd(Number.NaN), 0);
   });
 });
 

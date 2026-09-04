@@ -38,6 +38,9 @@ npm run dev
 | `GATEWAY_URL` | Data plane Hono aparte (`npm run dev:gateway`) |
 | BYOK en Settings | Keys del cliente, cifradas |
 
+Las cargas de wallet cobran 5,5% con un mínimo de USD 0,80; la inferencia del pool mantiene 0% de
+markup. El mínimo evita que el costo fijo del procesador vuelva deficitarios los packs pequeños.
+
 El eco guest existe únicamente como ayuda de desarrollo y nunca forma parte de la API de producción.
 En producción, inferencia requiere sesión o Bearer y al menos un proveedor de plataforma o BYOK.
 Sin Stripe no hay carga de wallet ni suscripción; `ENABLE_MANUAL_CREDITS=true` funciona solo fuera de

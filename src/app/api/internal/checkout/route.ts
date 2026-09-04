@@ -2,6 +2,7 @@ import { and, eq, ne } from "drizzle-orm";
 import {
   CREDIT_PACKS,
   APP_URL,
+  creditPurchaseFeeUsd,
   SUBSCRIPTION_PLANS,
   stripePriceForPlan,
   stripeAutomaticTaxEnabled,
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
           unit_amount: chargeAmountCents(pack.usd),
           product_data: {
             name: `Nexus credits ${pack.label}`,
-            description: `Saldo de inferencia ${pack.label} + fee 4.9%`,
+            description: `Saldo de inferencia ${pack.label} + fee USD ${creditPurchaseFeeUsd(pack.usd).toFixed(2)}`,
           },
         },
       },

@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { CREDIT_PURCHASE_FEE } from "@/lib/config";
+import { creditPurchaseFeeUsd } from "@/lib/config";
 import { schema, withTransaction } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { usdToMicros } from "@/lib/money";
@@ -15,7 +15,7 @@ export async function creditPurchaseOnce(opts: {
   const micros = usdToMicros(opts.creditsUsd);
   const note =
     opts.note ??
-    `Compra Stripe ${opts.creditsUsd} USD (fee ${(CREDIT_PURCHASE_FEE * 100).toFixed(1)}% en el cargo)`;
+    `Compra Stripe ${opts.creditsUsd} USD (fee ${creditPurchaseFeeUsd(opts.creditsUsd).toFixed(2)} USD en el cargo)`;
   return withTransaction(async (tx) => {
     const inserted = await tx
       .insert(schema.creditLedger)
