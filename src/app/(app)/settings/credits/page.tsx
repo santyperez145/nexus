@@ -21,6 +21,7 @@ type Credits = {
   total_credits: number;
   total_usage: number;
   manual_credits?: boolean;
+  billing_mode: "test" | "live" | "unconfigured" | "unknown";
   plan: string;
   subscription_status: string;
   subscription?: {
@@ -192,6 +193,17 @@ function CreditsInner() {
         Pass-through del precio del laboratorio. Fee {feePct}% al cargar con Stripe (mínimo {formatUsd(CREDIT_PURCHASE_MIN_FEE_USD, 2)}) · 0% markup en inferencia.
       </AppPageHeader>
 
+      {credits?.billing_mode === "test" ? (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <span className="font-semibold">Stripe sandbox activo.</span> Los checkouts permiten probar el
+          flujo completo, pero no generan cobros ni ingresos reales.
+        </div>
+      ) : credits?.billing_mode === "unconfigured" || credits?.billing_mode === "unknown" ? (
+        <div className="mb-6 rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+          Los cobros no están disponibles en esta instalación.
+        </div>
+      ) : null}
+
       {credits ? (
         <div className="mb-6 grid gap-3 lg:grid-cols-[1.2fr_1fr]">
           <div className="rounded-2xl border border-zinc-200 bg-white p-4">
@@ -323,7 +335,13 @@ function CreditsInner() {
                     : void subscribe(plan.id, plan.seats ? Math.max(1, Number(teamSeats) || 1) : 1)
                 }
               >
-                {current ? "Gestionar plan actual" : credits?.subscription ? "Cambiar en portal" : `Elegir ${plan.name}`}
+                {current
+                  ? "Gestionar plan actual"
+                  : credits?.subscription
+                    ? "Cambiar en portal"
+                    : credits?.billing_mode === "test"
+                      ? `Probar ${plan.name}`
+                      : `Elegir ${plan.name}`}
               </Button>
             </div>
           );
@@ -347,7 +365,7 @@ function CreditsInner() {
                 Cargo ~{formatUsd(charge, 2)} · fee {formatUsd(fee, 2)}
               </p>
               <Button className="mt-4 w-full" onClick={() => void buy(p.id)}>
-                Comprar
+                {credits?.billing_mode === "test" ? "Probar" : "Comprar"}
               </Button>
             </div>
           );

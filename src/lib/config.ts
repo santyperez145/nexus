@@ -87,6 +87,14 @@ export function stripePortalConfigurationId() {
   return process.env.STRIPE_PORTAL_CONFIGURATION_ID?.trim() || null;
 }
 
+export function stripeMode() {
+  const key = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
+  if (!key) return "unconfigured" as const;
+  if (/^[sr]k_test_/.test(key)) return "test" as const;
+  if (/^[sr]k_live_/.test(key)) return "live" as const;
+  return "unknown" as const;
+}
+
 /**
  * Stripe Tax must be explicitly enabled only after registrations and Tax
  * settings exist in the active Stripe environment. Otherwise Checkout can

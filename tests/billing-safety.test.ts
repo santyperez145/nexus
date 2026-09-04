@@ -6,6 +6,7 @@ import {
   CREDIT_PURCHASE_MIN_FEE_USD,
   creditPurchaseFeeUsd,
   stripeAutomaticTaxEnabled,
+  stripeMode,
 } from "../src/lib/config";
 import { chargeAmountCents } from "../src/lib/stripe";
 import { usdToMicros, tokenCostUsd } from "../src/lib/money";
@@ -96,6 +97,22 @@ describe("Stripe Tax launch safety", () => {
     assert.equal(stripeAutomaticTaxEnabled(), true);
     if (previous == null) delete process.env.STRIPE_AUTOMATIC_TAX_ENABLED;
     else process.env.STRIPE_AUTOMATIC_TAX_ENABLED = previous;
+  });
+});
+
+describe("Stripe environment disclosure", () => {
+  it("distinguishes test, live and unknown credentials without exposing them", () => {
+    const previous = process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_SECRET_KEY;
+    assert.equal(stripeMode(), "unconfigured");
+    process.env.STRIPE_SECRET_KEY = "sk_test_redacted";
+    assert.equal(stripeMode(), "test");
+    process.env.STRIPE_SECRET_KEY = "rk_live_redacted";
+    assert.equal(stripeMode(), "live");
+    process.env.STRIPE_SECRET_KEY = "opaque_secret";
+    assert.equal(stripeMode(), "unknown");
+    if (previous == null) delete process.env.STRIPE_SECRET_KEY;
+    else process.env.STRIPE_SECRET_KEY = previous;
   });
 });
 

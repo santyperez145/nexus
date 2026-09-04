@@ -44,7 +44,7 @@ export async function GET() {
   ).length;
   const mode =
     verifiedExecutableLabs > 0 ? "live" : configuredLabs > 0 ? "degraded" : "unconfigured";
-  const commerceConfigured = c.stripe.wired && c.stripe.webhook && c.stripe.plans;
+  const commerceConfigured = c.stripe.ready;
   const inferenceOk = c.database.wired && c.redis.wired && verifiedExecutableLabs > 0;
   const commerceOk = commerceConfigured && stripeVerified;
   const ok = inferenceOk && commerceOk;
@@ -64,7 +64,8 @@ export async function GET() {
     verified_executable_labs: verifiedExecutableLabs,
     stripe: c.stripe.wired,
     stripe_webhook: c.stripe.webhook,
-    subscriptions: c.stripe.wired && c.stripe.webhook && c.stripe.plans,
+    subscriptions: c.stripe.ready,
+    stripe_mode: c.stripe.mode,
     stripe_verified: stripeVerified,
     inference_ok: inferenceOk,
     commerce_ok: commerceOk,

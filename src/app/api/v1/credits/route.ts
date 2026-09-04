@@ -4,7 +4,7 @@ import { billingUserId } from "@/lib/gateway/billing";
 import { db, schema } from "@/lib/db";
 import { assertWorkspaceManager } from "@/lib/gateway/tenant";
 import { microsToUsd } from "@/lib/money";
-import { manualCreditsEnabled } from "@/lib/config";
+import { manualCreditsEnabled, stripeMode } from "@/lib/config";
 
 export async function GET(req: Request) {
   try {
@@ -35,6 +35,7 @@ export async function GET(req: Request) {
         total_usage: microsToUsd(used),
         remaining: microsToUsd(user?.creditMicros ?? 0),
         manual_credits: manualCreditsEnabled(),
+        billing_mode: stripeMode(),
         plan: user?.plan ?? "free",
         subscription_status: user?.subscriptionStatus ?? "inactive",
         subscription: subscription

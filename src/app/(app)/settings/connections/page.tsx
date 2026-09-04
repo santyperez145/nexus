@@ -12,7 +12,17 @@ type Status = {
   gatewayUrl: string | null;
   database: { label: string; wired: boolean; hint: string; env: string[] };
   auth: { label: string; wired: boolean; hint: string; env: string[] };
-  stripe: { label: string; wired: boolean; webhook: boolean; plans: boolean; hint: string; env: string[] };
+  stripe: {
+    label: string;
+    wired: boolean;
+    webhook: boolean;
+    plans: boolean;
+    portal: boolean;
+    ready: boolean;
+    mode: "test" | "live" | "unconfigured" | "unknown";
+    hint: string;
+    env: string[];
+  };
   redis: { label: string; wired: boolean; hint: string; env: string[] };
   providers: Array<{ id: string; label: string; env: string; wired: boolean }>;
   search?: Array<{ id: string; label: string; wired: boolean }>;
@@ -35,7 +45,12 @@ export default function ConnectionsPage() {
 
   if (!status) return <p className="text-sm text-zinc-500">Cargando conexiones…</p>;
 
-  const blocks = [status.database, status.auth, status.stripe, status.redis];
+  const blocks = [
+    { ...status.database, ready: status.database.wired },
+    { ...status.auth, ready: status.auth.wired },
+    status.stripe,
+    { ...status.redis, ready: status.redis.wired },
+  ];
   const wiredLabs = status.providers.filter((p) => p.wired).length;
   const mode = wiredLabs > 0 ? "live hops" : "unconfigured";
 
@@ -78,11 +93,17 @@ export default function ConnectionsPage() {
           <div key={b.label} className="rounded-xl border border-zinc-200 p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-medium">
-                <Dot on={b.wired} /> {b.label}
+                <Dot on={b.ready} /> {b.label}
               </div>
               <span className="font-mono text-xs text-zinc-500">{b.env.join(" · ")}</span>
             </div>
             <p className="mt-2 text-sm text-zinc-500">{b.hint}</p>
+            {b.label.startsWith("Stripe") ? (
+              <p className="mt-1 text-xs text-zinc-500">
+                Modo: {status.stripe.mode} · webhook {status.stripe.webhook ? "sí" : "no"} ·
+                planes {status.stripe.plans ? "sí" : "no"} · portal {status.stripe.portal ? "sí" : "no"}
+              </p>
+            ) : null}
           </div>
         ))}
       </div>

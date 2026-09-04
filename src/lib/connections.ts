@@ -1,4 +1,4 @@
-import { APP_URL, manualCreditsEnabled } from "./config";
+import { APP_URL, manualCreditsEnabled, stripeMode } from "./config";
 import { NEXUS_PROVIDERS, isWired } from "@/lib/providers/registry";
 import { searchEnginesWired } from "@/lib/search/web";
 
@@ -7,6 +7,12 @@ function present(value?: string) {
 }
 
 export function connectionStatus() {
+  const stripeWired = present(process.env.STRIPE_SECRET_KEY);
+  const stripeWebhook = present(process.env.STRIPE_WEBHOOK_SECRET);
+  const stripePlans =
+    present(process.env.STRIPE_PRICE_PRO_MONTHLY) &&
+    present(process.env.STRIPE_PRICE_TEAM_MONTHLY);
+  const stripePortal = present(process.env.STRIPE_PORTAL_CONFIGURATION_ID);
   return {
     appUrl: APP_URL,
     webhookUrl: `${APP_URL}/api/webhooks/stripe`,
@@ -30,11 +36,20 @@ export function connectionStatus() {
     stripe: {
       id: "stripe",
       label: "Stripe (créditos + suscripciones)",
-      wired: present(process.env.STRIPE_SECRET_KEY),
-      webhook: present(process.env.STRIPE_WEBHOOK_SECRET),
-      plans: present(process.env.STRIPE_PRICE_PRO_MONTHLY) && present(process.env.STRIPE_PRICE_TEAM_MONTHLY),
-      hint: "Secret, webhook y Price IDs Pro/Team",
-      env: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_PRO_MONTHLY", "STRIPE_PRICE_TEAM_MONTHLY"],
+      wired: stripeWired,
+      webhook: stripeWebhook,
+      plans: stripePlans,
+      portal: stripePortal,
+      ready: stripeWired && stripeWebhook && stripePlans && stripePortal,
+      mode: stripeMode(),
+      hint: "Secret, webhook, Price IDs Pro/Team y Billing Portal",
+      env: [
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "STRIPE_PRICE_PRO_MONTHLY",
+        "STRIPE_PRICE_TEAM_MONTHLY",
+        "STRIPE_PORTAL_CONFIGURATION_ID",
+      ],
     },
     redis: {
       id: "redis",

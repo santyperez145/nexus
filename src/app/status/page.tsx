@@ -30,8 +30,7 @@ export default async function StatusPage() {
   const catalog = allModels().filter((model) => !model.id.startsWith("nexus/"));
   const models = catalog.filter(isModelExecutionReady).length;
   const connections = connectionStatus();
-  const stripeConfigured =
-    connections.stripe.wired && connections.stripe.webhook && connections.stripe.plans;
+  const stripeConfigured = connections.stripe.ready;
   const redis = connections.redis.wired;
   const postgres = connections.database.wired;
   const services = [
@@ -48,10 +47,10 @@ export default async function StatusPage() {
     {
       name: "Configuración de cobros",
       description: stripeVerified
-        ? "Credencial de cobros verificada durante los últimos 30 minutos"
+        ? `Cobros ${connections.stripe.mode} verificados durante los últimos 30 minutos`
         : stripeConfigured
-          ? "Configurada, sin una prueba válida reciente"
-          : "Faltan credencial, webhook o planes",
+          ? `Configuración ${connections.stripe.mode}, sin capacidad de cobro verificada`
+          : "Faltan credencial, webhook, planes o Billing Portal",
       ok: stripeConfigured && stripeVerified,
     },
     {
