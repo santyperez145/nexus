@@ -7,6 +7,10 @@ export const partial = "web";
 export default defineRailway(() => {
   const web = service("web", {
     source: github("santyperez145/nexus"),
+    build: {
+      builder: "DOCKERFILE",
+      dockerfilePath: "/Dockerfile",
+    },
     healthcheck: "/api/internal/health/live",
     healthcheckTimeout: 30,
     preDeploy: "node scripts/migrate.mjs migrate",
