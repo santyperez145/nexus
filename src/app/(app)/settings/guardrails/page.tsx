@@ -15,9 +15,12 @@ type Guard = {
   sensitiveInfo: boolean;
   allowedModels: string[] | null;
   blockedModels: string[] | null;
+  allowedProviders: string[] | null;
+  enforceZdr: boolean;
 };
 
 type ModelRow = { id: string };
+type ProviderRow = { name: string; label: string };
 
 function ChipField({
   label,
@@ -33,8 +36,8 @@ function ChipField({
   const [draft, setDraft] = useState("");
   const chip =
     tone === "allow"
-      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
-      : "border-rose-500/40 bg-rose-500/10 text-rose-200";
+      ? "border-emerald-500/40 bg-emerald-50 text-emerald-700"
+      : "border-rose-500/40 bg-rose-50 text-rose-700";
 
   function add() {
     const parts = draft
@@ -93,10 +96,16 @@ function passes(id: string, allow: string[], block: string[]) {
 export default function GuardrailsPage() {
   const [rows, reload] = useRemoteData<Guard[]>("/api/v1/guardrails");
   const [models] = useRemoteData<ModelRow[]>("/api/v1/models");
+  const [providers] = useRemoteData<ProviderRow[]>("/api/v1/providers");
   const [name, setName] = useState("Default");
   const [maxCost, setMaxCost] = useState("0.05");
   const [allowed, setAllowed] = useState<string[]>([]);
   const [blocked, setBlocked] = useState<string[]>([]);
+  const [allowedProviders, setAllowedProviders] = useState<string[]>([]);
+  const [promptInjection, setPromptInjection] = useState(true);
+  const [sensitiveInfo, setSensitiveInfo] = useState(true);
+  const [enforceZdr, setEnforceZdr] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const list = rows ?? [];
 
   const modelIds = useMemo(() => (models ?? []).map((m) => m.id), [models]);
@@ -128,6 +137,16 @@ export default function GuardrailsPage() {
       <div className="mb-4 grid gap-3 md:grid-cols-2">
         <ChipField label="Allow prefixes" values={allowed} onChange={setAllowed} tone="allow" />
         <ChipField label="Block substrings" values={blocked} onChange={setBlocked} tone="block" />
+        <ChipField label="Proveedores permitidos" values={allowedProviders} onChange={setAllowedProviders} tone="allow" />
+        <div className="rounded-lg border border-zinc-200 bg-white p-3">
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Controles obligatorios</div>
+          <div className="mt-3 grid gap-2 text-sm text-zinc-700">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={promptInjection} onChange={(event) => setPromptInjection(event.target.checked)} /> Bloquear inyección básica</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={sensitiveInfo} onChange={(event) => setSensitiveInfo(event.target.checked)} /> Bloquear credenciales sensibles</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={enforceZdr} onChange={(event) => setEnforceZdr(event.target.checked)} /> Exigir Zero Data Retention</label>
+          </div>
+          {providers?.length ? <p className="mt-3 text-[11px] text-zinc-500">IDs disponibles: {providers.map((provider) => provider.name).join(", ")}</p> : null}
+        </div>
       </div>
       {matchCount != null ? (
         <div className="mb-4 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-400">
@@ -149,25 +168,36 @@ export default function GuardrailsPage() {
       <Button
         className="mb-6"
         onClick={async () => {
-          await fetch("/api/v1/guardrails", {
+          setMessage(null);
+          const response = await fetch("/api/v1/guardrails", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name,
-              prompt_injection: true,
-              sensitive_info: true,
+              prompt_injection: promptInjection,
+              sensitive_info: sensitiveInfo,
+              enforce_zdr: enforceZdr,
               max_cost: maxCost ? Number(maxCost) : undefined,
               allowed_models: allowed.length ? allowed : undefined,
               blocked_models: blocked.length ? blocked : undefined,
+              allowed_providers: allowedProviders.length ? allowedProviders : undefined,
             }),
           });
+          const payload = await response.json();
+          if (!response.ok) {
+            setMessage(payload.error?.message ?? payload.error ?? "No se pudo crear la regla");
+            return;
+          }
           setAllowed([]);
           setBlocked([]);
+          setAllowedProviders([]);
+          setMessage("Guardrail creado y activo.");
           reload();
         }}
       >
         Crear
       </Button>
+      <div aria-live="polite" className="mb-4 min-h-5 text-xs text-zinc-600">{message}</div>
       <div className="grid gap-2">
         {list.map((g) => (
           <div
@@ -179,6 +209,7 @@ export default function GuardrailsPage() {
               <div className="mt-1 text-xs text-zinc-500">
                 {g.promptInjection ? "injection · " : ""}
                 {g.sensitiveInfo ? "secrets · " : ""}
+                {g.enforceZdr ? "ZDR · " : ""}
                 {g.maxCostMicros != null ? `max ${g.maxCostMicros / 1_000_000} USD` : "sin techo"}
               </div>
               {g.allowedModels?.length ? (
@@ -186,7 +217,7 @@ export default function GuardrailsPage() {
                   {g.allowedModels.map((m) => (
                     <span
                       key={m}
-                      className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[11px] text-emerald-300/90"
+                      className="rounded border border-emerald-500/30 bg-emerald-50 px-1.5 py-0.5 font-mono text-[11px] text-emerald-700"
                     >
                       {m}
                     </span>
@@ -198,10 +229,17 @@ export default function GuardrailsPage() {
                   {g.blockedModels.map((m) => (
                     <span
                       key={m}
-                      className="rounded border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 font-mono text-[11px] text-rose-300/90"
+                      className="rounded border border-rose-500/30 bg-rose-50 px-1.5 py-0.5 font-mono text-[11px] text-rose-700"
                     >
                       {m}
                     </span>
+                  ))}
+                </div>
+              ) : null}
+              {g.allowedProviders?.length ? (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {g.allowedProviders.map((provider) => (
+                    <span key={provider} className="rounded border border-violet-300 bg-violet-50 px-1.5 py-0.5 font-mono text-[11px] text-violet-700">provider:{provider}</span>
                   ))}
                 </div>
               ) : null}

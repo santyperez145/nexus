@@ -134,8 +134,8 @@ async function byokFor(auth: AuthContext, provider: string) {
 
 export async function handleChat(req: ChatRequest, auth: AuthContext, headers: Headers, signal?: AbortSignal) {
   req = await applyPreset(req, auth);
-  assertZdrCompatible(req, auth);
   await enforceGuardrails(auth, req);
+  assertZdrCompatible(req, auth);
   let messages = normalizeMessages(req);
   messages = await attachUserFiles(auth, req, messages);
   validateChatRequest(req, messages);

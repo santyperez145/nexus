@@ -101,6 +101,12 @@ Nexus no enruta en esos modos hasta que el operador confirme el acuerdo real med
 de entorno. Si no queda un host elegible, la solicitud falla y nunca relaja privacidad. BYOK se
 excluye de esos modos hasta poder registrar garantías por credencial.
 
+Los guardrails son jerárquicos: las reglas personales y las del workspace activo se intersectan.
+Pueden limitar modelos y proveedores, imponer un costo máximo, bloquear patrones sensibles y forzar
+ZDR. Las preferencias enviadas por el cliente sólo pueden acotar esa política; una intersección vacía
+falla con `403 guardrail_blocked`. El preview autenticado ejecuta los mismos presets, guardrails y
+filtros de privacidad que la inferencia, sin consumir saldo.
+
 Las API keys pueden limitarse a `inference`, `management:read` y `management:write`. Los presupuestos,
 límites por key, créditos y membresías de workspace se validan en el servidor; no dependen del cliente.
 El workspace predeterminado de una organización incluye a todos sus miembros. Los demás requieren

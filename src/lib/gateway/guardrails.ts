@@ -1,5 +1,5 @@
+import { and, eq, isNull, or } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { canAccess, userScope } from "./tenant";
 import type { AuthContext, ChatRequest } from "./types";
 
 const INJECTION = [
@@ -15,6 +15,46 @@ const SECRET = [
   /-----BEGIN (RSA |OPENSSH )?PRIVATE KEY-----/,
 ];
 
+type GuardrailPolicy = {
+  userId: string;
+  workspaceId: string | null;
+  allowedProviders: string[] | null;
+  enforceZdr: boolean;
+};
+
+export function isGuardrailApplicable(auth: AuthContext, guardrail: Pick<GuardrailPolicy, "userId" | "workspaceId">) {
+  if (!guardrail.workspaceId) return guardrail.userId === auth.userId;
+  return Boolean(
+    auth.workspaceId === guardrail.workspaceId &&
+      (auth.workspaceIds ?? [auth.workspaceId]).includes(guardrail.workspaceId),
+  );
+}
+
+export function applyGuardrailRoutingPolicy(req: ChatRequest, guardrails: GuardrailPolicy[]) {
+  const providerRules = guardrails
+    .map((guardrail) => guardrail.allowedProviders)
+    .filter((providers): providers is string[] => Boolean(providers?.length));
+  if (providerRules.length) {
+    const intersection = providerRules[0].filter((provider) =>
+      providerRules.every((rule) => rule.includes(provider)),
+    );
+    const requested = req.provider?.only;
+    const allowed = requested?.length
+      ? intersection.filter((provider) => requested.includes(provider))
+      : intersection;
+    if (!allowed.length) {
+      throw Object.assign(new Error("Guardrails leave no allowed provider for this request"), {
+        status: 403,
+        code: "guardrail_blocked",
+      });
+    }
+    req.provider = { ...req.provider, only: allowed };
+  }
+  if (guardrails.some((guardrail) => guardrail.enforceZdr)) {
+    req.provider = { ...req.provider, zdr: true, data_collection: "deny" };
+  }
+}
+
 export async function enforceGuardrails(
   auth: AuthContext,
   req: ChatRequest,
@@ -23,8 +63,16 @@ export async function enforceGuardrails(
   const rows = await db
     .select()
     .from(schema.guardrails)
-    .where(userScope(auth, schema.guardrails.userId, schema.guardrails.workspaceId));
-  const scoped = rows.filter((g) => canAccess(auth, g));
+    .where(
+      auth.workspaceId
+        ? or(
+            and(eq(schema.guardrails.userId, auth.userId), isNull(schema.guardrails.workspaceId)),
+            eq(schema.guardrails.workspaceId, auth.workspaceId),
+          )
+        : and(eq(schema.guardrails.userId, auth.userId), isNull(schema.guardrails.workspaceId)),
+    );
+  const scoped = rows.filter((guardrail) => isGuardrailApplicable(auth, guardrail));
+  applyGuardrailRoutingPolicy(req, scoped);
   const model = req.model ?? "";
   const prompt = JSON.stringify(req.messages ?? req.prompt ?? "");
 

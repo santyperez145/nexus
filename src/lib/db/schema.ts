@@ -332,9 +332,11 @@ export const guardrails = pgTable("guardrail", {
   name: text("name").notNull(),
   allowedModels: jsonb("allowed_models").$type<string[] | null>(),
   blockedModels: jsonb("blocked_models").$type<string[] | null>(),
+  allowedProviders: jsonb("allowed_providers").$type<string[] | null>(),
   maxCostMicros: bigint("max_cost_micros", { mode: "number" }),
   promptInjection: boolean("prompt_injection").notNull().default(false),
   sensitiveInfo: boolean("sensitive_info").notNull().default(false),
+  enforceZdr: boolean("enforce_zdr").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

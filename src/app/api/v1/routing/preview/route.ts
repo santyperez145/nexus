@@ -4,7 +4,9 @@ import { resolveByokKey } from "@/lib/gateway/byok";
 import { resolveRoute } from "@/lib/gateway/router";
 import { hasAuthCredentials } from "@/lib/gateway/request-credentials";
 import type { ChatRequest } from "@/lib/gateway/types";
-import { canUseByokForRequest } from "@/lib/gateway/handle-chat";
+import { assertZdrCompatible, canUseByokForRequest } from "@/lib/gateway/handle-chat";
+import { enforceGuardrails } from "@/lib/gateway/guardrails";
+import { applyPreset } from "@/lib/gateway/presets";
 import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 /** Preview de routing: qué labs se intentarían y si hay key. Público con prefs default. */
@@ -20,7 +22,12 @@ export async function POST(req: Request) {
           allowTraining: true,
           logPrompts: false,
         };
-    const body = (await req.json()) as ChatRequest;
+    let body = (await req.json()) as ChatRequest;
+    if (auth.userId !== "guest") {
+      body = await applyPreset(body, auth);
+      await enforceGuardrails(auth, body);
+      assertZdrCompatible(body, auth);
+    }
     const plan = resolveRoute(body, auth);
     const allowByokForRequest = canUseByokForRequest(body, auth);
     const adapters = new Set<string>();

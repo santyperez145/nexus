@@ -43,6 +43,24 @@ export default function ProviderRoutingDocsPage() {
           </li>
         </ul>
 
+        <h2 className="mb-2 text-lg font-medium text-zinc-900">Guardrails jerárquicos</h2>
+        <p className="mb-3 text-sm text-zinc-600">
+          Las reglas de cuenta y las del workspace activo se combinan por intersección. Una
+          solicitud puede acotar proveedores, pero nunca ampliar los permitidos por la política.
+          Si la intersección queda vacía, Nexus responde <code>403 guardrail_blocked</code> sin
+          intentar otro host.
+        </p>
+        <p className="mb-8 text-sm text-zinc-600">
+          <code className="text-zinc-800">allowed_providers</code> restringe adapters y{" "}
+          <code className="text-zinc-800">enforce_zdr</code> fuerza ZDR más denegación de
+          recolección. Una sesión sin workspace no hereda políticas de otros espacios. Configurá
+          estas reglas en{" "}
+          <Link href="/settings/guardrails" className="text-violet-700 hover:underline">
+            Settings / Guardrails
+          </Link>
+          .
+        </p>
+
         <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
 {`curl $NEXUS_URL/api/v1/chat/completions \\
   -H "Authorization: Bearer $NEXUS_API_KEY" \\
@@ -63,7 +81,8 @@ export default function ProviderRoutingDocsPage() {
         <p className="mb-4 text-sm text-zinc-600">
           <code className="text-zinc-800">POST /api/v1/routing/preview</code> (también en el
           playground) lista hops con <code className="text-zinc-800">wired</code> real de esta
-          instancia. Guest = prefs default; sesión = BYOK + privacy.
+          instancia. Guest = prefs default; una sesión aplica el mismo preset, guardrails, ZDR,
+          BYOK y privacy que la inferencia antes de resolver los hops.
         </p>
         <p className="text-sm text-zinc-500">
           Ver hosts:{" "}

@@ -224,11 +224,15 @@ export const SCHEMA_SQL = [
     name text NOT NULL,
     allowed_models jsonb,
     blocked_models jsonb,
+    allowed_providers jsonb,
     max_cost_micros bigint,
     prompt_injection boolean NOT NULL DEFAULT false,
     sensitive_info boolean NOT NULL DEFAULT false,
+    enforce_zdr boolean NOT NULL DEFAULT false,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
+  `ALTER TABLE "guardrail" ADD COLUMN IF NOT EXISTS allowed_providers jsonb`,
+  `ALTER TABLE "guardrail" ADD COLUMN IF NOT EXISTS enforce_zdr boolean NOT NULL DEFAULT false`,
   `CREATE TABLE IF NOT EXISTS "file" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
