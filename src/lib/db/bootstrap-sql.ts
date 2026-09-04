@@ -226,7 +226,7 @@ export const SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS "byok_credential" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    workspace_id text,
+    workspace_id text REFERENCES "workspace"(id) ON DELETE CASCADE,
     provider text NOT NULL,
     encrypted_key text NOT NULL,
     label text,
@@ -247,6 +247,50 @@ export const SCHEMA_SQL = [
     enforce_zdr boolean NOT NULL DEFAULT false,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
+  `UPDATE "byok_credential" AS credential
+   SET deleted = true, encrypted_key = '', workspace_id = NULL
+   WHERE credential.workspace_id IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM "workspace" WHERE "workspace".id = credential.workspace_id)`,
+  `WITH ranked AS (
+     SELECT id, row_number() OVER (
+       PARTITION BY user_id, provider
+       ORDER BY created_at DESC, id DESC
+     ) AS position
+     FROM "byok_credential"
+     WHERE deleted = false AND workspace_id IS NULL
+   )
+   UPDATE "byok_credential" AS credential
+   SET deleted = true, encrypted_key = ''
+   FROM ranked
+   WHERE credential.id = ranked.id AND ranked.position > 1`,
+  `WITH ranked AS (
+     SELECT id, row_number() OVER (
+       PARTITION BY workspace_id, provider
+       ORDER BY created_at DESC, id DESC
+     ) AS position
+     FROM "byok_credential"
+     WHERE deleted = false AND workspace_id IS NOT NULL
+   )
+   UPDATE "byok_credential" AS credential
+   SET deleted = true, encrypted_key = ''
+   FROM ranked
+   WHERE credential.id = ranked.id AND ranked.position > 1`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM pg_constraint
+       WHERE conname = 'byok_credential_workspace_id_workspace_id_fk'
+     ) THEN
+       ALTER TABLE "byok_credential"
+       ADD CONSTRAINT "byok_credential_workspace_id_workspace_id_fk"
+       FOREIGN KEY (workspace_id) REFERENCES "workspace"(id) ON DELETE CASCADE;
+     END IF;
+   END $$`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS byok_account_provider_active_uidx
+   ON "byok_credential"(user_id, provider)
+   WHERE workspace_id IS NULL AND deleted = false`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS byok_workspace_provider_active_uidx
+   ON "byok_credential"(workspace_id, provider)
+   WHERE workspace_id IS NOT NULL AND deleted = false`,
   `ALTER TABLE "guardrail" ADD COLUMN IF NOT EXISTS allowed_providers jsonb`,
   `ALTER TABLE "guardrail" ADD COLUMN IF NOT EXISTS enforce_zdr boolean NOT NULL DEFAULT false`,
   `CREATE TABLE IF NOT EXISTS "file" (

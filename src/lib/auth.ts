@@ -21,12 +21,10 @@ function authSecret() {
   if (productionRuntime && !APP_URL.startsWith("https://")) {
     throw new Error("NEXT_PUBLIC_APP_URL must be an HTTPS URL in production");
   }
-  if (productionRuntime && !process.env.RESEND_API_KEY?.trim()) {
-    throw new Error("RESEND_API_KEY is required for production account verification and recovery");
-  }
-  if (productionRuntime && !process.env.EMAIL_FROM?.trim()) {
-    throw new Error("EMAIL_FROM is required and must use a verified production sender");
-  }
+  // Transactional email is a launch/readiness requirement, not a process boot
+  // requirement. sendMail still fails closed in production when it is missing,
+  // so verification and recovery cannot silently succeed, while public pages
+  // and existing sessions remain available for operators to repair configuration.
   return configured ?? "nexus-development-auth-secret-change-me-32-plus";
 }
 

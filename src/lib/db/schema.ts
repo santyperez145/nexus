@@ -336,18 +336,31 @@ export const generations = pgTable(
   ],
 );
 
-export const byokCredentials = pgTable("byok_credential", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  workspaceId: text("workspace_id"),
-  provider: text("provider").notNull(),
-  encryptedKey: text("encrypted_key").notNull(),
-  label: text("label"),
-  deleted: boolean("deleted").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const byokCredentials = pgTable(
+  "byok_credential",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").references(() => workspaces.id, {
+      onDelete: "cascade",
+    }),
+    provider: text("provider").notNull(),
+    encryptedKey: text("encrypted_key").notNull(),
+    label: text("label"),
+    deleted: boolean("deleted").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("byok_account_provider_active_uidx")
+      .on(t.userId, t.provider)
+      .where(sql`${t.workspaceId} IS NULL AND ${t.deleted} = false`),
+    uniqueIndex("byok_workspace_provider_active_uidx")
+      .on(t.workspaceId, t.provider)
+      .where(sql`${t.workspaceId} IS NOT NULL AND ${t.deleted} = false`),
+  ],
+);
 
 export const guardrails = pgTable("guardrail", {
   id: text("id").primaryKey(),
