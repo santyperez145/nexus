@@ -57,6 +57,13 @@
       "when": 1788487664690,
       "tag": "0007_classify_subscription_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788489621372,
+      "tag": "0008_broad_boom_boom",
+      "breakpoints": true
     }
   ]
 }

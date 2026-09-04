@@ -15,11 +15,13 @@ import { assertRateLimit } from "@/lib/gateway/rate-limit";
 import { selectVideoCredential } from "@/lib/media/credentials";
 import { MEDIA_PRICE_VERSION } from "@/lib/media/pricing";
 import { assertMediaPrivacy, canUseByokForMedia } from "@/lib/gateway/media-privacy";
+import { assertVideoRetentionCompatible, shouldRetainPayloads } from "@/lib/privacy/retention";
 
 export async function POST(req: Request) {
   try {
     const auth = await authenticateRequest(req);
     await assertRateLimit(auth);
+    assertVideoRetentionCompatible(auth);
     const body = await req.json();
     const prompt = String(body.prompt ?? "").trim();
     if (!prompt || prompt.length > 32_000) {
@@ -105,7 +107,7 @@ export async function POST(req: Request) {
       userId: auth.userId,
       workspaceId: auth.workspaceId ?? null,
       model,
-      prompt,
+      prompt: shouldRetainPayloads(auth) ? prompt : null,
       status,
       resultUrl,
     };

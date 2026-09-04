@@ -7,38 +7,68 @@ import { Label } from "@/components/ui/label";
 export function PrivacyForm(props: { zdr: boolean; logPrompts: boolean; allowTraining: boolean }) {
   const [state, setState] = useState(props);
   const [msg, setMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   async function update(patch: Partial<typeof state>) {
-    const next = { ...state, ...patch };
+    const previous = state;
+    const next = patch.zdr === true ? { ...state, ...patch, logPrompts: false } : { ...state, ...patch };
     setState(next);
     setMsg(null);
-    const res = await fetch("/api/internal/preferences", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next),
-    });
-    setMsg(res.ok ? "Guardado · aplica en el próximo request." : "No se pudo guardar.");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/internal/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setState(previous);
+        setMsg(json.error ?? "No se pudo guardar.");
+        return;
+      }
+      setState((current) => ({ ...current, ...json.data }));
+      const purged = Object.values(json.purged ?? {}).reduce(
+        (total: number, value) => total + Number(value ?? 0),
+        0,
+      );
+      setMsg(
+        purged > 0
+          ? `Guardado · ${purged} registros de contenido eliminados.`
+          : "Guardado · aplica desde la próxima solicitud.",
+      );
+    } catch {
+      setState(previous);
+      setMsg("No se pudo guardar.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="grid max-w-2xl gap-3">
       <Row
         title="Zero Data Retention"
-        body="Usa sólo proveedores cuyo acuerdo ZDR esté confirmado en esta instalación. Si ninguno cumple, la solicitud falla sin relajar la privacidad."
+        body="Usa sólo proveedores con ZDR confirmado, elimina el historial de contenido guardado y desactiva su registro. El video asíncrono queda bloqueado porque necesita conservar estado de procesamiento."
       >
-        <Switch checked={state.zdr} onCheckedChange={(zdr) => void update({ zdr })} />
+        <Switch disabled={saving} checked={state.zdr} onCheckedChange={(zdr) => void update({ zdr })} />
       </Row>
       <Row
-        title="Loguear prompts / completions"
-        body="Habilita retention de payloads para debugging (−1% sobre lista). No sustituye un DPA ni borra logs de Activity metadata."
+        title="Guardar solicitudes y respuestas"
+        body="Conserva contenido para depuración y aplica un 1% de descuento. Al desactivarlo, Nexus elimina el contenido histórico; las métricas de uso no se borran."
       >
-        <Switch checked={state.logPrompts} onCheckedChange={(logPrompts) => void update({ logPrompts })} />
+        <Switch
+          disabled={saving || state.zdr}
+          checked={state.logPrompts}
+          onCheckedChange={(logPrompts) => void update({ logPrompts })}
+        />
       </Row>
       <Row
         title="Permitir uso para entrenamiento"
         body="Al desactivarlo, Nexus usa únicamente proveedores confirmados como no-entrenamiento. Las credenciales propias quedan fuera de este modo hasta registrar su garantía."
       >
         <Switch
+          disabled={saving}
           checked={state.allowTraining}
           onCheckedChange={(allowTraining) => void update({ allowTraining })}
         />

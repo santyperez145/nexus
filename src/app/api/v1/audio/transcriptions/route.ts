@@ -7,6 +7,7 @@ import { transcribeAudio } from "@/lib/media/upstream";
 import { assertRateLimit } from "@/lib/gateway/rate-limit";
 import { MEDIA_PRICE_VERSION, quoteTranscription } from "@/lib/media/pricing";
 import { assertMediaPrivacy, canUseByokForMedia } from "@/lib/gateway/media-privacy";
+import { shouldRetainPayloads } from "@/lib/privacy/retention";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
@@ -87,7 +88,7 @@ export async function POST(req: Request) {
         usd: quote.usd,
         latencyMs: Date.now() - started,
         metadata: {
-          filename: file.name,
+          ...(shouldRetainPayloads(auth) ? { filename: file.name } : {}),
           bytes: file.size,
           duration_seconds: durationSeconds,
           price_version: MEDIA_PRICE_VERSION,

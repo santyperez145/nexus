@@ -26,6 +26,7 @@ import { applyPreset } from "./presets";
 import { chatChunkPayload, chatCompletionPayload, usagePayload } from "./openai-compat";
 import { dispatchGenerationWebhook } from "@/lib/observability/dispatch";
 import { isEndpointZdrConfirmed } from "@/lib/providers/privacy";
+import { shouldRetainPayloads } from "@/lib/privacy/retention";
 
 export function isZdrRequest(req: ChatRequest, auth: AuthContext) {
   return Boolean(auth.zdr || req.provider?.zdr || req.provider?.data_collection === "deny");
@@ -320,6 +321,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
           pricing: endpoint.pricing,
           isFree: candidate.model.free || result.local,
           isByok: Boolean(byok) && !result.local,
+          logPrompts: shouldRetainPayloads(auth, isZdrRequest(req, auth)),
           reservation,
         });
         settled = true;
@@ -337,7 +339,7 @@ export async function handleChat(req: ChatRequest, auth: AuthContext, headers: H
           isByok: Boolean(byok) && !result.local,
           messages,
           routeHops,
-          logPayloads: auth.logPrompts && !isZdrRequest(req, auth),
+          logPayloads: shouldRetainPayloads(auth, isZdrRequest(req, auth)),
         });
         return jsonCompletion(
           chatCompletionPayload({
@@ -443,6 +445,7 @@ async function streamCompletion(opts: {
             pricing: opts.endpoint.pricing,
             isFree: opts.candidate.model.free,
             isByok: Boolean(opts.byok),
+            logPrompts: shouldRetainPayloads(opts.auth, isZdrRequest(opts.req, opts.auth)),
             reservation: opts.reservation,
           });
           const includeUsage = opts.req.stream_options?.include_usage === true;
@@ -489,7 +492,7 @@ async function streamCompletion(opts: {
             isByok: Boolean(opts.byok),
             messages: opts.messages,
             routeHops: opts.routeHops,
-            logPayloads: opts.auth.logPrompts && !isZdrRequest(opts.req, opts.auth),
+            logPayloads: shouldRetainPayloads(opts.auth, isZdrRequest(opts.req, opts.auth)),
           });
         } else if ("text" in streamed) {
           full = streamed.text;
@@ -503,6 +506,7 @@ async function streamCompletion(opts: {
             pricing: opts.endpoint.pricing,
             isFree: true,
             isByok: false,
+            logPrompts: false,
             reservation: opts.reservation,
           });
           const includeUsage = opts.req.stream_options?.include_usage === true;

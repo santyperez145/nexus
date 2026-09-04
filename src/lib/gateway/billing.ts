@@ -293,6 +293,7 @@ export async function settleUsage(opts: {
   pricing: { prompt: number; completion: number };
   isFree: boolean;
   isByok: boolean;
+  logPrompts?: boolean;
   reservation?: CreditReservation;
 }) {
   if (opts.auth.guest) return { usd: 0, micros: 0 };
@@ -302,7 +303,7 @@ export async function settleUsage(opts: {
     pricing: opts.pricing,
     isFree: opts.isFree,
     isByok: opts.isByok,
-    logPrompts: opts.auth.logPrompts,
+    logPrompts: opts.logPrompts ?? (opts.auth.logPrompts && !opts.auth.zdr),
   });
   const micros = computed.micros;
   const reservation = opts.reservation;

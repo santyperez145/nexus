@@ -300,7 +300,7 @@ export const SCHEMA_SQL = [
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
     workspace_id text REFERENCES workspace(id) ON DELETE SET NULL,
     model text NOT NULL,
-    prompt text NOT NULL,
+    prompt text,
     status text NOT NULL DEFAULT 'queued',
     result_url text,
     created_at timestamp NOT NULL DEFAULT now()
@@ -316,6 +316,7 @@ export const SCHEMA_SQL = [
     deleted boolean NOT NULL DEFAULT false,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
+  `ALTER TABLE "video_job" ALTER COLUMN "prompt" DROP NOT NULL`,
   `CREATE TABLE IF NOT EXISTS "webhook_delivery" (
     id text PRIMARY KEY,
     destination_id text NOT NULL REFERENCES "observability_destination"(id) ON DELETE CASCADE,

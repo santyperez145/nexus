@@ -17,27 +17,27 @@ export default async function PrivacyPage() {
 
   return (
     <div>
-      <AppPageHeader title="Privacy">
-        Controles estrictos que el router aplica antes de enviar datos a un proveedor. Una capacidad
-        comercial no se muestra como garantía hasta confirmar el acuerdo activo.
+      <AppPageHeader title="Privacidad">
+        Elegí qué puede conservar Nexus y qué garantías debe cumplir cada proveedor. Si ninguna ruta
+        respeta tus condiciones, la solicitud se rechaza sin degradarlas.
       </AppPageHeader>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
         <Metric
           label="ZDR"
-          value={zdr ? "ON" : "OFF"}
-          hint={zdr ? "Sólo acuerdos confirmados" : "Todos los hosts elegibles"}
+          value={zdr ? "ACTIVO" : "INACTIVO"}
+          hint={zdr ? "Sólo acuerdos confirmados" : "Todas las rutas elegibles"}
           on={zdr}
         />
         <Metric
-          label="Prompt log"
-          value={logPrompts ? "ON (−1%)" : "OFF"}
-          hint={logPrompts ? "1% descuento lista" : "Sin descuento logging"}
+          label="Contenido guardado"
+          value={logPrompts ? "SÍ (−1%)" : "NO"}
+          hint={logPrompts ? "Solicitudes y respuestas" : "Sin contenido en el historial"}
           on={logPrompts}
         />
         <Metric
           label="Entrenamiento"
-          value={allowTraining ? "permitido" : "bloqueado"}
+          value={allowTraining ? "Permitido" : "Bloqueado"}
           hint={allowTraining ? "Según política del proveedor" : "Sólo no-entrenamiento confirmado"}
           on={!allowTraining}
         />
@@ -56,16 +56,16 @@ export default async function PrivacyPage() {
             ).
           </li>
           <li>
-            Prompt logging afecta billing/list price — no equivale a “enterprise DPA firmado”.
+            Guardar contenido aplica un 1% de descuento; no equivale a un acuerdo empresarial firmado.
           </li>
           <li>
             Guardrails de contenido viven en{" "}
             <Link href="/settings/guardrails" className="text-violet-700 hover:underline">
-              Guardrails
+              Reglas de uso
             </Link>
             ; webhooks en{" "}
             <Link href="/settings/observability" className="text-violet-700 hover:underline">
-              Observability
+              Monitoreo
             </Link>
             .
           </li>

@@ -428,7 +428,7 @@ export const videoJobs = pgTable("video_job", {
     .references(() => users.id, { onDelete: "cascade" }),
   workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
   model: text("model").notNull(),
-  prompt: text("prompt").notNull(),
+  prompt: text("prompt"),
   status: text("status").notNull().default("queued"),
   resultUrl: text("result_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
