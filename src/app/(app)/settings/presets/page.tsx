@@ -44,15 +44,24 @@ export default function PresetsPage() {
 
   return (
     <div>
-      <AppPageHeader title="Presets">
-        Llamá un preset con <code>@slug</code> o <code>nexus/preset/slug</code>. El request pisa los
-        campos del preset.
+      <AppPageHeader title="Configuraciones reutilizables">
+        Invocá una configuración con <code>@slug</code> o{" "}
+        <code>nexus/preset/slug</code>. Los valores enviados en cada solicitud
+        tienen prioridad sobre los guardados.
       </AppPageHeader>
 
       <section className="mb-8 rounded-2xl border border-zinc-200 bg-white p-4">
         <div className="mb-3 grid gap-2 md:grid-cols-2">
-          <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug" />
-          <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="modelo" />
+          <Input
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="slug"
+          />
+          <Input
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="modelo"
+          />
           <Input
             value={temperature}
             onChange={(e) => setTemperature(e.target.value)}
@@ -85,20 +94,31 @@ export default function PresetsPage() {
           const cfg = p.config ?? {};
           const curl = `curl $NEXUS_URL/api/v1/chat/completions -H "Authorization: Bearer $NEXUS_API_KEY" -H "Content-Type: application/json" -d '{"model":"@${p.slug}","messages":[{"role":"user","content":"Hola"}]}'`;
           return (
-            <div key={p.id} className="rounded-xl border border-zinc-200 px-4 py-3">
+            <div
+              key={p.id}
+              className="rounded-xl border border-zinc-200 px-4 py-3"
+            >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <div className="font-mono text-sm text-zinc-950/90">@{p.slug}</div>
+                  <div className="font-mono text-sm text-zinc-950/90">
+                    @{p.slug}
+                  </div>
                   <div className="mt-1 text-xs text-zinc-500">
                     {String(cfg.model ?? "—")}
-                    {cfg.temperature != null ? ` · temp ${cfg.temperature}` : ""}
+                    {cfg.temperature != null
+                      ? ` · temp ${cfg.temperature}`
+                      : ""}
                     {cfg.max_tokens != null ? ` · max ${cfg.max_tokens}` : ""}
                     {cfg.system ? " · system" : ""}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/chat?model=${encodeURIComponent(`@${p.slug}`)}`}>Probar</Link>
+                    <Link
+                      href={`/chat?model=${encodeURIComponent(`@${p.slug}`)}`}
+                    >
+                      Probar
+                    </Link>
                   </Button>
                   <Button
                     size="sm"
@@ -126,7 +146,9 @@ export default function PresetsPage() {
                     description="Las aplicaciones que usen esta configuración dejarán de encontrarla."
                     confirmLabel="Borrar configuración"
                     onConfirm={async () => {
-                      await fetch(`/api/v1/presets?id=${p.id}`, { method: "DELETE" });
+                      await fetch(`/api/v1/presets?id=${p.id}`, {
+                        method: "DELETE",
+                      });
                       reload();
                     }}
                   />

@@ -51,7 +51,9 @@ function ChipField({
 
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-3">
-      <div className="mb-2 text-xs uppercase tracking-wide text-zinc-500">{label}</div>
+      <div className="mb-2 text-xs uppercase tracking-wide text-zinc-500">
+        {label}
+      </div>
       <div className="mb-2 flex flex-wrap gap-1.5">
         {values.map((v) => (
           <button
@@ -64,7 +66,9 @@ function ChipField({
             {v} ×
           </button>
         ))}
-        {values.length === 0 ? <span className="text-xs text-zinc-600">vacío</span> : null}
+        {values.length === 0 ? (
+          <span className="text-xs text-zinc-600">vacío</span>
+        ) : null}
       </div>
       <div className="flex gap-2">
         <Input
@@ -76,7 +80,9 @@ function ChipField({
               add();
             }
           }}
-          placeholder={tone === "allow" ? "openai/, nexus/auto" : ":free, deepseek"}
+          placeholder={
+            tone === "allow" ? "openai/, nexus/auto" : ":free, deepseek"
+          }
           className="font-mono text-xs"
         />
         <Button type="button" variant="outline" size="sm" onClick={add}>
@@ -122,12 +128,17 @@ export default function GuardrailsPage() {
 
   return (
     <div>
-      <AppPageHeader title="Guardrails">
-        Techo de costo, allow/block de modelos, prompt injection y secretos. El gateway corta antes del
-        lab. Preview abajo usa el catálogo vivo de esta instancia.
+      <AppPageHeader title="Reglas de uso">
+        Definí topes de costo, modelos permitidos o bloqueados y protección
+        contra instrucciones maliciosas o secretos. La vista previa usa las
+        mismas reglas y el catálogo activo.
       </AppPageHeader>
       <div className="mb-4 grid gap-2 md:grid-cols-2">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nombre"
+        />
         <Input
           value={maxCost}
           onChange={(e) => setMaxCost(e.target.value)}
@@ -135,33 +146,81 @@ export default function GuardrailsPage() {
         />
       </div>
       <div className="mb-4 grid gap-3 md:grid-cols-2">
-        <ChipField label="Allow prefixes" values={allowed} onChange={setAllowed} tone="allow" />
-        <ChipField label="Block substrings" values={blocked} onChange={setBlocked} tone="block" />
-        <ChipField label="Proveedores permitidos" values={allowedProviders} onChange={setAllowedProviders} tone="allow" />
+        <ChipField
+          label="Allow prefixes"
+          values={allowed}
+          onChange={setAllowed}
+          tone="allow"
+        />
+        <ChipField
+          label="Block substrings"
+          values={blocked}
+          onChange={setBlocked}
+          tone="block"
+        />
+        <ChipField
+          label="Proveedores permitidos"
+          values={allowedProviders}
+          onChange={setAllowedProviders}
+          tone="allow"
+        />
         <div className="rounded-lg border border-zinc-200 bg-white p-3">
-          <div className="text-xs uppercase tracking-wide text-zinc-500">Controles obligatorios</div>
-          <div className="mt-3 grid gap-2 text-sm text-zinc-700">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={promptInjection} onChange={(event) => setPromptInjection(event.target.checked)} /> Bloquear inyección básica</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={sensitiveInfo} onChange={(event) => setSensitiveInfo(event.target.checked)} /> Bloquear credenciales sensibles</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={enforceZdr} onChange={(event) => setEnforceZdr(event.target.checked)} /> Exigir Zero Data Retention</label>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">
+            Controles obligatorios
           </div>
-          {providers?.length ? <p className="mt-3 text-[11px] text-zinc-500">IDs disponibles: {providers.map((provider) => provider.name).join(", ")}</p> : null}
+          <div className="mt-3 grid gap-2 text-sm text-zinc-700">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={promptInjection}
+                onChange={(event) => setPromptInjection(event.target.checked)}
+              />{" "}
+              Bloquear inyección básica
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={sensitiveInfo}
+                onChange={(event) => setSensitiveInfo(event.target.checked)}
+              />{" "}
+              Bloquear credenciales sensibles
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={enforceZdr}
+                onChange={(event) => setEnforceZdr(event.target.checked)}
+              />{" "}
+              Exigir Zero Data Retention
+            </label>
+          </div>
+          {providers?.length ? (
+            <p className="mt-3 text-[11px] text-zinc-500">
+              IDs disponibles:{" "}
+              {providers.map((provider) => provider.name).join(", ")}
+            </p>
+          ) : null}
         </div>
       </div>
       {matchCount != null ? (
         <div className="mb-4 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-400">
-          <span className="text-zinc-800">{matchCount}</span> / {modelIds.length} modelos pasarían
-          esta policy.
+          <span className="text-zinc-800">{matchCount}</span> /{" "}
+          {modelIds.length} modelos pasarían esta policy.
           {samples.length ? (
             <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[11px] text-zinc-500">
               {samples.map((id) => (
-                <span key={id} className="rounded border border-zinc-200 px-1.5 py-0.5">
+                <span
+                  key={id}
+                  className="rounded border border-zinc-200 px-1.5 py-0.5"
+                >
                   {id}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="mt-1 text-xs text-rose-300/80">Ningún slug del catálogo matchea.</p>
+            <p className="mt-1 text-xs text-rose-300/80">
+              Ningún slug del catálogo matchea.
+            </p>
           )}
         </div>
       ) : null}
@@ -180,12 +239,18 @@ export default function GuardrailsPage() {
               max_cost: maxCost ? Number(maxCost) : undefined,
               allowed_models: allowed.length ? allowed : undefined,
               blocked_models: blocked.length ? blocked : undefined,
-              allowed_providers: allowedProviders.length ? allowedProviders : undefined,
+              allowed_providers: allowedProviders.length
+                ? allowedProviders
+                : undefined,
             }),
           });
           const payload = await response.json();
           if (!response.ok) {
-            setMessage(payload.error?.message ?? payload.error ?? "No se pudo crear la regla");
+            setMessage(
+              payload.error?.message ??
+                payload.error ??
+                "No se pudo crear la regla",
+            );
             return;
           }
           setAllowed([]);
@@ -197,7 +262,9 @@ export default function GuardrailsPage() {
       >
         Crear
       </Button>
-      <div aria-live="polite" className="mb-4 min-h-5 text-xs text-zinc-600">{message}</div>
+      <div aria-live="polite" className="mb-4 min-h-5 text-xs text-zinc-600">
+        {message}
+      </div>
       <div className="grid gap-2">
         {list.map((g) => (
           <div
@@ -210,7 +277,9 @@ export default function GuardrailsPage() {
                 {g.promptInjection ? "injection · " : ""}
                 {g.sensitiveInfo ? "secrets · " : ""}
                 {g.enforceZdr ? "ZDR · " : ""}
-                {g.maxCostMicros != null ? `max ${g.maxCostMicros / 1_000_000} USD` : "sin techo"}
+                {g.maxCostMicros != null
+                  ? `max ${g.maxCostMicros / 1_000_000} USD`
+                  : "sin techo"}
               </div>
               {g.allowedModels?.length ? (
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -239,7 +308,12 @@ export default function GuardrailsPage() {
               {g.allowedProviders?.length ? (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {g.allowedProviders.map((provider) => (
-                    <span key={provider} className="rounded border border-violet-300 bg-violet-50 px-1.5 py-0.5 font-mono text-[11px] text-violet-700">provider:{provider}</span>
+                    <span
+                      key={provider}
+                      className="rounded border border-violet-300 bg-violet-50 px-1.5 py-0.5 font-mono text-[11px] text-violet-700"
+                    >
+                      provider:{provider}
+                    </span>
                   ))}
                 </div>
               ) : null}
@@ -250,7 +324,9 @@ export default function GuardrailsPage() {
               description="Esta regla dejará de proteger las solicitudes asociadas."
               confirmLabel="Quitar regla"
               onConfirm={async () => {
-                await fetch(`/api/v1/guardrails?id=${g.id}`, { method: "DELETE" });
+                await fetch(`/api/v1/guardrails?id=${g.id}`, {
+                  method: "DELETE",
+                });
                 reload();
               }}
             />

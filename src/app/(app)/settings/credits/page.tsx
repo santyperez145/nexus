@@ -31,7 +31,13 @@ type Credits = {
     current_period_end: string | null;
     cancel_at_period_end: boolean;
   } | null;
-  ledger: Array<{ id: string; type: string; amount: number; note: string | null; created_at: string }>;
+  ledger: Array<{
+    id: string;
+    type: string;
+    amount: number;
+    note: string | null;
+    created_at: string;
+  }>;
 };
 
 type Prefs = {
@@ -51,7 +57,9 @@ function CreditsInner() {
   const canceled = params.get("canceled") === "1";
   const subscriptionResult = params.get("subscription");
   const [credits, reload] = useRemoteData<Credits>("/api/v1/credits");
-  const [prefs, reloadPrefs] = useRemoteData<Prefs>("/api/internal/preferences");
+  const [prefs, reloadPrefs] = useRemoteData<Prefs>(
+    "/api/internal/preferences",
+  );
   const [analytics] = useRemoteData<Analytics>("/api/v1/analytics?days=7");
   const [msg, setMsg] = useState<string | null>(
     subscriptionResult === "ok"
@@ -69,22 +77,28 @@ function CreditsInner() {
   const subscriptionConfirmed =
     subscriptionResult === "ok" &&
     ["active", "trialing"].includes(credits?.subscription_status ?? "");
-  const displayMessage = subscriptionConfirmed ? `Plan ${credits?.plan ?? ""} activo.` : msg;
+  const displayMessage = subscriptionConfirmed
+    ? `Plan ${credits?.plan ?? ""} activo.`
+    : msg;
   const baseline = useRef<number | null>(null);
   const polls = useRef(0);
   const feePct = (CREDIT_PURCHASE_FEE * 100).toFixed(1);
-  const thresholdValue = threshold ?? String(prefs?.autoTopupThresholdUsd ?? "5");
+  const thresholdValue =
+    threshold ?? String(prefs?.autoTopupThresholdUsd ?? "5");
   const amountValue = amount ?? String(prefs?.autoTopupAmountUsd ?? "25");
 
   useEffect(() => {
     if (!checkoutOk) return;
-    if (credits && baseline.current == null) baseline.current = credits.remaining;
+    if (credits && baseline.current == null)
+      baseline.current = credits.remaining;
     const timer = window.setInterval(() => {
       polls.current += 1;
       reload();
       if (polls.current >= 12) {
         window.clearInterval(timer);
-        setMsg("Si el saldo no cambió, el webhook puede demorar unos segundos. Refrescá.");
+        setMsg(
+          "Si el saldo no cambió, el webhook puede demorar unos segundos. Refrescá.",
+        );
         window.history.replaceState({}, "", "/settings/credits");
       }
     }, 1500);
@@ -108,7 +122,9 @@ function CreditsInner() {
     const timer = window.setInterval(reload, 1500);
     const stop = window.setTimeout(() => {
       window.clearInterval(timer);
-      setMsg("Stripe está confirmando la suscripción. Refrescá en unos segundos.");
+      setMsg(
+        "Stripe está confirmando la suscripción. Refrescá en unos segundos.",
+      );
     }, 18_000);
     return () => {
       window.clearInterval(timer);
@@ -127,7 +143,10 @@ function CreditsInner() {
           ? Infinity
           : null;
 
-  const maxDayCost = Math.max(1, ...(analytics?.by_day.map((d) => d.cost) ?? [1]));
+  const maxDayCost = Math.max(
+    1,
+    ...(analytics?.by_day.map((d) => d.cost) ?? [1]),
+  );
 
   const ledger = useMemo(() => {
     const rows = credits?.ledger ?? [];
@@ -183,22 +202,33 @@ function CreditsInner() {
       }),
     });
     const json = await res.json();
-    setMsg(json.ok ? (enabled ? "Auto top-up activado" : "Auto top-up desactivado") : json.error);
+    setMsg(
+      json.ok
+        ? enabled
+          ? "Auto top-up activado"
+          : "Auto top-up desactivado"
+        : json.error,
+    );
     reloadPrefs();
   }
 
   return (
     <div>
-      <AppPageHeader title="Credits">
-        Pass-through del precio del laboratorio. Fee {feePct}% al cargar con Stripe (mínimo {formatUsd(CREDIT_PURCHASE_MIN_FEE_USD, 2)}) · 0% markup en inferencia.
+      <AppPageHeader title="Saldo y plan">
+        Pagás el precio de lista del proveedor. Nexus aplica una comisión del{" "}
+        {feePct}% al cargar saldo (mínimo{" "}
+        {formatUsd(CREDIT_PURCHASE_MIN_FEE_USD, 2)}) y no agrega margen al uso
+        de modelos.
       </AppPageHeader>
 
       {credits?.billing_mode === "test" ? (
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <span className="font-semibold">Stripe sandbox activo.</span> Los checkouts permiten probar el
-          flujo completo, pero no generan cobros ni ingresos reales.
+          <span className="font-semibold">Stripe sandbox activo.</span> Los
+          checkouts permiten probar el flujo completo, pero no generan cobros ni
+          ingresos reales.
         </div>
-      ) : credits?.billing_mode === "unconfigured" || credits?.billing_mode === "unknown" ? (
+      ) : credits?.billing_mode === "unconfigured" ||
+        credits?.billing_mode === "unknown" ? (
         <div className="mb-6 rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
           Los cobros no están disponibles en esta instalación.
         </div>
@@ -209,7 +239,9 @@ function CreditsInner() {
           <div className="rounded-2xl border border-zinc-200 bg-white p-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">Saldo</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                  Saldo
+                </div>
                 <div className="mt-1 text-3xl font-semibold text-zinc-950">
                   {formatUsd(credits.remaining, 2)}
                 </div>
@@ -231,14 +263,20 @@ function CreditsInner() {
             ) : null}
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-xl border border-zinc-200 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wide text-zinc-500">Burn 7d</div>
+                <div className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  Burn 7d
+                </div>
                 <div className="mt-0.5 text-lg text-zinc-900">
                   {formatUsd(burn7d, 2)}
                 </div>
-                <div className="text-[11px] text-zinc-500">~{formatUsd(dailyBurn, 4)}/día</div>
+                <div className="text-[11px] text-zinc-500">
+                  ~{formatUsd(dailyBurn, 4)}/día
+                </div>
               </div>
               <div className="rounded-xl border border-zinc-200 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-wide text-zinc-500">Runway</div>
+                <div className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  Runway
+                </div>
                 <div className="mt-0.5 text-lg text-zinc-900">
                   {runway == null
                     ? "n/d"
@@ -246,7 +284,9 @@ function CreditsInner() {
                       ? "∞"
                       : `${runway}d`}
                 </div>
-                <div className="text-[11px] text-zinc-500">saldo ÷ burn diario</div>
+                <div className="text-[11px] text-zinc-500">
+                  saldo ÷ burn diario
+                </div>
               </div>
             </div>
           </div>
@@ -256,24 +296,34 @@ function CreditsInner() {
               <div className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">
                 Burn diario · 7d
               </div>
-              <Link href="/analytics" className="text-[11px] text-violet-700 hover:underline">
+              <Link
+                href="/analytics"
+                className="text-[11px] text-violet-700 hover:underline"
+              >
                 Analytics →
               </Link>
             </div>
             {analytics?.by_day?.length ? (
               <div className="flex h-24 items-end gap-1">
                 {analytics.by_day.map((d) => (
-                  <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
+                  <div
+                    key={d.day}
+                    className="flex flex-1 flex-col items-center gap-1"
+                  >
                     <div
                       className="w-full rounded-sm bg-violet-400"
-                      style={{ height: `${Math.max(4, (d.cost / maxDayCost) * 100)}%` }}
+                      style={{
+                        height: `${Math.max(4, (d.cost / maxDayCost) * 100)}%`,
+                      }}
                       title={`${d.day}: ${formatUsd(d.cost, 4)}`}
                     />
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-zinc-500">Sin burn aún esta semana.</p>
+              <p className="py-8 text-center text-sm text-zinc-500">
+                Sin burn aún esta semana.
+              </p>
             )}
           </div>
         </div>
@@ -283,7 +333,8 @@ function CreditsInner() {
         <div>
           <h2 className="text-lg font-medium">Planes</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Suscripción para capacidades de plataforma; la inferencia sigue descontándose del wallet.
+            Suscripción para capacidades de plataforma; la inferencia sigue
+            descontándose del wallet.
           </p>
         </div>
         {credits?.subscription ? (
@@ -294,7 +345,9 @@ function CreditsInner() {
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {SUBSCRIPTION_PLANS.map((plan) => {
-          const current = credits?.plan === plan.id && ["active", "trialing"].includes(credits.subscription_status);
+          const current =
+            credits?.plan === plan.id &&
+            ["active", "trialing"].includes(credits.subscription_status);
           return (
             <div
               key={plan.id}
@@ -302,16 +355,25 @@ function CreditsInner() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-xl font-semibold text-zinc-950">{plan.name}</div>
-                  <p className="mt-1 text-sm text-zinc-500">{plan.description}</p>
+                  <div className="text-xl font-semibold text-zinc-950">
+                    {plan.name}
+                  </div>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {plan.description}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-semibold text-zinc-950">${plan.monthlyUsd}</div>
-                  <div className="text-xs text-zinc-500">/mes{plan.seats ? " por asiento" : ""}</div>
+                  <div className="text-2xl font-semibold text-zinc-950">
+                    ${plan.monthlyUsd}
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    /mes{plan.seats ? " por asiento" : ""}
+                  </div>
                 </div>
               </div>
               <p className="mt-4 text-sm text-zinc-700">
-                Incluye ${plan.includedCreditsUsd} en créditos de inferencia por factura pagada.
+                Incluye ${plan.includedCreditsUsd} en créditos de inferencia por
+                factura pagada.
               </p>
               {plan.seats && !credits?.subscription ? (
                 <label className="mt-4 block text-xs text-zinc-600">
@@ -332,7 +394,10 @@ function CreditsInner() {
                 onClick={() =>
                   credits?.subscription
                     ? void manageSubscription()
-                    : void subscribe(plan.id, plan.seats ? Math.max(1, Number(teamSeats) || 1) : 1)
+                    : void subscribe(
+                        plan.id,
+                        plan.seats ? Math.max(1, Number(teamSeats) || 1) : 1,
+                      )
                 }
               >
                 {current
@@ -348,7 +413,8 @@ function CreditsInner() {
         })}
       </div>
       <p className="mt-3 text-xs text-zinc-500">
-        Impuestos no incluidos: se calculan solo cuando la cuenta Stripe tiene registros fiscales activos.
+        Impuestos no incluidos: se calculan solo cuando la cuenta Stripe tiene
+        registros fiscales activos.
       </p>
 
       <h2 className="mb-3 mt-10 text-lg font-medium">Packs</h2>
@@ -358,9 +424,7 @@ function CreditsInner() {
           const charge = p.usd + fee;
           return (
             <div key={p.id} className="rounded-xl border border-zinc-200 p-4">
-              <div className="text-2xl font-semibold">
-                {p.label}
-              </div>
+              <div className="text-2xl font-semibold">{p.label}</div>
               <p className="mt-1 text-xs text-zinc-500">
                 Cargo ~{formatUsd(charge, 2)} · fee {formatUsd(fee, 2)}
               </p>
@@ -385,7 +449,9 @@ function CreditsInner() {
                 body: JSON.stringify({ usd: 10 }),
               });
               const json = await res.json();
-              setMsg(json.ok ? "Se acreditaron $10 (wallet manual)" : json.error);
+              setMsg(
+                json.ok ? "Se acreditaron $10 (wallet manual)" : json.error,
+              );
               reload();
             }}
           >
@@ -394,16 +460,19 @@ function CreditsInner() {
         </p>
       ) : null}
 
-      <h2 className="mt-10 mb-3 text-lg font-medium">
-        Auto top-up
-      </h2>
+      <h2 className="mt-10 mb-3 text-lg font-medium">Auto top-up</h2>
       <p className="mb-3 max-w-xl text-sm text-zinc-500">
         Estado:{" "}
-        <span className={prefs?.autoTopupEnabled ? "text-emerald-400" : "text-zinc-400"}>
+        <span
+          className={
+            prefs?.autoTopupEnabled ? "text-emerald-400" : "text-zinc-400"
+          }
+        >
           {prefs?.autoTopupEnabled ? "activo" : "apagado"}
         </span>
-        . Con wallet manual acredita al pasar el umbral. En producción cobra únicamente el método
-        predeterminado guardado después de un checkout compatible.
+        . Con wallet manual acredita al pasar el umbral. En producción cobra
+        únicamente el método predeterminado guardado después de un checkout
+        compatible.
       </p>
       <div className="grid max-w-xl gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
         <Input
@@ -430,7 +499,9 @@ function CreditsInner() {
         </Button>
       </div>
 
-      {displayMessage ? <p className="mt-4 text-sm text-zinc-950">{displayMessage}</p> : null}
+      {displayMessage ? (
+        <p className="mt-4 text-sm text-zinc-950">{displayMessage}</p>
+      ) : null}
 
       {credits?.ledger?.length ? (
         <>
@@ -466,19 +537,27 @@ function CreditsInner() {
                 className="flex justify-between gap-3 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
               >
                 <div className="min-w-0">
-                  <span className="font-mono text-xs text-zinc-400">{l.type}</span>
-                  {l.note ? <span className="text-zinc-500"> · {l.note}</span> : null}
+                  <span className="font-mono text-xs text-zinc-400">
+                    {l.type}
+                  </span>
+                  {l.note ? (
+                    <span className="text-zinc-500"> · {l.note}</span>
+                  ) : null}
                   <div className="text-[11px] text-zinc-600">
                     {new Date(l.created_at).toISOString().slice(0, 19)}Z
                   </div>
                 </div>
-                <span className={l.amount < 0 ? "text-zinc-400" : "text-zinc-950"}>
+                <span
+                  className={l.amount < 0 ? "text-zinc-400" : "text-zinc-950"}
+                >
                   {formatUsd(l.amount)}
                 </span>
               </div>
             ))}
             {!ledger.length ? (
-              <p className="text-sm text-zinc-500">Sin filas para este filtro.</p>
+              <p className="text-sm text-zinc-500">
+                Sin filas para este filtro.
+              </p>
             ) : null}
           </div>
         </>
@@ -492,7 +571,7 @@ export default function CreditsPage() {
     <Suspense
       fallback={
         <div>
-          <AppPageHeader title="Credits">Cargando…</AppPageHeader>
+          <AppPageHeader title="Saldo y plan">Cargando…</AppPageHeader>
         </div>
       }
     >

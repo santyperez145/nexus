@@ -15,7 +15,12 @@ import {
 type Prefs = { defaultModel: string; zdr?: boolean; allowTraining?: boolean };
 
 const VARIANTS = [":fast", ":cheap", ":quality", ":free", ":online"] as const;
-const SUGGESTIONS = ["nexus/auto", "nexus/free", "openai/gpt-4o-mini", "anthropic/claude-haiku-4.5"];
+const SUGGESTIONS = [
+  "nexus/auto",
+  "nexus/free",
+  "openai/gpt-4o-mini",
+  "anthropic/claude-haiku-4.5",
+];
 
 function baseSlug(model: string) {
   return model.replace(/:(fast|cheap|quality|free|online)$/i, "");
@@ -58,8 +63,10 @@ export default function PreferencesPage() {
 
   return (
     <div>
-      <AppPageHeader title="Preferences">
-        Modelo default + routing defaults del playground (sort, fallbacks, ZDR, only/ignore).
+      <AppPageHeader title="Preferencias">
+        Elegí el modelo inicial y las reglas de enrutamiento que usarán Chat y
+        el Estudio de forma predeterminada, incluidos respaldo entre proveedores
+        y privacidad ZDR.
       </AppPageHeader>
 
       <section className="mb-10">
@@ -126,7 +133,9 @@ export default function PreferencesPage() {
         </div>
         <div className="mt-3">
           <Button asChild size="sm" variant="outline">
-            <Link href={`/chat?model=${encodeURIComponent(value)}`}>Usar en playground</Link>
+            <Link href={`/chat?model=${encodeURIComponent(value)}`}>
+              Usar en playground
+            </Link>
           </Button>
         </div>
       </section>
@@ -136,8 +145,12 @@ export default function PreferencesPage() {
           Routing defaults
         </h2>
         <p className="mb-4 text-sm text-zinc-500">
-          Se aplican al abrir Chat en este dispositivo. Privacy de cuenta (ZDR / training) sigue en{" "}
-          <Link href="/settings/privacy" className="text-violet-700 hover:underline">
+          Se aplican al abrir Chat en este dispositivo. Privacy de cuenta (ZDR /
+          training) sigue en{" "}
+          <Link
+            href="/settings/privacy"
+            className="text-violet-700 hover:underline"
+          >
             Privacy
           </Link>
           .
@@ -167,7 +180,9 @@ export default function PreferencesPage() {
             <input
               type="checkbox"
               checked={routing.allowFallbacks}
-              onChange={(e) => saveRouting({ ...routing, allowFallbacks: e.target.checked })}
+              onChange={(e) =>
+                saveRouting({ ...routing, allowFallbacks: e.target.checked })
+              }
             />
             allow_fallbacks
           </label>
@@ -175,7 +190,9 @@ export default function PreferencesPage() {
             <input
               type="checkbox"
               checked={routing.zdrOnly}
-              onChange={(e) => saveRouting({ ...routing, zdrOnly: e.target.checked })}
+              onChange={(e) =>
+                saveRouting({ ...routing, zdrOnly: e.target.checked })
+              }
             />
             ZDR only
           </label>

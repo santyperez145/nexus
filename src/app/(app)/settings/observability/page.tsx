@@ -29,7 +29,9 @@ type Delivery = {
 
 export default function ObservabilityPage() {
   const [rows, reload] = useRemoteData<Dest[]>("/api/v1/observability");
-  const [deliveries, reloadDeliveries] = useRemoteData<Delivery[]>("/api/v1/observability?deliveries=1");
+  const [deliveries, reloadDeliveries] = useRemoteData<Delivery[]>(
+    "/api/v1/observability?deliveries=1",
+  );
   const [url, setUrl] = useState("");
   const [name, setName] = useState("Webhook");
   const [msg, setMsg] = useState<string | null>(null);
@@ -39,13 +41,22 @@ export default function ObservabilityPage() {
 
   return (
     <div>
-      <AppPageHeader title="Observability">
-        Webhook por generación. Firmamos con <code>x-nexus-signature</code> (HMAC-SHA256 del body).
-        Ping: <code>POST {"{ action: \"ping\", id }"}</code>.
+      <AppPageHeader title="Monitoreo">
+        Recibí un webhook por cada generación. Nexus firma el cuerpo con
+        <code> x-nexus-signature</code> mediante HMAC-SHA256 y permite verificar
+        cada destino antes de usarlo.
       </AppPageHeader>
       <div className="mb-4 grid gap-2 md:grid-cols-[1fr_10rem_auto]">
-        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
+        <Input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://…"
+        />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nombre"
+        />
         <Button
           onClick={async () => {
             setMsg(null);
@@ -55,8 +66,11 @@ export default function ObservabilityPage() {
               body: JSON.stringify({ url, name: name || "Webhook" }),
             });
             const json = await res.json();
-            if (json.data?.revealed_secret) setRevealed(json.data.revealed_secret);
-            setMsg(json.data ? "Webhook creado" : json.error?.message ?? "error");
+            if (json.data?.revealed_secret)
+              setRevealed(json.data.revealed_secret);
+            setMsg(
+              json.data ? "Webhook creado" : (json.error?.message ?? "error"),
+            );
             setUrl("");
             reload();
             reloadDeliveries();
@@ -77,7 +91,9 @@ export default function ObservabilityPage() {
               Copiar
             </button>
           </div>
-          <pre className="overflow-x-auto font-mono text-xs text-zinc-800">{revealed}</pre>
+          <pre className="overflow-x-auto font-mono text-xs text-zinc-800">
+            {revealed}
+          </pre>
         </div>
       ) : null}
       {msg ? <p className="mb-4 text-sm text-zinc-400">{msg}</p> : null}
@@ -89,7 +105,9 @@ export default function ObservabilityPage() {
           >
             <div className="min-w-0">
               <div className="font-medium text-zinc-800">{d.name}</div>
-              <div className="truncate font-mono text-xs text-zinc-400">{d.config?.url}</div>
+              <div className="truncate font-mono text-xs text-zinc-400">
+                {d.config?.url}
+              </div>
               <div className="mt-0.5 text-[11px] text-zinc-600">
                 {d.config?.has_secret ? "HMAC on" : "sin secret"}
                 {lastPing[d.id] ? ` · last ping ${lastPing[d.id]}` : ""}
@@ -108,7 +126,7 @@ export default function ObservabilityPage() {
                   const json = await res.json();
                   const line = json.data
                     ? `HTTP ${json.data.status}${json.data.ok ? " ok" : " fail"}`
-                    : json.error?.message ?? "error";
+                    : (json.error?.message ?? "error");
                   setLastPing((prev) => ({ ...prev, [d.id]: line }));
                   setMsg(json.data ? `Ping → ${line}` : line);
                 }}
@@ -121,7 +139,9 @@ export default function ObservabilityPage() {
                 description="Nexus dejará de enviar eventos a este destino. El historial existente se conservará."
                 confirmLabel="Quitar destino"
                 onConfirm={async () => {
-                  await fetch(`/api/v1/observability?id=${d.id}`, { method: "DELETE" });
+                  await fetch(`/api/v1/observability?id=${d.id}`, {
+                    method: "DELETE",
+                  });
                   reload();
                   reloadDeliveries();
                 }}
@@ -131,37 +151,67 @@ export default function ObservabilityPage() {
         ))}
         {!list.length ? (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-500">
-            Sin webhooks. Agregá una URL para recibir generation.completed firmados.
+            Sin webhooks. Agregá una URL para recibir generation.completed
+            firmados.
           </p>
         ) : null}
       </div>
       <section className="mt-8">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-900">Delivery log</h2>
-            <p className="text-xs text-zinc-500">Últimos 50 intentos persistidos · backoff hasta 24 h · 6 intentos.</p>
+            <h2 className="text-sm font-semibold text-zinc-900">
+              Historial de entregas
+            </h2>
+            <p className="text-xs text-zinc-500">
+              Últimos 50 intentos persistidos · backoff hasta 24 h · 6 intentos.
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={reloadDeliveries}>Actualizar</Button>
+          <Button variant="outline" size="sm" onClick={reloadDeliveries}>
+            Actualizar
+          </Button>
         </div>
         <div className="overflow-hidden rounded-xl border border-zinc-200">
           {(deliveries ?? []).map((delivery) => (
-            <div key={delivery.id} className="grid gap-2 border-b border-zinc-100 px-3 py-2 text-xs last:border-b-0 md:grid-cols-[1fr_7rem_5rem_8rem] md:items-center">
+            <div
+              key={delivery.id}
+              className="grid gap-2 border-b border-zinc-100 px-3 py-2 text-xs last:border-b-0 md:grid-cols-[1fr_7rem_5rem_8rem] md:items-center"
+            >
               <div className="min-w-0">
-                <div className="truncate font-mono text-zinc-700">{delivery.id}</div>
-                <div className="truncate text-zinc-400">{delivery.lastError ?? delivery.event}</div>
+                <div className="truncate font-mono text-zinc-700">
+                  {delivery.id}
+                </div>
+                <div className="truncate text-zinc-400">
+                  {delivery.lastError ?? delivery.event}
+                </div>
               </div>
-              <span className={delivery.status === "delivered" ? "text-emerald-700" : delivery.status === "dead" ? "text-red-700" : "text-amber-700"}>
+              <span
+                className={
+                  delivery.status === "delivered"
+                    ? "text-emerald-700"
+                    : delivery.status === "dead"
+                      ? "text-red-700"
+                      : "text-amber-700"
+                }
+              >
                 {delivery.status}
               </span>
               <span className="text-zinc-500">{delivery.attempts}/6</span>
-              <span className="text-zinc-500">{delivery.responseStatus ? `HTTP ${delivery.responseStatus}` : "sin respuesta"}</span>
+              <span className="text-zinc-500">
+                {delivery.responseStatus
+                  ? `HTTP ${delivery.responseStatus}`
+                  : "sin respuesta"}
+              </span>
             </div>
           ))}
-          {!deliveries?.length ? <p className="px-4 py-6 text-center text-xs text-zinc-500">Todavía no hay deliveries.</p> : null}
+          {!deliveries?.length ? (
+            <p className="px-4 py-6 text-center text-xs text-zinc-500">
+              Todavía no hay deliveries.
+            </p>
+          ) : null}
         </div>
       </section>
       <pre className="mt-8 overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-500">
-{`{
+        {`{
   "event": "generation.completed",
   "data": { "id": "gen-…", "model": "…", "provider": "…", "cost_micros": 0 }
 }

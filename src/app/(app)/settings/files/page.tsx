@@ -11,7 +11,8 @@ type FileRow = { id: string; filename: string; bytes: number; mime?: string };
 
 function isImage(mime?: string, filename?: string) {
   return Boolean(
-    (mime && /^image\//i.test(mime)) || (filename && /\.(png|jpe?g|gif|webp|bmp)$/i.test(filename)),
+    (mime && /^image\//i.test(mime)) ||
+    (filename && /\.(png|jpe?g|gif|webp|bmp)$/i.test(filename)),
   );
 }
 
@@ -24,7 +25,11 @@ function fmtBytes(n: number) {
 export default function FilesPage() {
   const [rows, reload] = useRemoteData<FileRow[]>("/api/v1/files");
   const [msg, setMsg] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ id: string; text: string; filename: string } | null>(null);
+  const [preview, setPreview] = useState<{
+    id: string;
+    text: string;
+    filename: string;
+  } | null>(null);
   const [drag, setDrag] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const list = rows ?? [];
@@ -64,28 +69,36 @@ export default function FilesPage() {
   return (
     <div>
       <AppPageHeader
-        title="Files"
+        title="Archivos"
         actions={
           <Button asChild size="sm" variant="outline">
             <Link href="/chat">Usar en chat</Link>
           </Button>
         }
       >
-        Texto/PDF → system extract. Imágenes →{" "}
-        <code className="text-violet-700">image_url</code> parts (visión). Máx 8 MB.
+        Nexus extrae el contenido de textos y PDF; las imágenes se adjuntan como
+        entrada visual para modelos compatibles. Máximo 8 MB por archivo.
       </AppPageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Archivos</div>
-          <div className="mt-1 font-mono text-lg text-zinc-700">{list.length}</div>
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">
+            Archivos
+          </div>
+          <div className="mt-1 font-mono text-lg text-zinc-700">
+            {list.length}
+          </div>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Imágenes</div>
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">
+            Imágenes
+          </div>
           <div className="mt-1 font-mono text-lg text-zinc-800">{images}</div>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Tip</div>
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">
+            Tip
+          </div>
           <div className="mt-1 text-xs leading-relaxed text-zinc-500">
             En Chat marcá el file · o pegá imagen directo
           </div>
@@ -101,14 +114,19 @@ export default function FilesPage() {
         onDrop={(e) => {
           e.preventDefault();
           setDrag(false);
-          if (e.dataTransfer.files?.length) void uploadMany(e.dataTransfer.files);
+          if (e.dataTransfer.files?.length)
+            void uploadMany(e.dataTransfer.files);
         }}
         className={`mb-4 rounded-2xl border border-dashed px-4 py-10 text-center transition-colors ${
           drag ? "border-violet-300 bg-violet-50" : "border-zinc-200 bg-white"
         }`}
       >
-        <p className="text-sm text-zinc-400">Arrastrá uno o varios archivos acá</p>
-        <p className="mt-1 text-xs text-zinc-600">PDF · texto · código · PNG/JPEG (visión)</p>
+        <p className="text-sm text-zinc-400">
+          Arrastrá uno o varios archivos acá
+        </p>
+        <p className="mt-1 text-xs text-zinc-600">
+          PDF · texto · código · PNG/JPEG (visión)
+        </p>
         <label className="mt-3 inline-block cursor-pointer text-sm text-violet-700 hover:underline">
           o elegí desde el disco
           <input
@@ -123,7 +141,11 @@ export default function FilesPage() {
             }}
           />
         </label>
-        {progress ? <p className="mt-2 font-mono text-xs text-zinc-500">Subiendo {progress}</p> : null}
+        {progress ? (
+          <p className="mt-2 font-mono text-xs text-zinc-500">
+            Subiendo {progress}
+          </p>
+        ) : null}
       </div>
 
       {msg ? <p className="mb-4 text-sm text-zinc-950">{msg}</p> : null}
@@ -146,7 +168,9 @@ export default function FilesPage() {
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-medium text-zinc-800">{f.filename}</span>
+                    <span className="truncate font-medium text-zinc-800">
+                      {f.filename}
+                    </span>
                     {img ? (
                       <span className="rounded border border-violet-200 bg-violet-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-950">
                         vision
@@ -158,7 +182,11 @@ export default function FilesPage() {
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => void showPreview(f.id, f.filename)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void showPreview(f.id, f.filename)}
+                  >
                     Preview
                   </Button>
                   <Button asChild size="sm" variant="ghost">
@@ -170,7 +198,9 @@ export default function FilesPage() {
                     description="El archivo dejará de estar disponible en el chat y no se podrá recuperar desde Nexus."
                     confirmLabel="Borrar archivo"
                     onConfirm={async () => {
-                      await fetch(`/api/v1/files?id=${f.id}`, { method: "DELETE" });
+                      await fetch(`/api/v1/files?id=${f.id}`, {
+                        method: "DELETE",
+                      });
                       if (preview?.id === f.id) setPreview(null);
                       reload();
                     }}
@@ -185,7 +215,9 @@ export default function FilesPage() {
       {preview ? (
         <section className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="text-xs text-zinc-500">Preview · {preview.filename}</div>
+            <div className="text-xs text-zinc-500">
+              Preview · {preview.filename}
+            </div>
             <button
               type="button"
               className="text-xs text-zinc-500 hover:text-zinc-800"

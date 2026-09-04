@@ -25,7 +25,12 @@ type KeyRow = {
   workspace_id: string | null;
 };
 
-type Workspace = { id: string; name: string; slug: string; isDefault?: boolean };
+type Workspace = {
+  id: string;
+  name: string;
+  slug: string;
+  isDefault?: boolean;
+};
 
 function KeysInner() {
   const params = useSearchParams();
@@ -113,13 +118,20 @@ function KeysInner() {
 
   return (
     <div>
-      <AppPageHeader title="API Keys">
-        Plaintext solo al crear, rotar o revelar welcome. Editá límite, reset y BYOK-in-limit como
-        en OpenRouter — el gateway corta al agotar.
+      <AppPageHeader title="Claves API">
+        El secreto se muestra sólo al crear, rotar o revelar la clave inicial.
+        Definí su límite de gasto, período de reinicio y si el uso con
+        proveedores propios cuenta dentro del límite.
       </AppPageHeader>
-      {welcomeNote ? <p className="mb-3 text-sm text-zinc-950">{welcomeNote}</p> : null}
+      {welcomeNote ? (
+        <p className="mb-3 text-sm text-zinc-950">{welcomeNote}</p>
+      ) : null}
       <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre" />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nombre"
+        />
         <Input
           value={limit}
           onChange={(e) => setLimit(e.target.value)}
@@ -147,7 +159,9 @@ function KeysInner() {
       </div>
       {created ? (
         <div className="mb-4 space-y-3 rounded-lg border border-violet-300 bg-violet-50 p-3">
-          <p className="font-mono text-sm break-all">Cópiala ahora: {created}</p>
+          <p className="font-mono text-sm break-all">
+            Cópiala ahora: {created}
+          </p>
           {curl ? (
             <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[11px] text-zinc-600">
               {curl}
@@ -158,9 +172,14 @@ function KeysInner() {
       <div className="grid gap-3">
         {rows.map((k) => {
           const pct =
-            k.limit != null && k.limit > 0 ? Math.min(100, (k.usage / k.limit) * 100) : 0;
+            k.limit != null && k.limit > 0
+              ? Math.min(100, (k.usage / k.limit) * 100)
+              : 0;
           return (
-            <div key={k.id} className="rounded-2xl border border-zinc-200 px-4 py-3">
+            <div
+              key={k.id}
+              className="rounded-2xl border border-zinc-200 px-4 py-3"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-lg font-semibold text-zinc-900">
@@ -186,7 +205,9 @@ function KeysInner() {
                     {k.last_used
                       ? ` · last ${new Date(k.last_used).toLocaleString()}`
                       : " · nunca usada"}
-                    {k.include_byok_in_limit ? " · BYOK cuenta" : " · BYOK fuera"}
+                    {k.include_byok_in_limit
+                      ? " · BYOK cuenta"
+                      : " · BYOK fuera"}
                     {k.limit_reset ? ` · reset ${k.limit_reset}` : ""}
                   </div>
                 </div>
@@ -206,12 +227,18 @@ function KeysInner() {
                     variant="ghost"
                     size="sm"
                     onClick={() =>
-                      void patch(k.id, { include_byok_in_limit: !k.include_byok_in_limit })
+                      void patch(k.id, {
+                        include_byok_in_limit: !k.include_byok_in_limit,
+                      })
                     }
                   >
                     BYOK {k.include_byok_in_limit ? "on" : "off"}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => void rotate(k.id)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void rotate(k.id)}
+                  >
                     Rotar
                   </Button>
                   <Button
@@ -235,11 +262,14 @@ function KeysInner() {
                 <div className="mb-1 flex justify-between text-xs text-zinc-500">
                   <span>
                     uso {formatUsd(k.usage, 4)}
-                    {k.limit != null ? ` / ${formatUsd(k.limit, 2)}` : " · sin límite"}
+                    {k.limit != null
+                      ? ` / ${formatUsd(k.limit, 2)}`
+                      : " · sin límite"}
                   </span>
                   {k.limit_remaining != null ? (
                     <span className="tabular-nums">
-                      resto {formatUsd(k.limit_remaining, 4)} · {pct.toFixed(0)}%
+                      resto {formatUsd(k.limit_remaining, 4)} · {pct.toFixed(0)}
+                      %
                     </span>
                   ) : null}
                 </div>
@@ -286,7 +316,8 @@ function KeysInner() {
                     size="sm"
                     onClick={async () => {
                       await patch(k.id, {
-                        limit: editLimit.trim() === "" ? null : Number(editLimit),
+                        limit:
+                          editLimit.trim() === "" ? null : Number(editLimit),
                         limit_reset: editReset,
                       });
                       setEditId(null);
@@ -294,7 +325,11 @@ function KeysInner() {
                   >
                     Guardar
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setEditId(null)}
+                  >
                     Cancelar
                   </Button>
                 </div>
@@ -312,7 +347,7 @@ export default function KeysPage() {
     <Suspense
       fallback={
         <div>
-          <AppPageHeader title="API Keys">Cargando…</AppPageHeader>
+          <AppPageHeader title="Claves API">Cargando…</AppPageHeader>
         </div>
       }
     >

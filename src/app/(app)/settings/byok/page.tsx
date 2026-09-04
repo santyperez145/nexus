@@ -28,18 +28,27 @@ export default function ByokPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [rowsData, reloadRows, rowsError] = useRemoteData<Row[]>("/api/v1/byok");
-  const [labsData, reloadLabs, labsError] = useRemoteData<Lab[]>("/api/v1/providers");
+  const [rowsData, reloadRows, rowsError] =
+    useRemoteData<Row[]>("/api/v1/byok");
+  const [labsData, reloadLabs, labsError] =
+    useRemoteData<Lab[]>("/api/v1/providers");
   const [workspaceData, reloadWorkspaces, workspaceError] =
     useRemoteData<Workspace[]>("/api/v1/workspaces");
   const rows = rowsData ?? [];
   const labs = labsData?.length
-    ? [...labsData, ...(labsData.some((lab) => lab.name === "fal") ? [] : [{ name: "fal", label: "fal.ai" }])]
+    ? [
+        ...labsData,
+        ...(labsData.some((lab) => lab.name === "fal")
+          ? []
+          : [{ name: "fal", label: "fal.ai" }]),
+      ]
     : [
         { name: "openai", label: "OpenAI" },
         { name: "fal", label: "fal.ai" },
       ];
-  const workspaces = (workspaceData ?? []).filter((workspace) => workspace.can_manage !== false);
+  const workspaces = (workspaceData ?? []).filter(
+    (workspace) => workspace.can_manage !== false,
+  );
   const selectedProvider = labs.some((lab) => lab.name === provider)
     ? provider
     : (labs[0]?.name ?? provider);
@@ -66,7 +75,10 @@ export default function ByokPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error?.message ?? "No se pudo guardar la credencial");
+      if (!res.ok)
+        throw new Error(
+          json.error?.message ?? "No se pudo guardar la credencial",
+        );
       setMsg(
         json.data?.replaced
           ? "Credencial reemplazada. La anterior fue invalidada."
@@ -76,7 +88,11 @@ export default function ByokPage() {
       setLabel("");
       reload();
     } catch (reason) {
-      setMsg(reason instanceof Error ? reason.message : "No se pudo guardar la credencial");
+      setMsg(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo guardar la credencial",
+      );
     } finally {
       setSaving(false);
     }
@@ -95,12 +111,19 @@ export default function ByokPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error?.message ?? "No se pudo calcular la ruta");
+      if (!res.ok)
+        throw new Error(json.error?.message ?? "No se pudo calcular la ruta");
       const hops = json.data?.hops ?? [];
       const wired = hops.filter((h: { wired?: boolean }) => h.wired).length;
-      setPreview(`Ruta lista · ${hops.length} opciones · ${wired} con credencial disponible`);
+      setPreview(
+        `Ruta lista · ${hops.length} opciones · ${wired} con credencial disponible`,
+      );
     } catch (reason) {
-      setPreview(reason instanceof Error ? reason.message : "No se pudo calcular la ruta");
+      setPreview(
+        reason instanceof Error
+          ? reason.message
+          : "No se pudo calcular la ruta",
+      );
     }
   }
 
@@ -108,14 +131,15 @@ export default function ByokPage() {
 
   return (
     <div>
-      <AppPageHeader title="BYOK">
-        Conectá tus propias credenciales de proveedor. Nexus las cifra en reposo y las mantiene
-        separadas por cuenta o espacio de trabajo. Comisión BYOK: {feePct}% sobre el precio de lista.
+      <AppPageHeader title="Proveedores propios">
+        Conectá tus propias credenciales de proveedor. Nexus las cifra en reposo
+        y las mantiene separadas por cuenta o espacio de trabajo. La comisión
+        por uso es del {feePct}% sobre el precio de lista.
       </AppPageHeader>
 
       <div className="mb-4 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600">
-        Las credenciales nunca vuelven a mostrarse. Guardar otra del mismo proveedor y ámbito
-        reemplaza la anterior de forma segura.{" "}
+        Las credenciales nunca vuelven a mostrarse. Guardar otra del mismo
+        proveedor y ámbito reemplaza la anterior de forma segura.{" "}
         <Link href="/docs/limits" className="text-violet-700 hover:underline">
           Ver precios y límites
         </Link>
@@ -148,17 +172,34 @@ export default function ByokPage() {
             </option>
           ))}
         </select>
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nombre opcional" />
-        <Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Credencial del proveedor" type="password" />
+        <Input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Nombre opcional"
+        />
+        <Input
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder="Credencial del proveedor"
+          type="password"
+        />
         <div className="flex gap-2">
-          <Button className="flex-1" onClick={() => void save()} disabled={!key.trim() || saving}>
+          <Button
+            className="flex-1"
+            onClick={() => void save()}
+            disabled={!key.trim() || saving}
+          >
             {saving ? "Guardando…" : "Guardar"}
           </Button>
           <Button
             variant="outline"
             onClick={() => void testRoute()}
             disabled={Boolean(workspaceId)}
-            title={workspaceId ? "Probá esta conexión con una clave del espacio" : undefined}
+            title={
+              workspaceId
+                ? "Probá esta conexión con una clave del espacio"
+                : undefined
+            }
           >
             Probar ruta
           </Button>
@@ -192,14 +233,20 @@ export default function ByokPage() {
                 {r.label ?? "—"}
                 {` · ${
                   r.workspace_id
-                    ? (workspaces.find((workspace) => workspace.id === r.workspace_id)?.name ?? "Espacio compartido")
+                    ? (workspaces.find(
+                        (workspace) => workspace.id === r.workspace_id,
+                      )?.name ?? "Espacio compartido")
                     : "Mi cuenta"
                 }`}
-                {r.created_at ? ` · ${new Date(r.created_at).toISOString().slice(0, 10)}` : ""}
+                {r.created_at
+                  ? ` · ${new Date(r.created_at).toISOString().slice(0, 10)}`
+                  : ""}
               </div>
             </div>
             {r.can_manage === false ? (
-              <span className="text-xs text-zinc-500">Administrada por el equipo</span>
+              <span className="text-xs text-zinc-500">
+                Administrada por el equipo
+              </span>
             ) : (
               <ConfirmAction
                 triggerLabel="Quitar"
@@ -208,15 +255,24 @@ export default function ByokPage() {
                 confirmLabel="Quitar credencial"
                 onConfirm={async () => {
                   try {
-                    const response = await fetch(`/api/v1/byok?id=${r.id}`, { method: "DELETE" });
+                    const response = await fetch(`/api/v1/byok?id=${r.id}`, {
+                      method: "DELETE",
+                    });
                     const json = await response.json();
                     if (!response.ok) {
-                      throw new Error(json.error?.message ?? "No se pudo quitar la credencial");
+                      throw new Error(
+                        json.error?.message ??
+                          "No se pudo quitar la credencial",
+                      );
                     }
                     setMsg("Credencial eliminada.");
                     reload();
                   } catch (reason) {
-                    setMsg(reason instanceof Error ? reason.message : "No se pudo quitar la credencial");
+                    setMsg(
+                      reason instanceof Error
+                        ? reason.message
+                        : "No se pudo quitar la credencial",
+                    );
                   }
                 }}
               />
@@ -225,8 +281,12 @@ export default function ByokPage() {
         ))}
         {!rows.length && !loadError ? (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-500">
-            Todavía no conectaste credenciales propias. Podés agregar una arriba o usar las{" "}
-            <Link href="/settings/connections" className="text-violet-700 hover:underline">
+            Todavía no conectaste credenciales propias. Podés agregar una arriba
+            o usar las{" "}
+            <Link
+              href="/settings/connections"
+              className="text-violet-700 hover:underline"
+            >
               conexiones de Nexus
             </Link>
             .
