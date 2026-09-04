@@ -1,10 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { allModels } from "../src/lib/catalog";
+import { isTextModelExecutionReady } from "../src/lib/catalog/presentation";
 import type { AuthContext } from "../src/lib/gateway/types";
 import {
   canExecuteHubSpace,
   canReadHubSpace,
   resolveExecutableSpaceModel,
+  resolveExecutableSpaceModelFromCatalog,
   type HubSpace,
 } from "../src/lib/hub/space-store";
 import { createSpaceSchema, runSpaceSchema, updateSpaceSchema } from "../src/lib/hub/spaces";
@@ -89,5 +92,18 @@ describe("Spaces contract", () => {
   it("only publishes executable text models", () => {
     assert.equal(resolveExecutableSpaceModel("nexus/auto"), "nexus/auto");
     assert.throws(() => resolveExecutableSpaceModel("missing/provider-model"), /not an executable text model/);
+    const source = allModels().find(
+      (model) => !model.id.startsWith("nexus/") && isTextModelExecutionReady(model),
+    )!;
+    const managed = {
+      ...source,
+      id: "managed/runtime-model",
+      author: "managed",
+      canonicalSlug: "managed/runtime-model",
+    };
+    assert.equal(
+      resolveExecutableSpaceModelFromCatalog("managed/runtime-model", [managed]),
+      "managed/runtime-model",
+    );
   });
 });

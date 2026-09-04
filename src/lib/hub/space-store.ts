@@ -1,5 +1,10 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { findModel, resolveModelSlug } from "@/lib/catalog";
+import { allModels, type CatalogModel } from "@/lib/catalog";
+import {
+  allRuntimeModels,
+  findModelInCatalog,
+  resolveModelSlugFromCatalog,
+} from "@/lib/catalog/runtime";
 import { isTextModelExecutionReady } from "@/lib/catalog/presentation";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import { resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
@@ -62,9 +67,12 @@ function combine(space: Space, namespace: Namespace): HubSpace {
   };
 }
 
-export function resolveExecutableSpaceModel(value: string) {
-  const resolved = resolveModelSlug(value);
-  const model = findModel(resolved);
+export function resolveExecutableSpaceModelFromCatalog(
+  value: string,
+  catalog: CatalogModel[],
+) {
+  const resolved = resolveModelSlugFromCatalog(value, catalog);
+  const model = findModelInCatalog(resolved, catalog);
   if (!model || !isTextModelExecutionReady(model)) {
     throw Object.assign(new Error("space model is not an executable text model"), {
       status: 400,
@@ -72,6 +80,15 @@ export function resolveExecutableSpaceModel(value: string) {
     });
   }
   return resolved;
+}
+
+/** Kept synchronous for bundled-catalog validation and unit tests. */
+export function resolveExecutableSpaceModel(value: string) {
+  return resolveExecutableSpaceModelFromCatalog(value, allModels());
+}
+
+export async function resolveRuntimeExecutableSpaceModel(value: string) {
+  return resolveExecutableSpaceModelFromCatalog(value, await allRuntimeModels());
 }
 
 export function publicSpace(space: HubSpace) {
@@ -169,7 +186,7 @@ export async function createHubSpace(auth: AuthContext, input: SpaceCreate) {
   const workspaceId = await resolveOwnedWorkspace(auth, input.workspace_id);
   const namespaceSlug = hubSlug(input.namespace, "namespace");
   const spaceSlug = hubSlug(input.slug, "space");
-  const model = resolveExecutableSpaceModel(input.model);
+  const model = await resolveRuntimeExecutableSpaceModel(input.model);
   try {
     return await withTransaction(async (tx) => {
       const namespace = await ownedHubNamespace(
@@ -223,13 +240,16 @@ export async function updateHubSpace(
   patch: SpacePatch,
 ) {
   const space = await assertHubSpaceMutation(auth, namespace, slug);
+  const model = patch.model === undefined
+    ? undefined
+    : await resolveRuntimeExecutableSpaceModel(patch.model);
   await db
     .update(schema.hubSpaces)
     .set({
       ...(patch.title !== undefined ? { title: patch.title } : {}),
       ...(patch.description !== undefined ? { description: patch.description } : {}),
       ...(patch.visibility !== undefined ? { visibility: patch.visibility } : {}),
-      ...(patch.model !== undefined ? { model: resolveExecutableSpaceModel(patch.model) } : {}),
+      ...(model !== undefined ? { model } : {}),
       ...(patch.system_prompt !== undefined ? { systemPrompt: patch.system_prompt } : {}),
       ...(patch.starter_prompt !== undefined ? { starterPrompt: patch.starter_prompt || null } : {}),
       ...(patch.temperature !== undefined

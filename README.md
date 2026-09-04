@@ -95,6 +95,9 @@ readiness modificados cambian el hash del contrato y revocan la aprobación hast
 La sonda recurrente del cron de health vuelve a descubrir esos contratos y una falla retira el
 proveedor del routing sin exponer ni devolver su secreto. El precio de lista se traslada sin markup:
 el ingreso de Nexus continúa siendo el 5% transparente en recargas y uso BYOK.
+Los modelos gestionados verificados alimentan el mismo catálogo runtime de Chat, Responses, Messages,
+comparación, rankings, Spaces y promociones del Hub; una suspensión o expiración de salud los retira
+de todos esos consumidores sin dejar referencias ejecutables parciales.
 
 Cada despliegue ejecuta `node scripts/migrate.mjs migrate` como predeploy y no inicia la nueva versión
 si el esquema no coincide con el snapshot de Drizzle. En producción `DATABASE_URL_UNPOOLED` es

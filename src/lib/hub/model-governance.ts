@@ -1,6 +1,11 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { findModel } from "@/lib/catalog";
+import type { CatalogModel } from "@/lib/catalog";
+import {
+  allRuntimeModels,
+  findModelInCatalog,
+  findRuntimeModel,
+} from "@/lib/catalog/runtime";
 import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import type { AuthContext } from "@/lib/gateway/types";
@@ -264,7 +269,7 @@ export async function createModelPromotion(
       code: "promotion_requirements_failed",
     });
   }
-  const runtimeModel = findModel(input.runtime_model_id);
+  const runtimeModel = await findRuntimeModel(input.runtime_model_id);
   if (!runtimeModel || !isModelExecutionReady(runtimeModel)) {
     throw Object.assign(new Error("runtime_model_id must reference an executable, price-verified catalog model"), {
       status: 409,
@@ -417,6 +422,7 @@ async function promotionEvidence(
   repository: ModelRepository,
   revision: Revision,
   runtimeModelId: string,
+  runtimeCatalog: CatalogModel[],
 ) {
   const artifacts = await tx
     .select({
@@ -436,7 +442,7 @@ async function promotionEvidence(
         eq(schema.hubModelEvaluations.status, "verified"),
       ),
     );
-  const runtimeModel = findModel(runtimeModelId);
+  const runtimeModel = findModelInCatalog(runtimeModelId, runtimeCatalog);
   return buildPromotionChecklist({
     repository,
     revision,
@@ -452,6 +458,7 @@ export async function reviewModelPromotion(input: {
   decision: "approved" | "rejected";
   note: string;
 }) {
+  const runtimeCatalog = await allRuntimeModels();
   return withTransaction(async (tx) => {
     await tx.execute(sql`SELECT id FROM hub_model_promotion_request WHERE id = ${input.promotionId} FOR UPDATE`);
     const [row] = await tx
@@ -477,7 +484,13 @@ export async function reviewModelPromotion(input: {
       namespaceDisplayName: row.namespace.displayName,
       namespaceVerified: row.namespace.verified,
     };
-    const checklist = await promotionEvidence(tx, repository, row.revision, row.promotion.runtimeModelId);
+    const checklist = await promotionEvidence(
+      tx,
+      repository,
+      row.revision,
+      row.promotion.runtimeModelId,
+      runtimeCatalog,
+    );
     const reviewedAt = new Date();
     if (input.decision === "approved") {
       const failed = Object.entries(checklist).filter(([, passed]) => !passed).map(([name]) => name);
