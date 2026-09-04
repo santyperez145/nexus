@@ -34,12 +34,25 @@ describe("production readiness configuration", () => {
 
   it("accepts a complete production control-plane configuration", () => {
     assert.deepEqual(productionConfigIssues(productionEnv), []);
+    assert.deepEqual(
+      productionConfigIssues({ ...productionEnv, NEXUS_OBJECT_STORAGE_REQUIRED: "true" }),
+      ["object_storage"],
+    );
+    assert.deepEqual(
+      productionConfigIssues({
+        ...productionEnv,
+        NEXUS_OBJECT_STORAGE_REQUIRED: "true",
+        NEXUS_OBJECT_STORAGE_BUCKET: "nexus-artifacts",
+      }),
+      [],
+    );
   });
 
   it("reports commercial capabilities without treating them as process health", () => {
     assert.deepEqual(configuredCapabilities(productionEnv), {
       inferenceConfigured: false,
       commerceConfigured: false,
+      artifactStorageConfigured: false,
     });
     assert.deepEqual(
       configuredCapabilities({
@@ -51,7 +64,7 @@ describe("production readiness configuration", () => {
         STRIPE_PRICE_TEAM_MONTHLY: "price_team",
         STRIPE_PORTAL_CONFIGURATION_ID: "bpc_nexus",
       }),
-      { inferenceConfigured: true, commerceConfigured: true },
+      { inferenceConfigured: true, commerceConfigured: true, artifactStorageConfigured: false },
     );
   });
 
@@ -64,12 +77,14 @@ describe("production readiness configuration", () => {
         configuration: { ok: true, latencyMs: 0 },
         database: { ok: true, latencyMs: 1 },
         redis: { ok: true, latencyMs: 1 },
+        objectStorage: { ok: true, latencyMs: 0, detail: "optional_unconfigured" },
       },
       capabilities: {
         inferenceConfigured: false,
         inferenceOperational: false,
         commerceConfigured: false,
         commerceOperational: false,
+        artifactStorageConfigured: false,
       },
     };
     assert.equal(commercialLaunchReady(snapshot), false);
@@ -81,6 +96,7 @@ describe("production readiness configuration", () => {
           inferenceOperational: true,
           commerceConfigured: true,
           commerceOperational: true,
+          artifactStorageConfigured: false,
         },
       }),
       true,
@@ -93,6 +109,7 @@ describe("production readiness configuration", () => {
           inferenceOperational: false,
           commerceConfigured: true,
           commerceOperational: true,
+          artifactStorageConfigured: false,
         },
       }),
       false,
@@ -108,12 +125,14 @@ describe("production readiness configuration", () => {
         configuration: { ok: true, latencyMs: 0 },
         database: { ok: true, latencyMs: 1 },
         redis: { ok: true, latencyMs: 1 },
+        objectStorage: { ok: true, latencyMs: 0, detail: "optional_unconfigured" },
       },
       capabilities: {
         inferenceConfigured: true,
         inferenceOperational: false,
         commerceConfigured: true,
         commerceOperational: true,
+        artifactStorageConfigured: false,
       },
     };
     assert.equal(inferencePlaneReady(snapshot), false);

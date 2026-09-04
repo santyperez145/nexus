@@ -28,6 +28,7 @@ export async function GET(req: Request, { params }: Context) {
     return Response.json({
       data: {
         ...publicDataset(repository),
+        ...(access.manager ? { workspace_id: repository.workspaceId } : {}),
         access,
         revisions: revisions.map((revision) => ({
           revision: revision.revision,

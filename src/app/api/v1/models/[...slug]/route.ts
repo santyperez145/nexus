@@ -55,6 +55,7 @@ export async function GET(req: Request, ctx: Context) {
       return Response.json({
         data: {
           ...publicModelRepository(repository),
+          ...(access.manager ? { workspace_id: repository.workspaceId } : {}),
           access,
           revisions: revisions.map((revision) => ({
             revision: revision.revision,

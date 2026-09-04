@@ -1,6 +1,8 @@
 import { inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { extractFileText } from "@/lib/files/extract";
+import { readArtifact } from "@/lib/files/blob-store";
+import { INLINE_FILE_MAX_BYTES } from "@/lib/files/store";
 import type { AuthContext, ChatMessage, ChatRequest } from "./types";
 import { canAccess } from "./tenant";
 
@@ -76,8 +78,34 @@ export async function attachUserFiles(
     });
   }
 
-  const imageFiles = owned.filter((f) => f.content && isImageMime(f.mime, f.filename));
-  const textFiles = owned.filter((f) => !imageFiles.includes(f));
+  if (owned.some((file) => file.status !== "ready")) {
+    throw Object.assign(new Error("One or more attached files are not ready"), {
+      status: 409,
+      code: "artifact_not_ready",
+    });
+  }
+  if (owned.some((file) => file.size > INLINE_FILE_MAX_BYTES)) {
+    throw Object.assign(new Error("Hub artifacts larger than 8 MB cannot be attached to inference"), {
+      status: 413,
+      code: "file_too_large_for_inference",
+    });
+  }
+  const hydrated = await Promise.all(
+    owned.map(async (file) => {
+      if (file.content) return file;
+      if (file.storageBackend === "s3" && file.storageKey) {
+        const bytes = await readArtifact(file.storageKey);
+        return { ...file, content: Buffer.from(bytes).toString("base64") };
+      }
+      throw Object.assign(new Error(`File content is unavailable: ${file.id}`), {
+        status: 410,
+        code: "content_unavailable",
+      });
+    }),
+  );
+
+  const imageFiles = hydrated.filter((f) => isImageMime(f.mime, f.filename));
+  const textFiles = hydrated.filter((f) => !imageFiles.includes(f));
 
   let next = messages;
   if (textFiles.length) {

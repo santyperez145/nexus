@@ -112,7 +112,7 @@ curl "$NEXUS_URL/api/v1/videos?id=$JOB" \\
           <li>Cada call deja generation en Activity / Analytics (mismo ledger que chat).</li>
           <li>
             Files para contexto de chat:{" "}
-            <code className="text-zinc-800">POST /api/v1/files</code> (max 8MB) +{" "}
+            <code className="text-zinc-800">POST /api/v1/files</code> (multipart hasta 8 MB) +{" "}
             <code className="text-zinc-800">file_ids</code> en completions.
           </li>
           <li>

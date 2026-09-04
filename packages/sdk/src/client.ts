@@ -142,6 +142,11 @@ export class Nexus {
     }
     return json as T;
   }
+
+  /** Used by SDK resources for already-authorized, provider-hosted transfer URLs. */
+  fetchSigned(url: string, init: RequestInit) {
+    return this.#fetch(url, init);
+  }
 }
 
 class ChatResource {
@@ -441,6 +446,59 @@ class FilesResource {
       method: "POST",
       form,
     });
+  }
+  createUpload(input: {
+    filename: string;
+    mime?: string;
+    bytes: number;
+    sha256: string;
+    workspace_id?: string | null;
+  }) {
+    return this.client.request<{
+      data: {
+        id: string;
+        filename: string;
+        bytes: number;
+        status: "pending";
+        storage_backend: "s3";
+        sha256: string;
+        upload: {
+          method: "PUT";
+          url: string;
+          headers: Record<string, string>;
+          expires_at: string;
+        };
+      };
+    }>("/files/uploads", { method: "POST", body: input });
+  }
+  completeUpload(id: string) {
+    return this.client.request<{ data: unknown }>(`/files/uploads/${encodeURIComponent(id)}/complete`, {
+      method: "POST",
+    });
+  }
+  async uploadArtifact(
+    file: Blob,
+    input: { filename: string; sha256: string; workspace_id?: string | null },
+  ) {
+    const reservation = await this.createUpload({
+      filename: input.filename,
+      mime: file.type || "application/octet-stream",
+      bytes: file.size,
+      sha256: input.sha256,
+      workspace_id: input.workspace_id,
+    });
+    const uploaded = await this.client.fetchSigned(reservation.data.upload.url, {
+      method: reservation.data.upload.method,
+      headers: reservation.data.upload.headers,
+      body: file,
+    });
+    if (!uploaded.ok) {
+      throw new NexusError(`Object storage rejected the upload (${uploaded.status})`, {
+        status: uploaded.status,
+        code: "object_storage_error",
+      });
+    }
+    return this.completeUpload(reservation.data.id);
   }
   delete(id: string) {
     return this.client.request<{ data: { success: boolean } }>("/files", { method: "DELETE", query: { id } });

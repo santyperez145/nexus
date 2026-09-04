@@ -30,7 +30,7 @@ export default function LimitsDocsPage() {
           </li>
           <li>Keys: límite opcional por key (USD / requests) + reset programado.</li>
           <li>Workspaces: budget diario/mensual; BYOK respeta techo del workspace.</li>
-          <li>Files: máx 8 MB por archivo (Postgres base64 en esta versión).</li>
+          <li>Files: 8 MB vía multipart o hasta 5 GiB vía upload directo S3-compatible con SHA-256.</li>
           <li>
             Guardrails: techo de costo por request + allow/block de slugs antes del lab.
           </li>
@@ -54,7 +54,7 @@ curl $NEXUS_URL/api/internal/rate-limits \\
             ["RPD :free", `${FREE_MODEL_RPD_NO_CREDITS} / ${FREE_MODEL_RPD_WITH_CREDITS} según saldo`],
             ["Key limit", "USD spend o requests; include_byok_in_limit opcional"],
             ["Workspace", "Budget interval day|month; corta con 402"],
-            ["Files", "8 MB · extract PDF/text · image/* → vision parts"],
+            ["Files", "1/25/250 GiB por plan · SHA-256 · 5 GiB por upload directo"],
             ["Scopes", "inference, management:read y management:write por API key"],
           ].map(([k, v], i) => (
             <div

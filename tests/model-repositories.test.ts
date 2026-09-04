@@ -105,6 +105,18 @@ before(async () => {
       size: 7,
       content: Buffer.from("foreign").toString("base64"),
     },
+    {
+      id: "file_model_pending",
+      userId: "usr_model_owner",
+      filename: "pending.safetensors",
+      mime: "application/octet-stream",
+      size: 128,
+      storageBackend: "s3",
+      storageKey: "nexus-artifacts/users/usr_model_owner/file_model_pending",
+      checksumSha256: "a".repeat(64),
+      status: "pending",
+      uploadExpiresAt: new Date(Date.now() + 60_000),
+    },
   ]);
 });
 
@@ -172,6 +184,20 @@ describe("versioned model repositories", () => {
       context("nexus-community", "spanish-7b"),
     );
     assert.equal(foreign.status, 404);
+
+    const pending = await revisions.POST(
+      modelRequest("/nexus-community/spanish-7b/revisions", ownerToken, {
+        method: "POST",
+        body: JSON.stringify({
+          commit_message: "Do not publish incomplete weights",
+          files: [{ file_id: "file_model_pending", path: "weights/pending.safetensors" }],
+        }),
+      }),
+      context("nexus-community", "spanish-7b"),
+    );
+    assert.equal(pending.status, 409);
+    const pendingJson = (await pending.json()) as { error: { code: string } };
+    assert.equal(pendingJson.error.code, "artifact_not_ready");
 
     const created = await revisions.POST(
       modelRequest("/nexus-community/spanish-7b/revisions", ownerToken, {

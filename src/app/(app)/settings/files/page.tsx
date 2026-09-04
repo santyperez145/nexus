@@ -6,8 +6,27 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { useRemoteData } from "@/lib/use-remote-data";
+import { uploadNexusFile } from "@/lib/files/browser-upload";
 
-type FileRow = { id: string; filename: string; bytes: number; mime?: string };
+type FileRow = {
+  id: string;
+  filename: string;
+  bytes: number;
+  mime?: string;
+  status: string;
+  storage_backend: string;
+  sha256?: string | null;
+};
+type FilesMeta = {
+  storage: {
+    used_bytes: number;
+    quota_bytes: number;
+    available_bytes: number;
+    direct_upload: boolean;
+    inline_max_bytes: number;
+    direct_max_bytes: number;
+  };
+};
 
 function isImage(mime?: string, filename?: string) {
   return Boolean(
@@ -19,11 +38,12 @@ function isImage(mime?: string, filename?: string) {
 function fmtBytes(n: number) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
+  return `${(n / 1024 ** 3).toFixed(1)} GB`;
 }
 
 export default function FilesPage() {
-  const [rows, reload] = useRemoteData<FileRow[]>("/api/v1/files");
+  const [rows, reload, , meta] = useRemoteData<FileRow[], FilesMeta>("/api/v1/files");
   const [msg, setMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<{
     id: string;
@@ -41,13 +61,15 @@ export default function FilesPage() {
       if (!batch.length) return;
       let ok = 0;
       for (let i = 0; i < batch.length; i++) {
-        setProgress(`${i + 1}/${batch.length}`);
-        const body = new FormData();
-        body.append("file", batch[i]);
-        const res = await fetch("/api/v1/files", { method: "POST", body });
-        const json = await res.json();
-        if (json.data) ok += 1;
-        else setMsg(json.error?.message ?? "error");
+        try {
+          await uploadNexusFile(batch[i], {
+            onProgress: (value) =>
+              setProgress(`${i + 1}/${batch.length} · ${Math.round(value * 100)}%`),
+          });
+          ok += 1;
+        } catch (error) {
+          setMsg(error instanceof Error ? error.message : "No se pudo subir el archivo");
+        }
       }
       setProgress(null);
       setMsg(`Subidos ${ok}/${batch.length}`);
@@ -77,7 +99,8 @@ export default function FilesPage() {
         }
       >
         Nexus extrae el contenido de textos y PDF; las imágenes se adjuntan como
-        entrada visual para modelos compatibles. Máximo 8 MB por archivo.
+        entrada visual para modelos compatibles. Los artefactos grandes usan carga directa
+        S3-compatible con SHA-256, hasta 5 GiB por archivo según plan.
       </AppPageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
@@ -96,11 +119,9 @@ export default function FilesPage() {
           <div className="mt-1 font-mono text-lg text-zinc-800">{images}</div>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">
-            Tip
-          </div>
+          <div className="text-[10px] uppercase tracking-[0.12em] text-zinc-600">Storage</div>
           <div className="mt-1 text-xs leading-relaxed text-zinc-500">
-            En Chat marcá el file · o pegá imagen directo
+            {meta ? `${fmtBytes(meta.storage.used_bytes)} / ${fmtBytes(meta.storage.quota_bytes)} · ${meta.storage.direct_upload ? "S3 directo" : "local 8 MB"}` : "Calculando cuota…"}
           </div>
         </div>
       </div>
@@ -125,14 +146,13 @@ export default function FilesPage() {
           Arrastrá uno o varios archivos acá
         </p>
         <p className="mt-1 text-xs text-zinc-600">
-          PDF · texto · código · PNG/JPEG (visión)
+          Safetensors · GGUF · Parquet · PDF · texto · código · imágenes
         </p>
         <label className="mt-3 inline-block cursor-pointer text-sm text-violet-700 hover:underline">
           o elegí desde el disco
           <input
             type="file"
             multiple
-            accept="image/*,.pdf,.txt,.md,.json,.csv,text/*"
             className="hidden"
             aria-label="Subir archivos"
             onChange={(e) => {
@@ -176,10 +196,17 @@ export default function FilesPage() {
                         vision
                       </span>
                     ) : null}
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${f.status === "ready" ? "bg-emerald-50 text-emerald-700" : f.status === "pending" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}>
+                      {f.status}
+                    </span>
+                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] uppercase text-zinc-600">
+                      {f.storage_backend}
+                    </span>
                   </div>
                   <div className="font-mono text-[11px] text-zinc-600">
                     {f.id} · {fmtBytes(f.bytes)} · {f.mime ?? "—"}
                   </div>
+                  {f.sha256 ? <div className="max-w-xl truncate font-mono text-[10px] text-zinc-400">sha256:{f.sha256}</div> : null}
                 </div>
                 <div className="flex gap-1">
                   <Button
@@ -192,6 +219,7 @@ export default function FilesPage() {
                   <Button asChild size="sm" variant="ghost">
                     <Link href="/chat">Chat</Link>
                   </Button>
+                  {f.status === "ready" ? <Button asChild size="sm" variant="ghost"><Link href={`/api/v1/files/${encodeURIComponent(f.id)}/content`}>Descargar</Link></Button> : null}
                   <ConfirmAction
                     triggerLabel="Borrar"
                     title={`Borrar ${f.filename}`}

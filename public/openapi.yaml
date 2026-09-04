@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.17.0
+  version: 0.18.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference. The X-Nexus-Guest local echo is development-only and disabled in production.
 servers:
   - url: /api/v1
@@ -196,6 +196,7 @@ paths:
   /models/count:
     get:
       summary: Catalog size
+      security: []
       responses:
         "200":
           description: Count
@@ -240,6 +241,7 @@ paths:
   /models/{author}/{slug}/endpoints:
     get:
       summary: Hosts that can serve a model slug
+      security: []
       parameters:
         - in: path
           name: author
@@ -332,7 +334,7 @@ paths:
       - in: path
         name: revision
         required: true
-        schema: { type: string, description: Revision number, SHA, or main }
+        schema: { type: string, description: "Revision number, SHA, or main" }
       - in: path
         name: path
         required: true
@@ -348,6 +350,7 @@ paths:
   /providers:
     get:
       summary: Inference hosts
+      security: []
       responses:
         "200":
           description: Provider list with wired + model_count
@@ -370,6 +373,9 @@ paths:
   /shares:
     get:
       summary: List own shares (auth) or read one public share (?id=)
+      security:
+        - bearerAuth: []
+        - {}
       parameters:
         - in: query
           name: id
@@ -378,6 +384,7 @@ paths:
         "200": { description: Share list or single payload }
     post:
       summary: Create a public read-only chat share
+      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -406,6 +413,7 @@ paths:
   /status:
     get:
       summary: Instance wiring status
+      security: []
       responses:
         "200": { description: Providers and infra flags }
   /credits:
@@ -413,7 +421,7 @@ paths:
       summary: Remaining credits
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: total_credits, total_usage, remaining }
+        "200": { description: "total_credits, total_usage, remaining" }
   /generation:
     get:
       summary: Generation stats
@@ -424,7 +432,7 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        "200": { description: Usage, cost, provider, latency }
+        "200": { description: "Usage, cost, provider, latency" }
   /generations:
     get:
       summary: Recent generations
@@ -505,7 +513,7 @@ paths:
       summary: Current key stats
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Label, usage, limit }
+        "200": { description: "Label, usage, limit" }
   /byok:
     get:
       summary: BYOK credentials
@@ -607,18 +615,72 @@ paths:
         - in: query
           name: id
           schema: { type: string }
+        - in: query
+          name: workspace_id
+          schema: { type: string }
+          description: Restrict listing and quota metadata to one accessible workspace
       responses:
-        "200": { description: File metadata }
+        "200": { description: File metadata plus tenant storage usage and quota }
     post:
-      summary: Upload a file (multipart, max 8MB)
+      summary: Upload a small file (multipart, max 8 MB)
+      description: Computes SHA-256 server-side. Uses S3-compatible object storage when configured and a Postgres fallback otherwise.
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: File id }
+        "201": { description: Ready file with digest and storage metadata }
     delete:
       summary: Delete a file
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: success }
+        "409": { description: File is referenced by an immutable Hub revision }
+  /files/uploads:
+    post:
+      summary: Reserve a direct artifact upload (max 5 GiB)
+      description: Reserves tenant quota transactionally and returns a short-lived S3-compatible PUT URL. The SHA-256 header is signed and verified by object storage.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, bytes, sha256]
+              properties:
+                filename: { type: string, maxLength: 512 }
+                mime: { type: string, default: application/octet-stream }
+                bytes: { type: integer, minimum: 1, maximum: 5368709120 }
+                sha256: { type: string, pattern: "^[a-fA-F0-9]{64}$" }
+                workspace_id: { type: [string, "null"] }
+      responses:
+        "201": { description: Pending file and signed PUT request }
+        "413": { description: Artifact exceeds plan quota or direct-upload size }
+        "503": { description: Object storage is not configured }
+  /files/uploads/{id}/complete:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    post:
+      summary: Verify and finalize a direct artifact upload
+      description: HEAD-verifies exact byte length and SHA-256 before making the artifact revision-eligible.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Ready file metadata }
+        "409": { description: "Size, checksum, or upload state mismatch" }
+  /files/{id}/content:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      summary: Download a tenant-accessible ready file
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Database-backed file bytes }
+        "307": { description: Redirect to a short-lived signed object URL }
+        "409": { description: Upload is not ready }
   /analytics:
     get:
       summary: Usage totals by model, provider, and day
@@ -680,6 +742,9 @@ paths:
   /oauth:
     post:
       summary: Issue PKCE code or exchange for an API key
+      security:
+        - bearerAuth: []
+        - {}
       responses:
         "200": { description: code or key }
   /completions:
@@ -906,7 +971,7 @@ paths:
       - in: path
         name: revision
         required: true
-        schema: { type: string, description: Revision number, SHA, or main }
+        schema: { type: string, description: "Revision number, SHA, or main" }
       - in: path
         name: path
         required: true

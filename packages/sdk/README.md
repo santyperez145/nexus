@@ -54,6 +54,22 @@ await nexus.chat.completions.create({
 });
 ```
 
+Artefactos grandes (reserva de cuota → PUT firmado → verificación):
+
+```ts
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+
+const bytes = await readFile("model.safetensors");
+await nexus.files.uploadArtifact(new Blob([bytes]), {
+  filename: "model.safetensors",
+  sha256: createHash("sha256").update(bytes).digest("hex"),
+});
+```
+
+La suma SHA-256 es obligatoria: forma parte de la firma del upload y Nexus no habilita el archivo
+hasta que object storage confirma checksum y longitud exactos.
+
 ## Recursos
 
 | Método | API |
@@ -72,7 +88,7 @@ await nexus.chat.completions.create({
 | `nexus.videos.create` / `.get` | `/videos` |
 | `nexus.keys.list` / `.create` / `.rotate` / `.update` / `.delete` | `/keys` |
 | `nexus.providers.list` / `.health` | `/providers` |
-| `nexus.files.list` / `.upload` / `.delete` | `/files` |
+| `nexus.files.list` / `.upload` / `.createUpload` / `.completeUpload` / `.uploadArtifact` / `.delete` | `/files` |
 | `nexus.analytics.get(days?)` | `/analytics` |
 | `nexus.presets.*` | `/presets` |
 | `nexus.guardrails.*` | `/guardrails` |

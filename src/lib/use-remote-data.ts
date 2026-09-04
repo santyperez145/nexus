@@ -2,16 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-type RemoteEnvelope<T> = {
+type RemoteEnvelope<T, M> = {
   data?: T;
+  meta?: M;
   error?: { message?: string };
 };
 
-async function readRemoteData<T>(path: string, signal?: AbortSignal) {
+async function readRemoteData<T, M>(path: string, signal?: AbortSignal) {
   const response = await fetch(path, { signal });
-  let json: RemoteEnvelope<T>;
+  let json: RemoteEnvelope<T, M>;
   try {
-    json = (await response.json()) as RemoteEnvelope<T>;
+    json = (await response.json()) as RemoteEnvelope<T, M>;
   } catch {
     throw new Error(`Respuesta inválida (${response.status})`);
   }
@@ -21,18 +22,22 @@ async function readRemoteData<T>(path: string, signal?: AbortSignal) {
   if (!("data" in json)) {
     throw new Error("La respuesta no contiene datos");
   }
-  return json.data ?? null;
+  return { data: json.data ?? null, meta: json.meta ?? null };
 }
 
-export function useRemoteData<T>(path: string) {
+export function useRemoteData<T, M = unknown>(path: string) {
   const [data, setData] = useState<T | null>(null);
+  const [meta, setMeta] = useState<M | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setError(null);
     try {
-      const next = await readRemoteData<T>(path, signal);
-      if (!signal?.aborted) setData(next);
+      const next = await readRemoteData<T, M>(path, signal);
+      if (!signal?.aborted) {
+        setData(next.data);
+        setMeta(next.meta);
+      }
     } catch (reason) {
       if (signal?.aborted) return;
       setError(reason instanceof Error ? reason.message : "No se pudo cargar la información");
@@ -45,9 +50,12 @@ export function useRemoteData<T>(path: string) {
 
   useEffect(() => {
     const ac = new AbortController();
-    void readRemoteData<T>(path, ac.signal)
+    void readRemoteData<T, M>(path, ac.signal)
       .then((next) => {
-        if (!ac.signal.aborted) setData(next);
+        if (!ac.signal.aborted) {
+          setData(next.data);
+          setMeta(next.meta);
+        }
       })
       .catch((reason) => {
         if (!ac.signal.aborted) {
@@ -57,5 +65,5 @@ export function useRemoteData<T>(path: string) {
     return () => ac.abort();
   }, [path]);
 
-  return [data, reload, error] as const;
+  return [data, reload, error, meta] as const;
 }

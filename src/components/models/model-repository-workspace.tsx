@@ -6,11 +6,12 @@ import { Check, File, GitCommitHorizontal, ShieldX, Upload } from "lucide-react"
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
 import { useRemoteData } from "@/lib/use-remote-data";
+import { uploadNexusFile } from "@/lib/files/browser-upload";
 import type { ModelRepositoryRow } from "./model-repository-manager";
 
-type StoredFile = { id: string; filename: string; bytes: number; mime?: string };
+type StoredFile = { id: string; filename: string; bytes: number; mime?: string; status: string; sha256?: string | null };
 type Revision = { revision: number; commit_sha: string; commit_message: string; metadata: Record<string, unknown>; created_at: string; files: Array<{ id: string; path: string; bytes: number; mime: string }> };
-type Detail = ModelRepositoryRow & { access: { metadata: boolean; content: boolean; tenant: boolean; manager: boolean; approved: boolean }; revisions: Revision[] };
+type Detail = ModelRepositoryRow & { workspace_id?: string | null; access: { metadata: boolean; content: boolean; tenant: boolean; manager: boolean; approved: boolean }; revisions: Revision[] };
 type Grant = { id: string; name: string; email: string; status: string; requestedAt: string };
 type AccessData = { manager: boolean; grants: Grant[] };
 
@@ -25,7 +26,8 @@ async function jsonData<T>(response: Response) {
 export function ModelRepositoryWorkspace({ namespace, slug }: { namespace: string; slug: string }) {
   const path = `${namespace}/${slug}`;
   const [repository, reloadRepository, repositoryError] = useRemoteData<Detail>(`/api/v1/models/${path}`);
-  const [files, reloadFiles, filesError] = useRemoteData<StoredFile[]>("/api/v1/files");
+  const filePath = repository?.workspace_id ? `/api/v1/files?workspace_id=${encodeURIComponent(repository.workspace_id)}` : "/api/v1/files";
+  const [files, reloadFiles, filesError] = useRemoteData<StoredFile[]>(filePath);
   const [access, reloadAccess] = useRemoteData<AccessData>(`/api/v1/models/${path}/access`);
   const [selected, setSelected] = useState<Record<string, { enabled: boolean; path: string }>>({});
   const [message, setMessage] = useState<string | null>(null);
@@ -48,11 +50,11 @@ export function ModelRepositoryWorkspace({ namespace, slug }: { namespace: strin
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,.65fr)]">
         <div className="space-y-6">
           <section className="overflow-hidden rounded-2xl border border-indigo-950/10 bg-white">
-            <div className="border-b border-zinc-200 px-5 py-4"><h2 className="font-semibold text-zinc-950">Publicar revisión</h2><p className="mt-0.5 text-xs text-zinc-500">Snapshot completo e inmutable de artefactos de hasta 8 MB por archivo.</p></div>
+            <div className="border-b border-zinc-200 px-5 py-4"><h2 className="font-semibold text-zinc-950">Publicar revisión</h2><p className="mt-0.5 text-xs text-zinc-500">Snapshot inmutable con SHA-256. Carga directa S3-compatible hasta 5 GiB cuando está configurada.</p></div>
             <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3">
               <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-indigo-700 hover:text-indigo-800"><Upload className="size-4" />{uploading ? "Subiendo…" : "Subir archivo"}<input type="file" className="hidden" disabled={uploading} onChange={async (event) => {
                 const file = event.target.files?.[0]; if (!file) return; setUploading(true); setMessage(null);
-                try { const form = new FormData(); form.append("file", file); await jsonData(await fetch("/api/v1/files", { method: "POST", body: form })); reloadFiles(); setMessage(`${file.name} quedó disponible.`); }
+                try { await uploadNexusFile(file, { workspaceId: repository.workspace_id, onProgress: (value) => setMessage(`Procesando ${file.name} · ${Math.round(value * 100)}%`) }); reloadFiles(); setMessage(`${file.name} quedó disponible con integridad verificada.`); }
                 catch (error) { setMessage(error instanceof Error ? error.message : "No se pudo subir"); }
                 finally { setUploading(false); event.target.value = ""; }
               }} /></label>

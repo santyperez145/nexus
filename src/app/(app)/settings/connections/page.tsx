@@ -24,6 +24,7 @@ type Status = {
     env: string[];
   };
   redis: { label: string; wired: boolean; hint: string; env: string[] };
+  objectStorage: { label: string; wired: boolean; hint: string; env: string[] };
   providers: Array<{ id: string; label: string; env: string; wired: boolean }>;
   search?: Array<{ id: string; label: string; wired: boolean }>;
   manualCredits: boolean;
@@ -50,6 +51,7 @@ export default function ConnectionsPage() {
     { ...status.auth, ready: status.auth.wired },
     status.stripe,
     { ...status.redis, ready: status.redis.wired },
+    { ...status.objectStorage, ready: status.objectStorage.wired },
   ];
   const wiredLabs = status.providers.filter((p) => p.wired).length;
   const mode = wiredLabs > 0 ? "live hops" : "unconfigured";

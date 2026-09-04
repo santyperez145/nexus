@@ -140,6 +140,47 @@ describe("nexus-sdk", () => {
     assert.equal(analytics.data.totals.requests, 1);
   });
 
+  it("runs the reserve, signed PUT, and verify flow for large artifacts", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        const target = String(url);
+        calls.push({ url: target, init: init ?? {} });
+        if (target === "https://storage.example/upload") return new Response(null, { status: 200 });
+        if (target.endsWith("/files/uploads/file_large/complete")) {
+          return Response.json({ data: { id: "file_large", status: "ready" } });
+        }
+        return Response.json({
+          data: {
+            id: "file_large",
+            filename: "model.safetensors",
+            bytes: 10,
+            status: "pending",
+            storage_backend: "s3",
+            sha256: "a".repeat(64),
+            upload: {
+              method: "PUT",
+              url: "https://storage.example/upload",
+              headers: { "x-amz-checksum-sha256": "checksum" },
+              expires_at: new Date().toISOString(),
+            },
+          },
+        });
+      },
+    });
+    const completed = await nexus.files.uploadArtifact(new Blob(["0123456789"]), {
+      filename: "model.safetensors",
+      sha256: "a".repeat(64),
+    });
+    assert.deepEqual(completed.data, { id: "file_large", status: "ready" });
+    assert.equal(calls[0].url, "https://nexus.test/api/v1/files/uploads");
+    assert.equal(calls[1].url, "https://storage.example/upload");
+    assert.equal(new Headers(calls[1].init.headers).get("authorization"), null);
+    assert.equal(calls[2].url, "https://nexus.test/api/v1/files/uploads/file_large/complete");
+  });
+
   it("rotates keys via rotate_id", async () => {
     const nexus = new Nexus({
       apiKey: "sk-nx-test",

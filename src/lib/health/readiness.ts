@@ -8,6 +8,7 @@ import {
   recentOperationalProviderIds,
 } from "@/lib/providers/health-store";
 import { cache } from "@/lib/redis";
+import { probeArtifactStorage } from "@/lib/files/blob-store";
 
 type RuntimeEnv = Record<string, string | undefined>;
 
@@ -25,12 +26,14 @@ export type ReadinessSnapshot = {
     configuration: ReadinessCheck;
     database: ReadinessCheck;
     redis: ReadinessCheck;
+    objectStorage: ReadinessCheck;
   };
   capabilities: {
     inferenceConfigured: boolean;
     inferenceOperational: boolean;
     commerceConfigured: boolean;
     commerceOperational: boolean;
+    artifactStorageConfigured: boolean;
   };
 };
 
@@ -86,6 +89,9 @@ export function productionConfigIssues(env: RuntimeEnv = process.env) {
   if ((env.CRON_SECRET?.length ?? 0) < 32) issues.push("cron_secret");
   const appUrl = configuredAppUrl(env);
   if (!appUrl.startsWith("https://")) issues.push("https_app_url");
+  if (env.NEXUS_OBJECT_STORAGE_REQUIRED === "true" && !present(env.NEXUS_OBJECT_STORAGE_BUCKET)) {
+    issues.push("object_storage");
+  }
   return issues;
 }
 
@@ -101,6 +107,7 @@ export function configuredCapabilities(env: RuntimeEnv = process.env) {
   });
   return {
     inferenceConfigured,
+    artifactStorageConfigured: present(env.NEXUS_OBJECT_STORAGE_BUCKET),
     commerceConfigured: Boolean(
       present(env.STRIPE_SECRET_KEY) &&
         present(env.STRIPE_WEBHOOK_SECRET) &&
@@ -142,7 +149,8 @@ export async function readinessSnapshot(): Promise<ReadinessSnapshot> {
     latencyMs: 0,
     ...(issues.length ? { detail: issues.join(",") } : {}),
   };
-  const [database, redis] = await Promise.all([
+  const storageConfigured = Boolean(process.env.NEXUS_OBJECT_STORAGE_BUCKET?.trim());
+  const [database, redis, objectStorage] = await Promise.all([
     runCheck(async () => {
       await ensureDb();
       await db.execute(sql`select 1 as ready`);
@@ -154,8 +162,11 @@ export async function readinessSnapshot(): Promise<ReadinessSnapshot> {
       await store.set(key, value, 30);
       if ((await store.get(key)) !== value) throw new Error("readiness value mismatch");
     }),
+    storageConfigured
+      ? runCheck(probeArtifactStorage)
+      : Promise.resolve({ ok: true, latencyMs: 0, detail: "optional_unconfigured" }),
   ]);
-  const checks = { configuration, database, redis };
+  const checks = { configuration, database, redis, objectStorage };
   const configured = configuredCapabilities();
   let operationalProviders = new Set<string>();
   let stripeOperational = false;

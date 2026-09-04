@@ -308,10 +308,46 @@ export const SCHEMA_SQL = [
     workspace_id text,
     filename text NOT NULL,
     mime text NOT NULL,
-    size integer NOT NULL,
+    size bigint NOT NULL,
     content text,
-    created_at timestamp NOT NULL DEFAULT now()
+    storage_backend text NOT NULL DEFAULT 'database',
+    storage_key text,
+    checksum_sha256 text,
+    etag text,
+    status text NOT NULL DEFAULT 'ready',
+    upload_expires_at timestamp,
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now()
   )`,
+  `ALTER TABLE "file" ALTER COLUMN size TYPE bigint`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS storage_backend text NOT NULL DEFAULT 'database'`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS storage_key text`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS checksum_sha256 text`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS etag text`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'ready'`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS upload_expires_at timestamp`,
+  `ALTER TABLE "file" ADD COLUMN IF NOT EXISTS updated_at timestamp NOT NULL DEFAULT now()`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS file_storage_key_uidx
+   ON "file"(storage_key) WHERE storage_key IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS file_user_status_created_idx ON "file"(user_id, status, created_at)`,
+  `CREATE INDEX IF NOT EXISTS file_workspace_status_created_idx ON "file"(workspace_id, status, created_at)`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'file_size_check') THEN
+       ALTER TABLE "file" ADD CONSTRAINT file_size_check CHECK (size >= 0);
+     END IF;
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'file_storage_backend_check') THEN
+       ALTER TABLE "file" ADD CONSTRAINT file_storage_backend_check CHECK (storage_backend IN ('database', 's3'));
+     END IF;
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'file_status_check') THEN
+       ALTER TABLE "file" ADD CONSTRAINT file_status_check CHECK (status IN ('pending', 'ready', 'failed'));
+     END IF;
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'file_storage_shape_check') THEN
+       ALTER TABLE "file" ADD CONSTRAINT file_storage_shape_check CHECK (
+         (storage_backend = 'database' AND storage_key IS NULL) OR
+         (storage_backend = 's3' AND storage_key IS NOT NULL)
+       );
+     END IF;
+   END $$`,
   `CREATE TABLE IF NOT EXISTS "hub_namespace" (
     id text PRIMARY KEY,
     slug text NOT NULL,

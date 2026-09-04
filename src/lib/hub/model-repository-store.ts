@@ -312,6 +312,12 @@ export async function createModelRevision(
         code: "not_found",
       });
     }
+    if (file.status !== "ready") {
+      throw Object.assign(new Error(`model artifact is not ready: ${requested.fileId}`), {
+        status: 409,
+        code: "artifact_not_ready",
+      });
+    }
   }
   return withTransaction(async (tx) => {
     await tx.execute(sql`SELECT id FROM hub_repository WHERE id = ${repository.id} FOR UPDATE`);
@@ -415,6 +421,10 @@ export async function resolveModelFile(
       mime: schema.files.mime,
       size: schema.files.size,
       content: schema.files.content,
+      storageBackend: schema.files.storageBackend,
+      storageKey: schema.files.storageKey,
+      checksumSha256: schema.files.checksumSha256,
+      status: schema.files.status,
       path: schema.hubRevisionFiles.path,
     })
     .from(schema.hubRevisionFiles)

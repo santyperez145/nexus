@@ -25,7 +25,9 @@ const ENDPOINTS = [
   ["GET/POST/DELETE", "/api/v1/guardrails", "Guardrails (allow/block)"],
   ["GET/POST/PATCH/DELETE", "/api/v1/workspaces", "Workspaces + budgets"],
   ["GET", "/api/v1/analytics?days=", "Analytics (ventana + provider)"],
-  ["GET/POST/DELETE", "/api/v1/files", "Files (file_ids en chat)"],
+  ["GET/POST/DELETE", "/api/v1/files", "Files, cuotas y artefactos con SHA-256"],
+  ["POST", "/api/v1/files/uploads", "Reserva upload directo S3-compatible"],
+  ["POST", "/api/v1/files/uploads/{id}/complete", "Verifica y finaliza artefacto"],
   ["GET/POST", "/api/v1/datasets", "Hub de datasets públicos/privados"],
   ["GET/POST", "/api/v1/models", "Catálogo ejecutable + repositorios de modelos reference-only"],
   ["GET/PATCH/DELETE", "/api/v1/models/{namespace}/{slug}", "Model card, política y ciclo de vida"],
@@ -197,9 +199,10 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
         </p>
         <h2 className="mb-3 text-lg font-medium text-zinc-900">Files</h2>
         <p className="mb-6 text-sm text-zinc-600">
-          <code className="text-zinc-800">POST /api/v1/files</code> (multipart, máx 8 MB) y después{" "}
-          <code className="text-zinc-800">file_ids</code> en el completion. El gateway inyecta el
-          texto en el prompt.
+          <code className="text-zinc-800">POST /api/v1/files</code> acepta multipart hasta 8 MB;
+          para pesos y datasets grandes, <code className="text-zinc-800">POST /api/v1/files/uploads</code>{" "}
+          reserva cuota y entrega un PUT firmado. Después de completar, Nexus verifica bytes y SHA-256.
+          Usá <code className="text-zinc-800">file_ids</code> en chat para archivos compatibles.
         </p>
         <h2 className="mb-3 text-lg font-medium text-zinc-900">Presets</h2>
         <p className="mb-8 text-sm text-zinc-600">

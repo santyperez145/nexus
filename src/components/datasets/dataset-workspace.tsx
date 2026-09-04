@@ -6,9 +6,10 @@ import { Check, File, GitCommitHorizontal, LockKeyhole, Upload } from "lucide-re
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
 import { useRemoteData } from "@/lib/use-remote-data";
+import { uploadNexusFile } from "@/lib/files/browser-upload";
 import type { DatasetRow } from "./dataset-manager";
 
-type StoredFile = { id: string; filename: string; bytes: number; mime?: string };
+type StoredFile = { id: string; filename: string; bytes: number; mime?: string; status: string; sha256?: string | null };
 type Revision = {
   revision: number;
   commit_sha: string;
@@ -18,6 +19,7 @@ type Revision = {
   files: Array<{ id: string; path: string; bytes: number; mime: string }>;
 };
 type DatasetDetail = DatasetRow & {
+  workspace_id?: string | null;
   access: { metadata: boolean; content: boolean; tenant: boolean; manager: boolean; approved: boolean };
   revisions: Revision[];
 };
@@ -35,7 +37,8 @@ async function jsonResponse<T>(response: Response) {
 export function DatasetWorkspace({ namespace, slug }: { namespace: string; slug: string }) {
   const path = `${namespace}/${slug}`;
   const [dataset, reloadDataset, datasetError] = useRemoteData<DatasetDetail>(`/api/v1/datasets/${path}`);
-  const [files, reloadFiles, filesError] = useRemoteData<StoredFile[]>("/api/v1/files");
+  const filePath = dataset?.workspace_id ? `/api/v1/files?workspace_id=${encodeURIComponent(dataset.workspace_id)}` : "/api/v1/files";
+  const [files, reloadFiles, filesError] = useRemoteData<StoredFile[]>(filePath);
   const [access, reloadAccess] = useRemoteData<AccessData>(`/api/v1/datasets/${path}/access`);
   const [selected, setSelected] = useState<Record<string, { enabled: boolean; path: string }>>({});
   const [message, setMessage] = useState<string | null>(null);
@@ -76,14 +79,13 @@ export function DatasetWorkspace({ namespace, slug }: { namespace: string; slug:
                   if (!file) return;
                   setUploading(true); setMessage(null);
                   try {
-                    const form = new FormData(); form.append("file", file);
-                    await jsonResponse(await fetch("/api/v1/files", { method: "POST", body: form }));
-                    reloadFiles(); setMessage(`${file.name} quedó disponible para el próximo snapshot.`);
+                    await uploadNexusFile(file, { workspaceId: dataset.workspace_id, onProgress: (value) => setMessage(`Procesando ${file.name} · ${Math.round(value * 100)}%`) });
+                    reloadFiles(); setMessage(`${file.name} quedó disponible con integridad verificada.`);
                   } catch (error) { setMessage(error instanceof Error ? error.message : "No se pudo subir"); }
                   finally { setUploading(false); event.target.value = ""; }
                 }} />
               </label>
-              <span className="ml-3 text-xs text-zinc-500">máx. 8 MB</span>
+              <span className="ml-3 text-xs text-zinc-500">hasta 5 GiB con object storage</span>
             </div>
             <form className="p-5" onSubmit={async (event) => {
               event.preventDefault(); setMessage("Publicando snapshot…");

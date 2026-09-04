@@ -284,6 +284,12 @@ export async function createDatasetRevision(
         code: "not_found",
       });
     }
+    if (file.status !== "ready") {
+      throw Object.assign(new Error(`dataset artifact is not ready: ${requested.file_id}`), {
+        status: 409,
+        code: "artifact_not_ready",
+      });
+    }
   }
 
   return withTransaction(async (tx) => {
@@ -384,6 +390,10 @@ export async function resolveDatasetFile(
       mime: schema.files.mime,
       size: schema.files.size,
       content: schema.files.content,
+      storageBackend: schema.files.storageBackend,
+      storageKey: schema.files.storageKey,
+      checksumSha256: schema.files.checksumSha256,
+      status: schema.files.status,
       path: schema.hubRevisionFiles.path,
     })
     .from(schema.hubRevisionFiles)

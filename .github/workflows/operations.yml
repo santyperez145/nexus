@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: "3/5 * * * *"
     - cron: "7,22,37,52 * * * *"
+    - cron: "13,43 * * * *"
     - cron: "41 3 * * *"
   workflow_dispatch:
 
@@ -47,6 +48,23 @@ jobs:
           curl --fail-with-body --silent --show-error --retry 2 --retry-all-errors --retry-delay 5 --max-time 55 \
             --header "Authorization: Bearer ${NEXUS_CRON_SECRET}" \
             "${NEXUS_APP_URL%/}/api/internal/cron/health"
+
+  clean-expired-artifact-uploads:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '13,43 * * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Remove expired object uploads
+        env:
+          NEXUS_APP_URL: ${{ secrets.NEXUS_APP_URL }}
+          NEXUS_CRON_SECRET: ${{ secrets.NEXUS_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${NEXUS_APP_URL:-}"
+          test -n "${NEXUS_CRON_SECRET:-}"
+          curl --fail-with-body --silent --show-error --retry 2 --retry-all-errors --retry-delay 5 --max-time 55 \
+            --header "Authorization: Bearer ${NEXUS_CRON_SECRET}" \
+            "${NEXUS_APP_URL%/}/api/internal/cron/artifacts"
 
   refresh-catalog:
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '41 3 * * *'

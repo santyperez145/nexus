@@ -43,6 +43,8 @@ export declare class Nexus {
         headers?: Record<string, string>;
         raw?: boolean;
     }): Promise<T>;
+    /** Used by SDK resources for already-authorized, provider-hosted transfer URLs. */
+    fetchSigned(url: string, init: RequestInit): Promise<Response>;
 }
 declare class ChatResource {
     private readonly client;
@@ -322,6 +324,38 @@ declare class FilesResource {
             filename: string;
             bytes: number;
         };
+    }>;
+    createUpload(input: {
+        filename: string;
+        mime?: string;
+        bytes: number;
+        sha256: string;
+        workspace_id?: string | null;
+    }): Promise<{
+        data: {
+            id: string;
+            filename: string;
+            bytes: number;
+            status: "pending";
+            storage_backend: "s3";
+            sha256: string;
+            upload: {
+                method: "PUT";
+                url: string;
+                headers: Record<string, string>;
+                expires_at: string;
+            };
+        };
+    }>;
+    completeUpload(id: string): Promise<{
+        data: unknown;
+    }>;
+    uploadArtifact(file: Blob, input: {
+        filename: string;
+        sha256: string;
+        workspace_id?: string | null;
+    }): Promise<{
+        data: unknown;
     }>;
     delete(id: string): Promise<{
         data: {

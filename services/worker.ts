@@ -6,6 +6,7 @@ import { db, ensureDb, schema } from "../src/lib/db";
 import { id } from "../src/lib/ids";
 import { retryWebhookDeliveries } from "../src/lib/observability/dispatch";
 import { probeAndPersistPlatformHealth } from "../src/lib/providers/health-store";
+import { cleanupExpiredArtifactUploads } from "../src/lib/files/store";
 
 const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const WEBHOOK_RETRY_INTERVAL_MS = Number(process.env.WEBHOOK_RETRY_INTERVAL_MS ?? 60 * 1000);
@@ -35,8 +36,16 @@ async function tickWebhooks() {
   if (retried) console.log(`[worker] webhook_retries=${retried}`);
 }
 
+async function tickArtifacts() {
+  await ensureDb();
+  const result = await cleanupExpiredArtifactUploads();
+  if (result.claimed) {
+    console.log(`[worker] artifact_uploads_cleaned=${result.cleaned} failed=${result.failed}`);
+  }
+}
+
 async function main() {
-  await Promise.all([tickCatalog(), tickHealth(), tickWebhooks()]);
+  await Promise.all([tickCatalog(), tickHealth(), tickWebhooks(), tickArtifacts()]);
   if (once) {
     process.exit(0);
   }
@@ -49,6 +58,9 @@ async function main() {
   setInterval(() => {
     void tickHealth().catch((err) => console.error("[worker:health]", err));
   }, HEALTH_PROBE_INTERVAL_MS);
+  setInterval(() => {
+    void tickArtifacts().catch((err) => console.error("[worker:artifacts]", err));
+  }, WEBHOOK_RETRY_INTERVAL_MS);
 }
 
 main().catch((err) => {

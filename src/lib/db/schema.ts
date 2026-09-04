@@ -387,18 +387,42 @@ export const guardrails = pgTable("guardrail", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const files = pgTable("file", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  workspaceId: text("workspace_id"),
-  filename: text("filename").notNull(),
-  mime: text("mime").notNull(),
-  size: integer("size").notNull(),
-  content: text("content"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const files = pgTable(
+  "file",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id"),
+    filename: text("filename").notNull(),
+    mime: text("mime").notNull(),
+    size: bigint("size", { mode: "number" }).notNull(),
+    content: text("content"),
+    storageBackend: text("storage_backend").notNull().default("database"),
+    storageKey: text("storage_key"),
+    checksumSha256: text("checksum_sha256"),
+    etag: text("etag"),
+    status: text("status").notNull().default("ready"),
+    uploadExpiresAt: timestamp("upload_expires_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("file_storage_key_uidx")
+      .on(t.storageKey)
+      .where(sql`${t.storageKey} IS NOT NULL`),
+    index("file_user_status_created_idx").on(t.userId, t.status, t.createdAt),
+    index("file_workspace_status_created_idx").on(t.workspaceId, t.status, t.createdAt),
+    check("file_size_check", sql`${t.size} >= 0`),
+    check("file_storage_backend_check", sql`${t.storageBackend} IN ('database', 's3')`),
+    check("file_status_check", sql`${t.status} IN ('pending', 'ready', 'failed')`),
+    check(
+      "file_storage_shape_check",
+      sql`(${t.storageBackend} = 'database' AND ${t.storageKey} IS NULL) OR (${t.storageBackend} = 's3' AND ${t.storageKey} IS NOT NULL)`,
+    ),
+  ],
+);
 
 export const hubNamespaces = pgTable(
   "hub_namespace",

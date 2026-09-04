@@ -61,6 +61,20 @@ export function connectionStatus() {
       hint: "REDIS_URL, Upstash o Vercel KV. Producción falla cerrado si falta.",
       env: ["REDIS_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_URL"],
     },
+    objectStorage: {
+      id: "object-storage",
+      label: "Object storage",
+      wired: present(process.env.NEXUS_OBJECT_STORAGE_BUCKET),
+      hint: present(process.env.NEXUS_OBJECT_STORAGE_BUCKET)
+        ? "S3-compatible para artefactos grandes con SHA-256"
+        : "Opcional: NEXUS_OBJECT_STORAGE_BUCKET + credenciales AWS-compatible",
+      env: [
+        "NEXUS_OBJECT_STORAGE_BUCKET",
+        "NEXUS_OBJECT_STORAGE_ENDPOINT",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+      ],
+    },
     providers: NEXUS_PROVIDERS.map((p) => ({
       id: p.id,
       label: p.label,

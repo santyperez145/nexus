@@ -73,7 +73,7 @@ export const SUBSCRIPTION_PLANS = [
     monthlyUsd: 19,
     includedCreditsUsd: 5,
     seats: false,
-    description: "600 RPM, hasta 25 claves API y 5 espacios de trabajo.",
+    description: "600 RPM, 25 GB de artefactos, hasta 25 claves API y 5 espacios de trabajo.",
   },
   {
     id: "team",
@@ -81,7 +81,7 @@ export const SUBSCRIPTION_PLANS = [
     monthlyUsd: 49,
     includedCreditsUsd: 15,
     seats: true,
-    description: "1.800 RPM, 250 claves API y espacios compartidos con roles.",
+    description: "1.800 RPM, 250 GB de artefactos, 250 claves API y espacios compartidos con roles.",
   },
 ] as const;
 
@@ -115,10 +115,10 @@ export function stripeAutomaticTaxEnabled() {
 }
 
 export const PLAN_LIMITS = {
-  guest: { rpm: 8, apiKeys: 0, workspaces: 0, historyDays: 0 },
-  free: { rpm: 60, apiKeys: 3, workspaces: 1, historyDays: 7 },
-  pro: { rpm: 600, apiKeys: 25, workspaces: 5, historyDays: 90 },
-  team: { rpm: 1800, apiKeys: 250, workspaces: 100, historyDays: 365 },
+  guest: { rpm: 8, apiKeys: 0, workspaces: 0, historyDays: 0, storageBytes: 0 },
+  free: { rpm: 60, apiKeys: 3, workspaces: 1, historyDays: 7, storageBytes: 1 * 1024 ** 3 },
+  pro: { rpm: 600, apiKeys: 25, workspaces: 5, historyDays: 90, storageBytes: 25 * 1024 ** 3 },
+  team: { rpm: 1800, apiKeys: 250, workspaces: 100, historyDays: 365, storageBytes: 250 * 1024 ** 3 },
 } as const;
 
 export function limitsForPlan(plan?: string) {

@@ -120,6 +120,10 @@ export class Nexus {
         }
         return json;
     }
+    /** Used by SDK resources for already-authorized, provider-hosted transfer URLs. */
+    fetchSigned(url, init) {
+        return this.#fetch(url, init);
+    }
 }
 class ChatResource {
     client;
@@ -359,6 +363,35 @@ class FilesResource {
             method: "POST",
             form,
         });
+    }
+    createUpload(input) {
+        return this.client.request("/files/uploads", { method: "POST", body: input });
+    }
+    completeUpload(id) {
+        return this.client.request(`/files/uploads/${encodeURIComponent(id)}/complete`, {
+            method: "POST",
+        });
+    }
+    async uploadArtifact(file, input) {
+        const reservation = await this.createUpload({
+            filename: input.filename,
+            mime: file.type || "application/octet-stream",
+            bytes: file.size,
+            sha256: input.sha256,
+            workspace_id: input.workspace_id,
+        });
+        const uploaded = await this.client.fetchSigned(reservation.data.upload.url, {
+            method: reservation.data.upload.method,
+            headers: reservation.data.upload.headers,
+            body: file,
+        });
+        if (!uploaded.ok) {
+            throw new NexusError(`Object storage rejected the upload (${uploaded.status})`, {
+                status: uploaded.status,
+                code: "object_storage_error",
+            });
+        }
+        return this.completeUpload(reservation.data.id);
     }
     delete(id) {
         return this.client.request("/files", { method: "DELETE", query: { id } });

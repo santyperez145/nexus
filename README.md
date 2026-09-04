@@ -36,6 +36,7 @@ npm run dev
 | `DATABASE_URL`                                                               | Postgres/Neon pooled (obligatorio en prod; local: PGlite)                                                                                                               |
 | `DATABASE_URL_UNPOOLED`                                                      | Conexión directa para `npm run db:migrate`                                                                                                                              |
 | `REDIS_URL` o Upstash                                                        | Rate limit y circuit breaker; obligatorio y fail-closed en prod                                                                                                         |
+| `NEXUS_OBJECT_STORAGE_BUCKET` + credenciales `AWS_*`                         | Artefactos grandes en cualquier backend S3-compatible (Neon Object Storage, S3, R2 o MinIO)                                                                             |
 | `CORS_ORIGINS`                                                               | Orígenes adicionales exactos para auth con cookie, separados por comas; producción no confía en comodines de hosting compartido                                         |
 | `ZDR_PROVIDER_IDS`                                                           | Proveedores con capacidad y acuerdo ZDR activo confirmado                                                                                                               |
 | `NO_TRAINING_PROVIDER_IDS`                                                   | Proveedores cuyo acuerdo activo prohíbe entrenamiento con solicitudes                                                                                                   |
@@ -71,7 +72,8 @@ socket, rechazan redirects y limitan el cuerpo leído; URLs privadas, metadata, 
 rangos reservados fallan antes de acceder a la red interna.
 Los crons fallan cerrados si `CRON_SECRET` no está configurado. En Railway, el workflow
 `Production operations` llama con un secreto de repositorio a `/api/internal/cron/webhooks` cada
-cinco minutos, `/api/internal/cron/health` cada quince y `/api/internal/cron/catalog` diariamente.
+cinco minutos, `/api/internal/cron/artifacts` cada treinta para limpiar uploads vencidos,
+`/api/internal/cron/health` cada quince y `/api/internal/cron/catalog` diariamente.
 Los horarios evitan el comienzo de la hora, cuando GitHub advierte mayor probabilidad de demora. El
 gateway conserva además el primer intento inmediato de cada entrega.
 Un proveedor sólo figura operativo tras responder 2xx durante los últimos 30 minutos; 401/403,
@@ -174,6 +176,16 @@ backend: cada run pasa por el router multi‑proveedor, ZDR, guardrails, rate li
 ledger `reserve→settle`. La identidad que ejecuta paga el uso; el propietario del Space nunca se cobra
 implícitamente. Los Spaces privados de workspace exigen una API key scoped a ese workspace para
 ejecución programática.
+
+Los artefactos no viven dentro del historial SQL: con object storage configurado, Nexus reserva cuota
+por usuario o workspace dentro de una transacción, firma un `PUT` de corta duración y sólo marca el
+archivo como `ready` después de verificar longitud y SHA-256. Las revisiones rechazan archivos
+`pending` o fallidos. El API es S3-compatible y portable entre Neon Object Storage, AWS S3, R2 y
+MinIO; Postgres base64 queda como fallback local para archivos de hasta 8 MB. Free incluye 1 GiB,
+Pro 25 GiB y Team 250 GiB; el upload directo admite hasta 5 GiB por objeto.
+Para uploads desde la consola, el CORS del bucket debe aceptar `PUT` desde `NEXT_PUBLIC_APP_URL` y
+los headers `content-type` y `x-amz-checksum-sha256`. `NEXUS_OBJECT_STORAGE_REQUIRED=true` incorpora
+el bucket al gate de configuración; si está cableado, readiness ejecuta además un `HeadBucket` real.
 
 Los guardrails son jerárquicos: las reglas personales y las del workspace activo se intersectan.
 Pueden limitar modelos y proveedores, imponer un costo máximo, bloquear patrones sensibles y forzar

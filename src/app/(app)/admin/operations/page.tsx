@@ -31,7 +31,7 @@ export default async function AdminOperationsPage() {
     db.select().from(schema.stripeWebhookEvents).orderBy(desc(schema.stripeWebhookEvents.receivedAt)).limit(8),
   ]);
   const healthByProvider = new Map(health.map((row) => [row.provider, row]));
-  const infrastructure = [status.database, status.auth, status.stripe, status.redis];
+  const infrastructure = [status.database, status.auth, status.stripe, status.redis, status.objectStorage];
   const runtimeChecks = Object.entries(readiness.checks);
   const launchReady = commercialLaunchReady(readiness);
   return <div>
@@ -65,6 +65,7 @@ export default async function AdminOperationsPage() {
         <span className="rounded-full border border-zinc-200 bg-white px-2 py-1">Inferencia operativa: {readiness.capabilities.inferenceOperational ? "sí" : "no"}</span>
         <span className="rounded-full border border-zinc-200 bg-white px-2 py-1">Comercio configurado: {readiness.capabilities.commerceConfigured ? "sí" : "no"}</span>
         <span className="rounded-full border border-zinc-200 bg-white px-2 py-1">Comercio operativo: {readiness.capabilities.commerceOperational ? "sí" : "no"}</span>
+        <span className="rounded-full border border-zinc-200 bg-white px-2 py-1">Artefactos S3: {readiness.capabilities.artifactStorageConfigured ? "sí" : "no"}</span>
       </div>
     </section>
     <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{infrastructure.map((item)=><section key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-4"><div className="flex items-center justify-between gap-2"><div className="font-medium">{item.label}</div><span className={`size-2.5 rounded-full ${item.wired ? "bg-emerald-500" : "bg-zinc-300"}`} /></div><p className="mt-2 text-xs leading-5 text-zinc-500">{item.hint}</p></section>)}</div>
