@@ -7,16 +7,28 @@ export type MailMessage = {
   html?: string;
 };
 
+export function emailDeliveryConfigured() {
+  return Boolean(
+    process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim(),
+  );
+}
+
 /** Resend HTTP o log en consola únicamente fuera de producción. */
-export async function sendMail(msg: MailMessage): Promise<{ ok: boolean; mode: "resend" | "log" }> {
+export async function sendMail(
+  msg: MailMessage,
+): Promise<{ ok: boolean; mode: "resend" | "log" }> {
   const key = process.env.RESEND_API_KEY?.trim();
   const configuredFrom = process.env.EMAIL_FROM?.trim();
-  if (process.env.NODE_ENV === "production" && (!key || !configuredFrom)) {
-    throw new Error("Production email requires RESEND_API_KEY and a verified EMAIL_FROM sender");
+  if (process.env.NODE_ENV === "production" && !emailDeliveryConfigured()) {
+    throw new Error(
+      "Production email requires RESEND_API_KEY and a verified EMAIL_FROM sender",
+    );
   }
   const from = configuredFrom ?? `${APP_NAME} <onboarding@resend.dev>`;
   if (!key) {
-    console.info(`[nexus-mail] to=${msg.to} subject=${msg.subject}\n${msg.text}`);
+    console.info(
+      `[nexus-mail] to=${msg.to} subject=${msg.subject}\n${msg.text}`,
+    );
     return { ok: true, mode: "log" };
   }
   const res = await fetch("https://api.resend.com/emails", {
@@ -30,7 +42,9 @@ export async function sendMail(msg: MailMessage): Promise<{ ok: boolean; mode: "
       to: [msg.to],
       subject: msg.subject,
       text: msg.text,
-      html: msg.html ?? `<pre style="font-family:sans-serif">${escapeHtml(msg.text)}</pre>`,
+      html:
+        msg.html ??
+        `<pre style="font-family:sans-serif">${escapeHtml(msg.text)}</pre>`,
     }),
   });
   if (!res.ok) {
@@ -41,7 +55,11 @@ export async function sendMail(msg: MailMessage): Promise<{ ok: boolean; mode: "
   return { ok: true, mode: "resend" };
 }
 
-export async function sendPasswordResetEmail(opts: { email: string; name: string; url: string }) {
+export async function sendPasswordResetEmail(opts: {
+  email: string;
+  name: string;
+  url: string;
+}) {
   const text = [
     `Hola ${opts.name || "ahí"},`,
     "",
@@ -59,7 +77,11 @@ export async function sendPasswordResetEmail(opts: { email: string; name: string
   });
 }
 
-export async function sendEmailVerification(opts: { email: string; name: string; url: string }) {
+export async function sendEmailVerification(opts: {
+  email: string;
+  name: string;
+  url: string;
+}) {
   const text = [
     `Hola ${opts.name || "ahí"},`,
     "",

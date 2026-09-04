@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { sendMail } from "../src/lib/email";
+import { emailDeliveryConfigured, sendMail } from "../src/lib/email";
 
 describe("production transactional email", () => {
   it("fails closed at delivery time without taking down the application", async () => {
@@ -12,6 +12,7 @@ describe("production transactional email", () => {
     delete env.RESEND_API_KEY;
     delete env.EMAIL_FROM;
     try {
+      assert.equal(emailDeliveryConfigured(), false);
       await assert.rejects(
         () =>
           sendMail({
@@ -21,6 +22,9 @@ describe("production transactional email", () => {
           }),
         /Production email requires RESEND_API_KEY and a verified EMAIL_FROM sender/,
       );
+      env.RESEND_API_KEY = "re_test";
+      env.EMAIL_FROM = "Nexus <noreply@example.com>";
+      assert.equal(emailDeliveryConfigured(), true);
     } finally {
       if (previousNodeEnv === undefined) delete env.NODE_ENV;
       else env.NODE_ENV = previousNodeEnv;

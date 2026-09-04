@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { applyPreferenceUpdate } from "@/lib/privacy/preferences";
 import { getStripe } from "@/lib/stripe";
 import { enforceControlPlaneOperationRateLimit } from "@/lib/control-plane/operation-rate-limit";
+import { emailDeliveryConfigured } from "@/lib/email";
 
 export async function GET() {
   const session = await getSession();
@@ -29,6 +30,7 @@ export async function GET() {
       notifyKeyLimit: user?.notifyKeyLimit ?? true,
       notifyOrgInvite: user?.notifyOrgInvite ?? true,
       lowBalanceThresholdUsd: user?.lowBalanceThresholdUsd ?? "5",
+      emailDeliveryAvailable: emailDeliveryConfigured(),
     },
   });
 }
