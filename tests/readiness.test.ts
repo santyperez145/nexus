@@ -49,6 +49,7 @@ describe("production readiness configuration", () => {
         STRIPE_WEBHOOK_SECRET: "whsec_test",
         STRIPE_PRICE_PRO_MONTHLY: "price_pro",
         STRIPE_PRICE_TEAM_MONTHLY: "price_team",
+        STRIPE_PORTAL_CONFIGURATION_ID: "bpc_nexus",
       }),
       { inferenceConfigured: true, commerceConfigured: true },
     );

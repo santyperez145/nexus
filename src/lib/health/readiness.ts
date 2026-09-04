@@ -105,7 +105,8 @@ export function configuredCapabilities(env: RuntimeEnv = process.env) {
       present(env.STRIPE_SECRET_KEY) &&
         present(env.STRIPE_WEBHOOK_SECRET) &&
         present(env.STRIPE_PRICE_PRO_MONTHLY) &&
-        present(env.STRIPE_PRICE_TEAM_MONTHLY),
+        present(env.STRIPE_PRICE_TEAM_MONTHLY) &&
+        present(env.STRIPE_PORTAL_CONFIGURATION_ID),
     ),
   };
 }

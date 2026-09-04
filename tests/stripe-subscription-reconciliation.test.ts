@@ -327,4 +327,29 @@ describe("Stripe subscription reconciliation", () => {
       "sub_legacy",
     );
   });
+
+  it("grants monthly credits only on subscription creation and renewal", () => {
+    assert.equal(
+      reconciliation.invoiceGrantsIncludedCredits({
+        billing_reason: "subscription_create",
+      } as Stripe.Invoice),
+      true,
+    );
+    assert.equal(
+      reconciliation.invoiceGrantsIncludedCredits({
+        billing_reason: "subscription_cycle",
+      } as Stripe.Invoice),
+      true,
+    );
+    assert.equal(
+      reconciliation.invoiceGrantsIncludedCredits({
+        billing_reason: "subscription_update",
+      } as Stripe.Invoice),
+      false,
+    );
+    assert.equal(
+      reconciliation.invoiceGrantsIncludedCredits({} as Stripe.Invoice),
+      false,
+    );
+  });
 });

@@ -83,6 +83,10 @@ export function stripePriceForPlan(planId: SubscriptionPlanId) {
     : process.env.STRIPE_PRICE_TEAM_MONTHLY;
 }
 
+export function stripePortalConfigurationId() {
+  return process.env.STRIPE_PORTAL_CONFIGURATION_ID?.trim() || null;
+}
+
 /**
  * Stripe Tax must be explicitly enabled only after registrations and Tax
  * settings exist in the active Stripe environment. Otherwise Checkout can

@@ -24,7 +24,7 @@ npm run dev
 | Variable | Para qué |
 |---|---|
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / … | Pool de inferencia de la plataforma |
-| `STRIPE_SECRET_KEY` + webhook + Price IDs | Créditos, planes Pro/Team y portal. Preferir una restricted key (`rk_…`) limitada a Customers, Checkout, PaymentIntents, PaymentMethods, Subscriptions y Billing Portal |
+| `STRIPE_SECRET_KEY` + webhook + Price IDs + `STRIPE_PORTAL_CONFIGURATION_ID` | Créditos, planes Pro/Team y portal. Preferir una restricted key (`rk_…`) limitada a Customers, Checkout, PaymentIntents, PaymentMethods, Subscriptions y Billing Portal |
 | `STRIPE_AUTOMATIC_TAX_ENABLED=true` | Opt-in después de configurar Tax Settings y registros fiscales en el entorno activo |
 | `CREDENTIALS_SECRET` | Cifrado BYOK (obligatorio en prod) |
 | `BETTER_AUTH_SECRET` | Secreto de sesión de al menos 32 caracteres (obligatorio en prod) |
@@ -82,8 +82,11 @@ Las requests productivas sólo verifican el último registro de migración y nun
 bootstrap idempotente queda limitado al entorno local y a las pruebas.
 Para Stripe, configurá
 el webhook `{APP_URL}/api/webhooks/stripe` con `checkout.session.completed`,
-`checkout.session.async_payment_succeeded`, `customer.subscription.created|updated|deleted`,
-`invoice.paid`, `invoice.payment_failed` y `payment_intent.succeeded`.
+`checkout.session.async_payment_succeeded|failed`, `customer.subscription.created|updated|deleted`,
+`invoice.paid`, `invoice.payment_failed` y `payment_intent.succeeded|payment_failed`.
+`npm run stripe:configure` reconcilia idempotentemente Products, Prices, eventos del webhook ya
+firmado y una configuración de Billing Portal; devuelve los tres IDs no secretos que deben guardarse
+en el despliegue. Requiere `-- --allow-live` para modificar live mode.
 CI aplica todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build; una
 migración inválida bloquea el merge.
 

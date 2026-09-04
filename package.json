@@ -16,6 +16,7 @@
     "db:migrate": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/migrate.mjs migrate",
     "db:baseline:check": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/migrate.mjs baseline",
     "db:studio": "drizzle-kit studio",
+    "stripe:configure": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/configure-stripe.mjs",
     "dev:gateway": "tsx services/gateway.ts",
     "dev:worker": "tsx services/worker.ts",
     "catalog:sync": "tsx services/worker.ts --once"

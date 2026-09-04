@@ -199,3 +199,7 @@ export function subscriptionIdFromInvoice(invoice: Stripe.Invoice) {
     | undefined;
   return objectId(parent?.subscription_details?.subscription ?? raw.subscription);
 }
+
+export function invoiceGrantsIncludedCredits(invoice: Stripe.Invoice) {
+  return invoice.billing_reason === "subscription_create" || invoice.billing_reason === "subscription_cycle";
+}

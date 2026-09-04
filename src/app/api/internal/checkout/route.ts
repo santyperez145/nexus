@@ -5,6 +5,7 @@ import {
   creditPurchaseFeeUsd,
   SUBSCRIPTION_PLANS,
   stripePriceForPlan,
+  stripePortalConfigurationId,
   stripeAutomaticTaxEnabled,
   type SubscriptionPlanId,
 } from "@/lib/config";
@@ -131,8 +132,10 @@ export async function PATCH() {
   if (!user?.stripeCustomerId) {
     return Response.json({ error: "No billing profile yet" }, { status: 404 });
   }
+  const portalConfiguration = stripePortalConfigurationId();
   const portal = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
+    ...(portalConfiguration ? { configuration: portalConfiguration } : {}),
     return_url: `${APP_URL}/settings/credits`,
   });
   return Response.json({ url: portal.url });

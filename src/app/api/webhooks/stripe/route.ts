@@ -6,6 +6,7 @@ import { ensureAutoTopupPaymentMethod } from "@/lib/billing/stripe-payment-metho
 import {
   reconcileStripeSubscription,
   reconcileStripeSubscriptionById,
+  invoiceGrantsIncludedCredits,
   subscriptionIdFromInvoice,
 } from "@/lib/billing/stripe-subscription";
 import {
@@ -38,7 +39,7 @@ async function creditCheckout(stripe: Stripe, session: Stripe.Checkout.Session) 
 }
 
 async function creditSubscriptionInvoice(invoice: Stripe.Invoice) {
-  if (invoice.status !== "paid") return;
+  if (invoice.status !== "paid" || !invoiceGrantsIncludedCredits(invoice)) return;
   const raw = invoice as unknown as Record<string, unknown>;
   const subscriptionId = subscriptionIdFromInvoice(invoice);
   const customerId = objectId(raw.customer);
