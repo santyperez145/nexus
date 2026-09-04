@@ -30,6 +30,7 @@ npm run dev
 | `BETTER_AUTH_SECRET` | Secreto de sesión de al menos 32 caracteres (obligatorio en prod) |
 | `RESEND_API_KEY` + `EMAIL_FROM` | Verificación y recuperación de cuenta; remitente verificado, obligatorios en prod |
 | `ADMIN_EMAILS` | Allowlist, separada por comas, para Superadmin, tareas globales y ajustes auditados de saldo |
+| `CRON_SECRET` | Secreto aleatorio de al menos 32 caracteres para tareas internas |
 | `DATABASE_URL` | Postgres/Neon pooled (obligatorio en prod; local: PGlite) |
 | `DATABASE_URL_UNPOOLED` | Conexión directa para `npm run db:migrate` |
 | `REDIS_URL` o Upstash | Rate limit y circuit breaker; obligatorio y fail-closed en prod |
@@ -68,6 +69,13 @@ el webhook `{APP_URL}/api/webhooks/stripe` con `checkout.session.completed`,
 `invoice.paid`, `invoice.payment_failed` y `payment_intent.succeeded`.
 CI aplica todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build; una
 migración inválida bloquea el merge.
+
+El orquestador debe usar `GET /api/internal/health/live` sólo para liveness y
+`GET /api/internal/health/ready` para readiness. Readiness prueba una consulta real a Postgres, una
+escritura/lectura efímera en Redis y la configuración crítica de producción; responde `503` cuando
+alguna falla. El data plane expone los equivalentes `/healthz` y `/readyz`. Las capacidades de
+inferencia y comercio se informan por separado para que una caída upstream no provoque un bucle de
+reinicios de instancias sanas.
 
 Producción: [https://web-production-ef6b3.up.railway.app](https://web-production-ef6b3.up.railway.app) (Railway + Neon + Stripe Checkout/Link).
 

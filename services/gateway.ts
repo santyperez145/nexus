@@ -10,7 +10,7 @@ import { authenticateRequest, jsonError } from "../src/lib/gateway/api-auth";
 import { handleChat } from "../src/lib/gateway/handle-chat";
 import type { ChatRequest } from "../src/lib/gateway/types";
 import { allModels } from "../src/lib/catalog";
-import { providerSnapshot } from "../src/lib/gateway/health";
+import { readinessSnapshot } from "../src/lib/health/readiness";
 import { POST as embeddingsPost } from "../src/app/api/v1/embeddings/route";
 import { POST as responsesPost } from "../src/app/api/v1/responses/route";
 import { POST as messagesPost } from "../src/app/api/v1/messages/route";
@@ -39,9 +39,13 @@ app.use(
   }),
 );
 
-app.get("/healthz", async (c) => {
-  const providers = await providerSnapshot();
-  return c.json({ ok: true, service: "nexus-gateway", providers });
+app.get("/healthz", (c) => {
+  return c.json({ ok: true, service: "nexus-gateway", checkedAt: new Date().toISOString() });
+});
+
+app.get("/readyz", async (c) => {
+  const snapshot = await readinessSnapshot();
+  return c.json({ ...snapshot, service: "nexus-gateway" }, snapshot.ok ? 200 : 503);
 });
 
 app.get("/v1/models", (c) => c.json({ data: allModels() }));
