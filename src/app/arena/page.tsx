@@ -1,11 +1,8 @@
 import { MarketingShell } from "@/components/layout/marketing-shell";
 import { MarketingPageHeader } from "@/components/layout/marketing-page-header";
 import { ArenaClient } from "@/components/models/arena-client";
-import {
-  allModels,
-  hasExecutableEndpoint,
-  isTextGenerationModel,
-} from "@/lib/catalog";
+import { allModels } from "@/lib/catalog";
+import { isTextModelExecutionReady } from "@/lib/catalog/presentation";
 import { getSession } from "@/lib/auth";
 import { guestPlaygroundEnabled } from "@/lib/config";
 
@@ -18,12 +15,7 @@ export default async function ArenaPage({
   const session = await getSession();
   const guest = !session?.user && guestPlaygroundEnabled();
   const models = allModels()
-    .filter(
-      (model) =>
-        (isTextGenerationModel(model) && hasExecutableEndpoint(model)) ||
-        model.id === "nexus/auto" ||
-        model.id === "nexus/free",
-    )
+    .filter(isTextModelExecutionReady)
     .map((m) => m.id);
   const defaultA = q.a && models.includes(q.a) ? q.a : models.includes("nexus/auto") ? "nexus/auto" : models[0];
   const defaultB =

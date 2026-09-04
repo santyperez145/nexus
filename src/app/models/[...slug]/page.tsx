@@ -13,6 +13,7 @@ import {
   type CatalogModel,
 } from "@/lib/catalog";
 import {
+  isBuiltinRouterModel,
   isModelRouteSupported,
   modelAction,
   modelKind,
@@ -200,7 +201,7 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
     output: model.architecture.outputModalities,
   });
   const routeSupported = isModelRouteSupported(kind, model.id);
-  const isBuiltinRouter = model.id === "nexus/auto" || model.id === "nexus/free";
+  const isBuiltinRouter = isBuiltinRouterModel(model.id);
   const tokenPricingVerified = model.endpoints.some(isExecutableEndpoint);
   const supported =
     isBuiltinRouter ||

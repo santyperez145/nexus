@@ -4,7 +4,7 @@ import {
   SPEECH_MODELS,
   TRANSCRIPTION_MODELS,
 } from "@/lib/media/pricing";
-import { hasExecutableEndpoint } from "./pricing";
+import { hasExecutableEndpoint, isTextGenerationModel } from "./pricing";
 import type { CatalogModel } from "./types";
 
 export type ModelKind = "text" | "image" | "video" | "speech" | "transcription" | "embeddings";
@@ -35,8 +35,19 @@ export function isModelRouteSupported(kind: ModelKind, id: string) {
   return id === "nexus/video";
 }
 
+export function isBuiltinRouterModel(id: string) {
+  return id === "nexus/auto" || id === "nexus/free";
+}
+
+export function isTextModelExecutionReady(model: CatalogModel) {
+  return (
+    isBuiltinRouterModel(model.id) ||
+    (isTextGenerationModel(model) && hasExecutableEndpoint(model))
+  );
+}
+
 export function isModelExecutionReady(model: CatalogModel) {
-  if (model.id === "nexus/auto" || model.id === "nexus/free") return true;
+  if (isBuiltinRouterModel(model.id)) return true;
   const kind = modelKind({
     id: model.id,
     input: model.architecture.inputModalities,

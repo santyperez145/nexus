@@ -9,6 +9,7 @@ import { normalizeUpstream } from "../src/lib/catalog/normalize";
 import { resolveRoute } from "../src/lib/gateway/router";
 import type { AuthContext } from "../src/lib/gateway/types";
 import type { ModelEndpoint } from "../src/lib/catalog/types";
+import { isTextModelExecutionReady } from "../src/lib/catalog/presentation";
 import { GET as listModels } from "../src/app/api/v1/models/route";
 
 const auth: AuthContext = {
@@ -138,6 +139,17 @@ describe("catalog pricing trust", () => {
     assert.equal(plan.models.length, 0);
   });
 
+  it("keeps discovery-only Nexus slugs out of Chat and Arena", () => {
+    const catalog = allModels();
+    const builtin = catalog.filter(
+      (model) => isTextModelExecutionReady(model) && model.id.startsWith("nexus/"),
+    );
+    assert.deepEqual(builtin.map((model) => model.id), ["nexus/auto", "nexus/free"]);
+    const experimental = catalog.find((model) => model.id === "nexus/auto-beta");
+    assert.ok(experimental, "expected the discovery-only Nexus reference slug");
+    assert.equal(isTextModelExecutionReady(experimental), false);
+  });
+
   it("lists only executable models by default and makes references opt-in", async () => {
     const publicResponse = await listModels(new Request("https://nexus.test/api/v1/models"));
     const publicBody = (await publicResponse.json()) as {
@@ -146,7 +158,8 @@ describe("catalog pricing trust", () => {
     assert.ok(publicBody.data.length > 0);
     assert.ok(
       publicBody.data.every(
-        (model) => model.id.startsWith("nexus/") || model.nexus.executable,
+        (model) =>
+          model.id === "nexus/auto" || model.id === "nexus/free" || model.nexus.executable,
       ),
     );
 

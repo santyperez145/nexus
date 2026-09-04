@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Playground } from "@/components/chat/playground";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
-import { allModels, hasExecutableEndpoint, isTextGenerationModel } from "@/lib/catalog";
+import { allModels } from "@/lib/catalog";
+import { isTextModelExecutionReady } from "@/lib/catalog/presentation";
 import { getSession } from "@/lib/auth";
 import { db, ensureDb, schema } from "@/lib/db";
 import { wiredProviders } from "@/lib/providers/registry";
@@ -29,11 +30,7 @@ export default async function ChatPage({
         .limit(1)
     : [];
   const models = allModels()
-    .filter(
-      (model) =>
-        model.id.startsWith("nexus/") ||
-        (isTextGenerationModel(model) && hasExecutableEndpoint(model)),
-    )
+    .filter(isTextModelExecutionReady)
     .map((m) => ({ id: m.id, name: m.name }));
   const guest = !userId && guestPlaygroundEnabled();
   const requiresAuth = !userId && !guest;
