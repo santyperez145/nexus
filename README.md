@@ -24,7 +24,7 @@ npm run dev
 | Variable | Para qué |
 |---|---|
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / … | Pool de inferencia de la plataforma |
-| `STRIPE_SECRET_KEY` + webhook + Price IDs | Créditos, planes Pro/Team y portal de suscripción |
+| `STRIPE_SECRET_KEY` + webhook + Price IDs | Créditos, planes Pro/Team y portal. Preferir una restricted key (`rk_…`) limitada a Customers, Checkout, PaymentIntents, PaymentMethods, Subscriptions y Billing Portal |
 | `STRIPE_AUTOMATIC_TAX_ENABLED=true` | Opt-in después de configurar Tax Settings y registros fiscales en el entorno activo |
 | `CREDENTIALS_SECRET` | Cifrado BYOK (obligatorio en prod) |
 | `BETTER_AUTH_SECRET` | Secreto de sesión de al menos 32 caracteres (obligatorio en prod) |
@@ -38,6 +38,10 @@ npm run dev
 | `NO_TRAINING_PROVIDER_IDS` | Proveedores cuyo acuerdo activo prohíbe entrenamiento con solicitudes |
 | `GATEWAY_URL` | Data plane Hono aparte (`npm run dev:gateway`) |
 | BYOK en Settings | Keys del cliente, cifradas |
+
+PGlite es exclusivamente un fallback efímero de un solo proceso y no soporta flujos HTTP concurrentes de la app.
+No ejecutes `dev`, tests o workers sobre el mismo `PGLITE_DATA_DIR`; para validación integral, staging y producción
+usá PostgreSQL/Neon.
 
 Las cargas de wallet cobran 5,5% con un mínimo de USD 0,80; la inferencia del pool mantiene 0% de
 markup. El mínimo evita que el costo fijo del procesador vuelva deficitarios los packs pequeños.

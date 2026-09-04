@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   CREDIT_PACKS,
   APP_URL,
@@ -41,7 +41,14 @@ export async function POST(req: Request) {
       .where(
         and(
           eq(schema.subscriptions.userId, session.user.id),
-          ne(schema.subscriptions.status, "canceled"),
+          inArray(schema.subscriptions.status, [
+            "incomplete",
+            "trialing",
+            "active",
+            "past_due",
+            "unpaid",
+            "paused",
+          ]),
         ),
       )
       .limit(1);

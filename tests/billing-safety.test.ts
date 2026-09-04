@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import type Stripe from "stripe";
 import {
   BYOK_FEE,
   CREDIT_PURCHASE_MIN_FEE_USD,
@@ -9,6 +10,10 @@ import {
 import { chargeAmountCents } from "../src/lib/stripe";
 import { usdToMicros, tokenCostUsd } from "../src/lib/money";
 import { estimateReservationMicros } from "../src/lib/gateway/billing";
+import {
+  customerDefaultPaymentMethodId,
+  ensureAutoTopupPaymentMethod,
+} from "../src/lib/billing/stripe-payment-method";
 
 describe("atomic settle math", () => {
   it("never charges more than balance when clamping", () => {
@@ -86,5 +91,102 @@ describe("Stripe Tax launch safety", () => {
     assert.equal(stripeAutomaticTaxEnabled(), true);
     if (previous == null) delete process.env.STRIPE_AUTOMATIC_TAX_ENABLED;
     else process.env.STRIPE_AUTOMATIC_TAX_ENABLED = previous;
+  });
+});
+
+describe("Stripe auto top-up payment method", () => {
+  it("keeps an existing explicit customer default", async () => {
+    let paymentIntentReads = 0;
+    const stripe = {
+      customers: {
+        retrieve: async () => ({
+          id: "cus_existing",
+          deleted: false,
+          invoice_settings: { default_payment_method: "pm_existing" },
+        }),
+      },
+      paymentIntents: {
+        retrieve: async () => {
+          paymentIntentReads += 1;
+          return {};
+        },
+      },
+    } as unknown as Stripe;
+    const method = await ensureAutoTopupPaymentMethod(stripe, {
+      mode: "payment",
+      payment_status: "paid",
+      customer: "cus_existing",
+      payment_intent: "pi_existing",
+    } as Stripe.Checkout.Session);
+    assert.equal(method, "pm_existing");
+    assert.equal(paymentIntentReads, 0);
+  });
+
+  it("sets an attached card as default after the first paid wallet checkout", async () => {
+    let update: unknown;
+    const stripe = {
+      customers: {
+        retrieve: async () => ({
+          id: "cus_new",
+          deleted: false,
+          invoice_settings: { default_payment_method: null },
+        }),
+        update: async (_customerId: string, input: unknown) => {
+          update = input;
+          return {};
+        },
+      },
+      paymentIntents: { retrieve: async () => ({ payment_method: "pm_new" }) },
+      paymentMethods: {
+        retrieve: async () => ({ id: "pm_new", type: "card", customer: "cus_new" }),
+      },
+    } as unknown as Stripe;
+    const method = await ensureAutoTopupPaymentMethod(stripe, {
+      mode: "payment",
+      payment_status: "paid",
+      customer: "cus_new",
+      payment_intent: "pi_new",
+    } as Stripe.Checkout.Session);
+    assert.equal(method, "pm_new");
+    assert.deepEqual(update, { invoice_settings: { default_payment_method: "pm_new" } });
+  });
+
+  it("rejects a detached or non-card payment method", async () => {
+    let updates = 0;
+    const stripe = {
+      customers: {
+        retrieve: async () => ({
+          id: "cus_safe",
+          deleted: false,
+          invoice_settings: { default_payment_method: null },
+        }),
+        update: async () => {
+          updates += 1;
+          return {};
+        },
+      },
+      paymentIntents: { retrieve: async () => ({ payment_method: "pm_bank" }) },
+      paymentMethods: {
+        retrieve: async () => ({ id: "pm_bank", type: "us_bank_account", customer: "cus_safe" }),
+      },
+    } as unknown as Stripe;
+    const method = await ensureAutoTopupPaymentMethod(stripe, {
+      mode: "payment",
+      payment_status: "paid",
+      customer: "cus_safe",
+      payment_intent: "pi_safe",
+    } as Stripe.Checkout.Session);
+    assert.equal(method, null);
+    assert.equal(updates, 0);
+  });
+
+  it("extracts a populated default payment method object", () => {
+    assert.equal(
+      customerDefaultPaymentMethodId({
+        deleted: false,
+        invoice_settings: { default_payment_method: { id: "pm_object" } },
+      } as unknown as Stripe.Customer),
+      "pm_object",
+    );
   });
 });

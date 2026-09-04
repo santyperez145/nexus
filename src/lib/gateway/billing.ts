@@ -12,6 +12,7 @@ import { microsToUsd, tokenCostUsd, usdToMicros } from "@/lib/money";
 import { maybeNotifyKeyLimit, maybeNotifyLowBalance } from "@/lib/notify";
 import { chargeAmountCents, getStripe } from "@/lib/stripe";
 import { creditPurchaseOnce } from "@/lib/billing/stripe-credit";
+import { defaultAutoTopupPaymentMethodId } from "@/lib/billing/stripe-payment-method";
 import type { AuthContext } from "./types";
 
 export function billingUserId(auth: AuthContext) {
@@ -444,19 +445,14 @@ export async function maybeAutoTopup(userId: string) {
 
   const stripe = getStripe();
   if (!stripe || !user.stripeCustomerId) return;
-  const methods = await stripe.paymentMethods.list({
-    customer: user.stripeCustomerId,
-    type: "card",
-    limit: 1,
-  });
-  const pm = methods.data[0];
-  if (!pm) return;
+  const paymentMethodId = await defaultAutoTopupPaymentMethodId(stripe, user.stripeCustomerId);
+  if (!paymentMethodId) return;
   const intent = await stripe.paymentIntents.create(
     {
       amount: chargeAmountCents(amount),
       currency: "usd",
       customer: user.stripeCustomerId,
-      payment_method: pm.id,
+      payment_method: paymentMethodId,
       off_session: true,
       confirm: true,
       metadata: {

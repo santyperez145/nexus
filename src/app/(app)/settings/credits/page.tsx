@@ -384,8 +384,8 @@ function CreditsInner() {
         <span className={prefs?.autoTopupEnabled ? "text-emerald-400" : "text-zinc-400"}>
           {prefs?.autoTopupEnabled ? "activo" : "apagado"}
         </span>
-        . Con wallet manual acredita al pasar el umbral. En prod (Stripe) cobra la tarjeta
-        guardada tras un checkout con setup_future_usage.
+        . Con wallet manual acredita al pasar el umbral. En producción cobra únicamente el método
+        predeterminado guardado después de un checkout compatible.
       </p>
       <div className="grid max-w-xl gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
         <Input
