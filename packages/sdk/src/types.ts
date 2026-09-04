@@ -155,3 +155,35 @@ export type DatasetRevisionRequest = {
   metadata?: Record<string, unknown>;
   files: Array<{ file_id: string; path: string }>;
 };
+
+export type Space = {
+  id: string;
+  namespace: string;
+  slug: string;
+  path: string;
+  title: string;
+  description: string;
+  visibility: "public" | "private";
+  model: NexusModelId;
+  system_prompt: string;
+  starter_prompt: string | null;
+  temperature: number;
+  max_tokens: number;
+  runs: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SpaceCreateRequest = {
+  namespace: string;
+  slug: string;
+  title: string;
+  description?: string;
+  visibility?: "public" | "private";
+  model?: NexusModelId;
+  system_prompt?: string;
+  starter_prompt?: string | null;
+  temperature?: number;
+  max_tokens?: number;
+  workspace_id?: string | null;
+};

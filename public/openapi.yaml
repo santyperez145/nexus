@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.15.0
+  version: 0.16.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference. The X-Nexus-Guest local echo is development-only and disabled in production.
 servers:
   - url: /api/v1
@@ -778,6 +778,111 @@ paths:
       responses:
         "200": { description: File bytes with immutable caching for public pinned revisions }
         "403": { description: Gated dataset approval required }
+  /spaces:
+    get:
+      summary: List public Spaces or the authenticated tenant Spaces
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - in: query
+          name: mine
+          schema: { type: boolean, default: false }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: model
+          schema: { type: string }
+      responses:
+        "200": { description: Spaces visible in the selected scope }
+    post:
+      summary: Create a safe multi-provider Space and claim its Hub namespace
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [namespace, slug, title]
+              properties:
+                namespace: { type: string }
+                slug: { type: string }
+                title: { type: string }
+                description: { type: string }
+                visibility: { type: string, enum: [public, private] }
+                model: { type: string, default: nexus/auto }
+                system_prompt: { type: string, maxLength: 32000 }
+                starter_prompt: { type: [string, "null"], maxLength: 4000 }
+                temperature: { type: number, minimum: 0, maximum: 2 }
+                max_tokens: { type: integer, minimum: 1, maximum: 131072 }
+                workspace_id: { type: [string, "null"] }
+      responses:
+        "201": { description: Space created after executable-model validation }
+  /spaces/{namespace}/{slug}:
+    parameters:
+      - in: path
+        name: namespace
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: Read public or tenant-owned Space configuration
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200": { description: Space configuration and owner-visible recent runs }
+        "404": { description: Space is missing or private to another tenant }
+    patch:
+      summary: Update a tenant-owned Space
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Space updated }
+    delete:
+      summary: Delete a tenant-owned Space and its run links
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Space deleted; generation accounting is retained }
+  /spaces/{namespace}/{slug}/run:
+    parameters:
+      - in: path
+        name: namespace
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    post:
+      summary: Execute a Space through the protected multi-provider gateway
+      description: Requires an inference credential or account session. The runner identity is billed through reserve-to-settle; the Space owner is never billed implicitly.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt: { type: string, maxLength: 128000 }
+                messages:
+                  type: array
+                  maxItems: 64
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string, maxLength: 128000 }
+      responses:
+        "200": { description: OpenAI-compatible chat completion with X-Request-Id and X-Nexus-Space }
+        "401": { description: Missing inference identity }
+        "404": { description: Space is missing or inaccessible }
   /datasets/models:
     get:
       summary: Model rankings dataset

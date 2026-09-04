@@ -46,7 +46,8 @@ export default async function AppsPage() {
         />
         <MarketingPageHeader title="Apps y plantillas">
           Empezá con experiencias listas para adaptar: asistentes, automatizaciones, búsqueda y
-          generación multimedia sobre un único catálogo de modelos.
+          generación multimedia sobre un único catálogo de modelos. Para publicar una experiencia
+          ejecutable y compartible, usá <Link href="/spaces" className="text-indigo-700 hover:underline">Nexus Spaces</Link>.
         </MarketingPageHeader>
 
         <div className="mb-10 grid gap-3 sm:grid-cols-3">

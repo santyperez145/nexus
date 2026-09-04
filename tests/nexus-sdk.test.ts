@@ -227,6 +227,32 @@ describe("nexus-sdk", () => {
     assert.equal(revisionBody.files[0].path, "data/train.jsonl");
   });
 
+  it("publishes and executes Spaces through explicit resource paths", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        if (String(url).endsWith("/run")) {
+          return Response.json({
+            id: "gen-space",
+            object: "chat.completion",
+            created: 1,
+            model: "nexus/auto",
+            choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: "done" } }],
+          });
+        }
+        return Response.json({ data: { path: "acme/copilot" } }, { status: 201 });
+      },
+    });
+    await nexus.spaces.create({ namespace: "acme", slug: "copilot", title: "Copilot" });
+    const result = await nexus.spaces.run("acme", "copilot", { prompt: "Ship it" });
+    assert.equal(calls[0].url, "https://nexus.test/api/v1/spaces");
+    assert.equal(calls[1].url, "https://nexus.test/api/v1/spaces/acme/copilot/run");
+    assert.equal(result.choices[0]?.message.content, "done");
+  });
+
   it("sends X-Nexus-Guest without bearer when guest:true", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const nexus = new Nexus({

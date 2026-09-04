@@ -86,6 +86,28 @@ describe("API path policy", () => {
       () => enforcePathPolicy(publishRevision, { ...mgmtKey, scopes: ["datasets:read"] }),
       /missing scope datasets:write/,
     );
+
+    const readSpaces = new Request("http://localhost/api/v1/spaces");
+    const writeSpace = new Request("http://localhost/api/v1/spaces/nexus/copilot", { method: "PATCH" });
+    assert.equal(requiredScope(readSpaces), "spaces:read");
+    assert.equal(requiredScope(writeSpace), "spaces:write");
+    enforcePathPolicy(readSpaces, { ...mgmtKey, scopes: ["spaces:read"] });
+    assert.throws(
+      () => enforcePathPolicy(writeSpace, { ...mgmtKey, scopes: ["spaces:read"] }),
+      /missing scope spaces:write/,
+    );
+  });
+
+  it("treats Space execution as inference while keeping its CRUD in management", () => {
+    const run = new Request("http://localhost/api/v1/spaces/nexus/copilot/run", { method: "POST" });
+    const edit = new Request("http://localhost/api/v1/spaces/nexus/copilot", { method: "PATCH" });
+    assert.equal(isManagementPath(run), false);
+    assert.equal(requiredScope(run), "inference:write");
+    enforcePathPolicy(run, { ...inferenceKey, scopes: ["inference:write"] });
+    assert.throws(() => enforcePathPolicy(run, mgmtKey), /Management keys cannot run inference/);
+    assert.throws(() => enforcePathPolicy(run, guest), /Guest header is not accepted/);
+    assert.equal(isManagementPath(edit), true);
+    assert.throws(() => enforcePathPolicy(edit, inferenceKey), /Management API key required/);
   });
 
   it("rejects scopes outside the key class", () => {

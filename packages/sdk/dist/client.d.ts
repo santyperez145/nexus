@@ -1,4 +1,4 @@
-import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, NexusClientOptions } from "./types.js";
+import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
 export declare class Nexus {
     #private;
     readonly apiKey: string;
@@ -31,6 +31,7 @@ export declare class Nexus {
     readonly status: StatusResource;
     readonly shares: SharesResource;
     readonly datasets: DatasetsResource;
+    readonly spaces: SpacesResource;
     readonly auth: AuthResource;
     readonly oauth: OauthResource;
     constructor(opts?: NexusClientOptions);
@@ -573,6 +574,48 @@ declare class DatasetsResource {
         }>;
         window: string;
     }>;
+}
+declare class SpacesResource {
+    private readonly client;
+    constructor(client: Nexus);
+    private path;
+    list(opts?: {
+        q?: string;
+        model?: string;
+        mine?: boolean;
+        limit?: number;
+    }): Promise<{
+        data: Space[];
+        meta: {
+            count: number;
+            scope: string;
+        };
+    }>;
+    get(namespace: string, slug: string): Promise<{
+        data: Space & {
+            access: unknown;
+            recent_runs: unknown[];
+        };
+    }>;
+    create(body: SpaceCreateRequest): Promise<{
+        data: Space;
+    }>;
+    update(namespace: string, slug: string, body: Partial<Omit<SpaceCreateRequest, "namespace" | "slug" | "workspace_id">>): Promise<{
+        data: Space;
+    }>;
+    delete(namespace: string, slug: string): Promise<{
+        data: {
+            id: string;
+            deleted: boolean;
+        };
+    }>;
+    run(namespace: string, slug: string, body: {
+        prompt?: string;
+        messages?: Array<{
+            role: "user" | "assistant";
+            content: string;
+        }>;
+    }): Promise<ChatCompletion>;
 }
 declare class AuthResource {
     private readonly client;

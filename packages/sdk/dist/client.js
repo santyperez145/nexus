@@ -37,6 +37,7 @@ export class Nexus {
     status;
     shares;
     datasets;
+    spaces;
     auth;
     oauth;
     #fetch;
@@ -74,6 +75,7 @@ export class Nexus {
         this.status = new StatusResource(this);
         this.shares = new SharesResource(this);
         this.datasets = new DatasetsResource(this);
+        this.spaces = new SpacesResource(this);
         this.auth = new AuthResource(this);
         this.oauth = new OauthResource(this);
     }
@@ -586,6 +588,39 @@ class DatasetsResource {
     models(opts) {
         const window = opts?.window && opts.window !== "all" ? opts.window : undefined;
         return this.client.request("/datasets/models", { query: window ? { window } : undefined });
+    }
+}
+class SpacesResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    path(namespace, slug, suffix = "") {
+        return `/spaces/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}${suffix}`;
+    }
+    list(opts = {}) {
+        return this.client.request("/spaces", { query: opts });
+    }
+    get(namespace, slug) {
+        return this.client.request(this.path(namespace, slug));
+    }
+    create(body) {
+        return this.client.request("/spaces", { method: "POST", body });
+    }
+    update(namespace, slug, body) {
+        return this.client.request(this.path(namespace, slug), {
+            method: "PATCH",
+            body,
+        });
+    }
+    delete(namespace, slug) {
+        return this.client.request(this.path(namespace, slug), { method: "DELETE" });
+    }
+    run(namespace, slug, body) {
+        return this.client.request(this.path(namespace, slug, "/run"), {
+            method: "POST",
+            body,
+        });
     }
 }
 class AuthResource {

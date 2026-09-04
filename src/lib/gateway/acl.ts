@@ -12,6 +12,7 @@ const MANAGEMENT_PATHS = [
   "/api/v1/keys",
   "/api/v1/byok",
   "/api/v1/datasets",
+  "/api/v1/spaces",
   "/api/v1/files",
   "/api/v1/guardrails",
   "/api/v1/observability",
@@ -42,6 +43,7 @@ const RESOURCE_PATHS = [
   ["/api/v1/keys", "keys"],
   ["/api/v1/byok", "byok"],
   ["/api/v1/datasets", "datasets"],
+  ["/api/v1/spaces", "spaces"],
   ["/api/v1/files", "files"],
   ["/api/v1/guardrails", "guardrails"],
   ["/api/v1/observability", "observability"],
@@ -61,6 +63,8 @@ const MANAGEMENT_SCOPES = new Set([
   "byok:write",
   "datasets:read",
   "datasets:write",
+  "spaces:read",
+  "spaces:write",
   "files:read",
   "files:write",
   "guardrails:read",
@@ -119,11 +123,14 @@ export function isGuestInferencePath(req: Request) {
 }
 
 export function isManagementPath(req: Request) {
-  return matches(pathnameOf(req), MANAGEMENT_PATHS);
+  const path = pathnameOf(req);
+  if (/^\/api\/v1\/spaces\/[^/]+\/[^/]+\/run$/.test(path)) return false;
+  return matches(path, MANAGEMENT_PATHS);
 }
 
 export function isInferencePath(req: Request) {
-  return matches(pathnameOf(req), INFERENCE_PATHS);
+  const path = pathnameOf(req);
+  return matches(path, INFERENCE_PATHS) || /^\/api\/v1\/spaces\/[^/]+\/[^/]+\/run$/.test(path);
 }
 
 export function requiredScope(req: Request) {

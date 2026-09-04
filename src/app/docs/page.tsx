@@ -31,6 +31,9 @@ const ENDPOINTS = [
   ["GET/POST", "/api/v1/datasets/{namespace}/{slug}/revisions", "Snapshots inmutables"],
   ["GET", "/api/v1/datasets/{namespace}/{slug}/resolve/{revision}/{path}", "Descarga versionada"],
   ["GET/POST/PATCH", "/api/v1/datasets/{namespace}/{slug}/access", "Solicitudes gated"],
+  ["GET/POST", "/api/v1/spaces", "Spaces públicos/privados"],
+  ["GET/PATCH/DELETE", "/api/v1/spaces/{namespace}/{slug}", "Configuración de Space"],
+  ["POST", "/api/v1/spaces/{namespace}/{slug}/run", "Inferencia por Space (+ ledger)"],
   ["POST", "/api/v1/oauth", "OAuth PKCE → API key"],
   ["GET/POST/DELETE", "/api/v1/presets", "Presets (@slug)"],
   ["GET", "/api/v1/datasets/models", "Rankings"],
@@ -46,6 +49,7 @@ const SURFACES = [
   ["Studio", "/studio", "Imagen · TTS · STT · Video · Embeddings"],
   ["Chat", "/chat", "Playground texto + route trace"],
   ["Dataset Hub", "/datasets", "Versionado · gating · distribución"],
+  ["Spaces", "/spaces", "Apps publicables · runtime multi‑proveedor"],
   ["Status", "/status", "Cables de la instancia"],
 ];
 
@@ -68,7 +72,7 @@ export default function DocsPage() {
           </div>
           <p className="mt-1 text-sm text-zinc-600">
             Inferencia: Bearer <code className="text-zinc-800">sk-nx-</code>. Management:{" "}
-            <code className="text-zinc-800">sk-nx-mgmt-</code> (keys, BYOK, tenants, datasets). El header{" "}
+            <code className="text-zinc-800">sk-nx-mgmt-</code> (keys, BYOK, tenants, datasets, Spaces). El header{" "}
             <code className="text-zinc-800">X-Nexus-Guest</code> habilita un eco aislado solo en
             desarrollo, con 8 rpm/IP y sin persistencia ni keys. Producción siempre requiere sesión
             o Bearer.

@@ -14,6 +14,7 @@ import {
 const LINKS = [
   { href: "/models", label: "Modelos" },
   { href: "/datasets", label: "Datasets" },
+  { href: "/spaces", label: "Spaces" },
   { href: "/providers", label: "Proveedores" },
   { href: "/chat", label: "Playground" },
   { href: "/apps", label: "Apps" },

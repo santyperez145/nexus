@@ -92,6 +92,13 @@
       "when": 1788527916923,
       "tag": "0012_last_warstar",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788530493569,
+      "tag": "0013_romantic_thena",
+      "breakpoints": true
     }
   ]
 }

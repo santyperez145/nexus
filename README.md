@@ -1,6 +1,8 @@
 # Nexus
 
-Gateway propio de modelos de IA. Una API compatible con el SDK de OpenAI, créditos por token, routing y BYOK.
+Gateway propio y neutral de modelos de IA. Una API compatible con OpenAI y Anthropic, catálogo
+multi‑proveedor, créditos por token, routing y BYOK. OpenAI es un adapter más: Anthropic, Google,
+Mistral, Meta, DeepSeek y el resto del catálogo ejecutable compiten bajo las mismas políticas.
 
 No es un reskin de nadie: catálogo, slugs, keys (`sk-nx-`) y billing son de Nexus. Los modelos se descubren desde las APIs oficiales de cada laboratorio cuando cableás sus keys.
 
@@ -166,13 +168,21 @@ referencia, pero sólo entra al router cuando la tarifa de ese proveedor/modelo 
 precio `0` sin marca explícita de gratuidad se interpreta como desconocido y falla cerrado; los feeds
 externos no pueden auto-certificar precios ni reemplazar las entradas curadas de Nexus.
 
+El Hub comparte un namespace tenant-safe entre datasets versionados y Nexus Spaces. Un Space publica
+una experiencia de chat configurable sobre cualquier modelo de texto ejecutable, sin crear un segundo
+backend: cada run pasa por el router multi‑proveedor, ZDR, guardrails, rate limits, observabilidad y el
+ledger `reserve→settle`. La identidad que ejecuta paga el uso; el propietario del Space nunca se cobra
+implícitamente. Los Spaces privados de workspace exigen una API key scoped a ese workspace para
+ejecución programática.
+
 Los guardrails son jerárquicos: las reglas personales y las del workspace activo se intersectan.
 Pueden limitar modelos y proveedores, imponer un costo máximo, bloquear patrones sensibles y forzar
 ZDR. Las preferencias enviadas por el cliente sólo pueden acotar esa política; una intersección vacía
 falla con `403 guardrail_blocked`. El preview autenticado ejecuta los mismos presets, guardrails y
 filtros de privacidad que la inferencia, sin consumir saldo.
 
-Las API keys pueden limitarse a `inference`, `management:read` y `management:write`. Los presupuestos,
+Las API keys aplican scopes de mínimo privilegio por recurso (`inference:write`, `spaces:read/write`,
+`datasets:read/write`, `keys:read/write`, entre otros). Los presupuestos,
 límites por key, créditos y membresías de workspace se validan en el servidor; no dependen del cliente.
 El workspace predeterminado de una organización incluye a todos sus miembros. Los demás requieren
 asignación explícita; owner/admin conservan acceso administrativo global y un workspace compartido

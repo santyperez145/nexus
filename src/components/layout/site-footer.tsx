@@ -9,6 +9,7 @@ const COLS = [
       ["/chat", "Chat"],
       ["/models", "Modelos"],
       ["/datasets", "Datasets"],
+      ["/spaces", "Spaces"],
       ["/rankings", "Ranking"],
       ["/compare", "Comparar"],
       ["/arena", "Arena"],

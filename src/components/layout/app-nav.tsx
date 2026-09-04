@@ -14,6 +14,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
       { href: "/studio", label: "Estudio multimedia" },
       { href: "/models", label: "Modelos" },
       { href: "/settings/datasets", label: "Hub de datasets" },
+      { href: "/settings/spaces", label: "Spaces" },
     ],
   },
   {

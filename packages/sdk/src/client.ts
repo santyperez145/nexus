@@ -7,6 +7,8 @@ import type {
   DatasetCreateRequest,
   DatasetRepository,
   DatasetRevisionRequest,
+  Space,
+  SpaceCreateRequest,
   NexusClientOptions,
 } from "./types.js";
 
@@ -48,6 +50,7 @@ export class Nexus {
   readonly status: StatusResource;
   readonly shares: SharesResource;
   readonly datasets: DatasetsResource;
+  readonly spaces: SpacesResource;
   readonly auth: AuthResource;
   readonly oauth: OauthResource;
   #fetch: typeof fetch;
@@ -86,6 +89,7 @@ export class Nexus {
     this.status = new StatusResource(this);
     this.shares = new SharesResource(this);
     this.datasets = new DatasetsResource(this);
+    this.spaces = new SpacesResource(this);
     this.auth = new AuthResource(this);
     this.oauth = new OauthResource(this);
   }
@@ -711,6 +715,60 @@ class DatasetsResource {
       }>;
       window: string;
     }>("/datasets/models", { query: window ? { window } : undefined });
+  }
+}
+
+class SpacesResource {
+  constructor(private readonly client: Nexus) {}
+
+  private path(namespace: string, slug: string, suffix = "") {
+    return `/spaces/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}${suffix}`;
+  }
+
+  list(opts: { q?: string; model?: string; mine?: boolean; limit?: number } = {}) {
+    return this.client.request<{ data: Space[]; meta: { count: number; scope: string } }>(
+      "/spaces",
+      { query: opts },
+    );
+  }
+
+  get(namespace: string, slug: string) {
+    return this.client.request<{ data: Space & { access: unknown; recent_runs: unknown[] } }>(
+      this.path(namespace, slug),
+    );
+  }
+
+  create(body: SpaceCreateRequest) {
+    return this.client.request<{ data: Space }>("/spaces", { method: "POST", body });
+  }
+
+  update(
+    namespace: string,
+    slug: string,
+    body: Partial<Omit<SpaceCreateRequest, "namespace" | "slug" | "workspace_id">>,
+  ) {
+    return this.client.request<{ data: Space }>(this.path(namespace, slug), {
+      method: "PATCH",
+      body,
+    });
+  }
+
+  delete(namespace: string, slug: string) {
+    return this.client.request<{ data: { id: string; deleted: boolean } }>(
+      this.path(namespace, slug),
+      { method: "DELETE" },
+    );
+  }
+
+  run(
+    namespace: string,
+    slug: string,
+    body: { prompt?: string; messages?: Array<{ role: "user" | "assistant"; content: string }> },
+  ) {
+    return this.client.request<ChatCompletion>(this.path(namespace, slug, "/run"), {
+      method: "POST",
+      body,
+    });
   }
 }
 

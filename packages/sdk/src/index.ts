@@ -11,6 +11,8 @@ export type {
   DatasetCreateRequest,
   DatasetRepository,
   DatasetRevisionRequest,
+  Space,
+  SpaceCreateRequest,
   NexusClientOptions,
   ProviderPreferences,
 } from "./types.js";

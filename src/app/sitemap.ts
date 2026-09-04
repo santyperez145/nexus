@@ -10,6 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "",
     "/models",
     "/datasets",
+    "/spaces",
     "/chat",
     "/providers",
     "/rankings",

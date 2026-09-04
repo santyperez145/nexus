@@ -1,7 +1,7 @@
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import { sha256 } from "@/lib/crypto";
-import { assertWorkspaceManager, resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
+import { resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
 import type { AuthContext } from "@/lib/gateway/types";
 import { id } from "@/lib/ids";
 import {
@@ -14,6 +14,7 @@ import {
   normalizeTags,
   parseDatasetRevision,
 } from "./datasets";
+import { ownedHubNamespace } from "./namespace-store";
 
 type Repository = typeof schema.hubRepositories.$inferSelect;
 type Namespace = typeof schema.hubNamespaces.$inferSelect;
@@ -175,46 +176,6 @@ export async function listDatasetRepositories(input: {
     .slice(0, limit);
 }
 
-async function ownedNamespace(
-  tx: DbExecutor,
-  auth: AuthContext,
-  namespaceSlug: string,
-  displayName: string,
-  workspaceId: string | null,
-) {
-  const [existing] = await tx
-    .select()
-    .from(schema.hubNamespaces)
-    .where(eq(schema.hubNamespaces.slug, namespaceSlug))
-    .limit(1);
-  if (existing) {
-    const sameScope = workspaceId
-      ? existing.workspaceId === workspaceId
-      : existing.workspaceId == null && existing.userId === auth.userId;
-    if (!sameScope || !hubTenantAccess(auth, existing)) throw conflict("namespace is already claimed");
-    return existing;
-  }
-
-  const ownerWhere = workspaceId
-    ? eq(schema.hubNamespaces.workspaceId, workspaceId)
-    : and(eq(schema.hubNamespaces.userId, auth.userId), sql`${schema.hubNamespaces.workspaceId} IS NULL`);
-  const [ownerNamespace] = await tx.select().from(schema.hubNamespaces).where(ownerWhere).limit(1);
-  if (ownerNamespace) {
-    throw conflict(`this tenant already uses namespace ${ownerNamespace.slug}`);
-  }
-  await assertWorkspaceManager(auth, workspaceId);
-  const row = {
-    id: id("ns"),
-    slug: namespaceSlug,
-    displayName,
-    userId: auth.userId,
-    workspaceId,
-    verified: false,
-  };
-  await tx.insert(schema.hubNamespaces).values(row);
-  return { ...row, createdAt: new Date() };
-}
-
 export async function createDatasetRepository(auth: AuthContext, input: DatasetCreate) {
   const workspaceId = await resolveOwnedWorkspace(auth, input.workspace_id);
   const namespaceSlug = hubSlug(input.namespace, "namespace");
@@ -222,7 +183,7 @@ export async function createDatasetRepository(auth: AuthContext, input: DatasetC
   const tags = normalizeTags(input.tags);
   try {
     const created = await withTransaction(async (tx) => {
-      const namespace = await ownedNamespace(tx, auth, namespaceSlug, input.namespace.trim(), workspaceId);
+      const namespace = await ownedHubNamespace(tx, auth, namespaceSlug, input.namespace.trim(), workspaceId);
       const row = {
         id: id("ds"),
         namespaceId: namespace.id,

@@ -85,6 +85,8 @@ await nexus.chat.completions.create({
 | `nexus.datasets.list` / `.get` / `.create` / `.update` / `.delete` | `/datasets` |
 | `nexus.datasets.revisions.*` / `.access.*` / `.download` | `/datasets/{namespace}/{slug}/*` |
 | `nexus.datasets.models` | `/datasets/models` (ranking de modelos) |
+| `nexus.spaces.list` / `.get` / `.create` / `.update` / `.delete` | `/spaces` |
+| `nexus.spaces.run` | `POST /spaces/{namespace}/{slug}/run` |
 | `nexus.auth.key` | `/auth/key` |
 | `nexus.oauth.describe` / `.challenge` / `.exchange` | `/oauth` PKCE |
 

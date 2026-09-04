@@ -394,6 +394,49 @@ export const SCHEMA_SQL = [
    ON "hub_access_grant"(repository_id, user_id)`,
   `CREATE INDEX IF NOT EXISTS hub_access_grant_repository_status_idx
    ON "hub_access_grant"(repository_id, status)`,
+  `CREATE TABLE IF NOT EXISTS "hub_space" (
+    id text PRIMARY KEY,
+    namespace_id text NOT NULL REFERENCES "hub_namespace"(id) ON DELETE CASCADE,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id text REFERENCES workspace(id) ON DELETE CASCADE,
+    slug text NOT NULL,
+    title text NOT NULL,
+    description text NOT NULL DEFAULT '',
+    visibility text NOT NULL DEFAULT 'public',
+    model text NOT NULL,
+    system_prompt text NOT NULL DEFAULT '',
+    starter_prompt text,
+    temperature_milli integer NOT NULL DEFAULT 700,
+    max_tokens integer NOT NULL DEFAULT 1024,
+    runs integer NOT NULL DEFAULT 0,
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now(),
+    CONSTRAINT hub_space_visibility_check CHECK (visibility IN ('public', 'private')),
+    CONSTRAINT hub_space_temperature_check CHECK (temperature_milli BETWEEN 0 AND 2000),
+    CONSTRAINT hub_space_max_tokens_check CHECK (max_tokens BETWEEN 1 AND 131072),
+    CONSTRAINT hub_space_runs_check CHECK (runs >= 0)
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_space_namespace_slug_uidx
+   ON "hub_space"(namespace_id, slug)`,
+  `CREATE INDEX IF NOT EXISTS hub_space_public_updated_idx
+   ON "hub_space"(updated_at) WHERE visibility = 'public'`,
+  `CREATE INDEX IF NOT EXISTS hub_space_user_idx ON "hub_space"(user_id, updated_at)`,
+  `CREATE INDEX IF NOT EXISTS hub_space_workspace_idx ON "hub_space"(workspace_id, updated_at)`,
+  `CREATE TABLE IF NOT EXISTS "hub_space_run" (
+    id text PRIMARY KEY,
+    space_id text NOT NULL REFERENCES "hub_space"(id) ON DELETE CASCADE,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id text REFERENCES workspace(id) ON DELETE SET NULL,
+    generation_id text REFERENCES "generation"(id) ON DELETE SET NULL,
+    model text NOT NULL,
+    created_at timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_space_run_generation_uidx
+   ON "hub_space_run"(generation_id) WHERE generation_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS hub_space_run_space_created_idx
+   ON "hub_space_run"(space_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS hub_space_run_user_created_idx
+   ON "hub_space_run"(user_id, created_at)`,
   `CREATE TABLE IF NOT EXISTS "preset" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,

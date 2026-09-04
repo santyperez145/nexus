@@ -530,6 +530,74 @@ export const hubAccessGrants = pgTable(
   ],
 );
 
+export const hubSpaces = pgTable(
+  "hub_space",
+  {
+    id: text("id").primaryKey(),
+    namespaceId: text("namespace_id")
+      .notNull()
+      .references(() => hubNamespaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").references(() => workspaces.id, {
+      onDelete: "cascade",
+    }),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    visibility: text("visibility").notNull().default("public"),
+    model: text("model").notNull(),
+    systemPrompt: text("system_prompt").notNull().default(""),
+    starterPrompt: text("starter_prompt"),
+    temperatureMilli: integer("temperature_milli").notNull().default(700),
+    maxTokens: integer("max_tokens").notNull().default(1024),
+    runs: integer("runs").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("hub_space_namespace_slug_uidx").on(t.namespaceId, t.slug),
+    index("hub_space_public_updated_idx")
+      .on(t.updatedAt)
+      .where(sql`${t.visibility} = 'public'`),
+    index("hub_space_user_idx").on(t.userId, t.updatedAt),
+    index("hub_space_workspace_idx").on(t.workspaceId, t.updatedAt),
+    check("hub_space_visibility_check", sql`${t.visibility} IN ('public', 'private')`),
+    check("hub_space_temperature_check", sql`${t.temperatureMilli} BETWEEN 0 AND 2000`),
+    check("hub_space_max_tokens_check", sql`${t.maxTokens} BETWEEN 1 AND 131072`),
+    check("hub_space_runs_check", sql`${t.runs} >= 0`),
+  ],
+);
+
+export const hubSpaceRuns = pgTable(
+  "hub_space_run",
+  {
+    id: text("id").primaryKey(),
+    spaceId: text("space_id")
+      .notNull()
+      .references(() => hubSpaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").references(() => workspaces.id, {
+      onDelete: "set null",
+    }),
+    generationId: text("generation_id").references(() => generations.id, {
+      onDelete: "set null",
+    }),
+    model: text("model").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("hub_space_run_generation_uidx")
+      .on(t.generationId)
+      .where(sql`${t.generationId} IS NOT NULL`),
+    index("hub_space_run_space_created_idx").on(t.spaceId, t.createdAt),
+    index("hub_space_run_user_created_idx").on(t.userId, t.createdAt),
+  ],
+);
+
 export const presets = pgTable("preset", {
   id: text("id").primaryKey(),
   userId: text("user_id")
