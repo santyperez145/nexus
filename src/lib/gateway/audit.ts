@@ -1,5 +1,6 @@
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
+import { clientIp } from "@/lib/network/client-ip";
 import type { AuthContext } from "./types";
 
 export async function writeAudit(
@@ -16,7 +17,7 @@ export async function writeAudit(
       action,
       resource: opts.resource ?? null,
       resourceId: opts.resourceId ?? null,
-      ip: opts.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ?? opts.headers?.get("x-real-ip") ?? null,
+      ip: clientIp(opts.headers),
       meta: opts.meta ?? null,
     });
   } catch (error) {

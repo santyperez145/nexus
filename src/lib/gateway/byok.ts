@@ -2,6 +2,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import { id } from "@/lib/ids";
+import { clientIp } from "@/lib/network/client-ip";
 import { providerById } from "@/lib/providers/registry";
 import type { AuthContext } from "./types";
 
@@ -16,14 +17,6 @@ function scopeCondition(userId: string, workspaceId?: string | null) {
         eq(schema.byokCredentials.userId, userId),
         isNull(schema.byokCredentials.workspaceId),
       );
-}
-
-function clientIp(headers?: Headers) {
-  return (
-    headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headers?.get("x-real-ip") ??
-    null
-  );
 }
 
 async function lockScope(tx: DbExecutor, userId: string, workspaceId?: string | null) {

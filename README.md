@@ -56,6 +56,10 @@ Anthropic Messages se enrutan al data plane independiente. Responses y Messages 
 ciclos SSE nativos, incluidos tool calls, uso acumulado, estados incompletos y errores de stream.
 Ambos mounts (`/api/v1` y `/v1`) comparten
 la misma ACL, scopes, rate limiting y ledger; no existe una ruta rápida que evite el control plane.
+La identidad de red para sesiones, guest throttling y auditoría acepta únicamente el header protegido
+de la plataforma activa (`X-Real-IP` en Railway, `X-Vercel-Forwarded-For` en Vercel o
+`Fly-Client-IP` en Fly); un runtime productivo desconocido cae en un bucket global en vez de confiar
+en `X-Forwarded-For` enviado por el cliente.
 Los webhooks de observabilidad se persisten antes del primer intento, incluyen `x-nexus-delivery` y
 se reintentan desde el worker o `GET /api/internal/cron/webhooks` con backoff progresivo (máximo 6 intentos); el Delivery log permite
 auditar respuestas, próximos intentos y dead letters sin exponer el payload.

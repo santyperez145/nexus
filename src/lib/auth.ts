@@ -6,6 +6,7 @@ import { authRateLimitStorage } from "./auth-rate-limit";
 import { trustedAuthOrigins } from "./cors";
 import { db, ensureDb, schema } from "./db";
 import { sendEmailVerification, sendPasswordResetEmail } from "./email";
+import { trustedClientIpHeaders } from "./network/client-ip";
 import { provisionUserAccount } from "./onboarding/provision";
 
 const buildPhase =
@@ -67,6 +68,12 @@ export const auth = betterAuth({
     window: 60,
     max: 100,
     customStorage: authRateLimitStorage,
+  },
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: trustedClientIpHeaders(),
+    },
+    useSecureCookies: productionRuntime,
   },
   plugins: [nextCookies()],
   databaseHooks: {
