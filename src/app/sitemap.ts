@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticPaths = [
     "",
     "/models",
+    "/datasets",
     "/chat",
     "/providers",
     "/rankings",

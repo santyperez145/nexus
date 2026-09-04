@@ -312,6 +312,88 @@ export const SCHEMA_SQL = [
     content text,
     created_at timestamp NOT NULL DEFAULT now()
   )`,
+  `CREATE TABLE IF NOT EXISTS "hub_namespace" (
+    id text PRIMARY KEY,
+    slug text NOT NULL,
+    display_name text NOT NULL,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id text REFERENCES "workspace"(id) ON DELETE CASCADE,
+    verified boolean NOT NULL DEFAULT false,
+    created_at timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_namespace_slug_uidx ON "hub_namespace"(slug)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_namespace_personal_owner_uidx
+   ON "hub_namespace"(user_id) WHERE workspace_id IS NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_namespace_workspace_uidx
+   ON "hub_namespace"(workspace_id) WHERE workspace_id IS NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS "hub_repository" (
+    id text PRIMARY KEY,
+    namespace_id text NOT NULL REFERENCES "hub_namespace"(id) ON DELETE CASCADE,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    workspace_id text REFERENCES "workspace"(id) ON DELETE CASCADE,
+    slug text NOT NULL,
+    title text NOT NULL,
+    description text NOT NULL DEFAULT '',
+    visibility text NOT NULL DEFAULT 'public',
+    gated boolean NOT NULL DEFAULT false,
+    license text NOT NULL DEFAULT 'other',
+    task text,
+    tags jsonb NOT NULL DEFAULT '[]'::jsonb,
+    latest_revision integer NOT NULL DEFAULT 0,
+    downloads integer NOT NULL DEFAULT 0,
+    created_at timestamp NOT NULL DEFAULT now(),
+    updated_at timestamp NOT NULL DEFAULT now(),
+    CONSTRAINT hub_repository_visibility_check CHECK (visibility IN ('public', 'private')),
+    CONSTRAINT hub_repository_revision_check CHECK (latest_revision >= 0),
+    CONSTRAINT hub_repository_downloads_check CHECK (downloads >= 0)
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_repository_namespace_slug_uidx
+   ON "hub_repository"(namespace_id, slug)`,
+  `CREATE INDEX IF NOT EXISTS hub_repository_public_updated_idx
+   ON "hub_repository"(updated_at) WHERE visibility = 'public'`,
+  `CREATE INDEX IF NOT EXISTS hub_repository_user_idx ON "hub_repository"(user_id, updated_at)`,
+  `CREATE INDEX IF NOT EXISTS hub_repository_workspace_idx ON "hub_repository"(workspace_id, updated_at)`,
+  `CREATE TABLE IF NOT EXISTS "hub_revision" (
+    id text PRIMARY KEY,
+    repository_id text NOT NULL REFERENCES "hub_repository"(id) ON DELETE CASCADE,
+    revision integer NOT NULL,
+    commit_sha text NOT NULL,
+    commit_message text NOT NULL,
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_by text NOT NULL REFERENCES "user"(id) ON DELETE RESTRICT,
+    created_at timestamp NOT NULL DEFAULT now(),
+    CONSTRAINT hub_revision_number_check CHECK (revision > 0)
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_revision_repository_number_uidx
+   ON "hub_revision"(repository_id, revision)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_revision_repository_sha_uidx
+   ON "hub_revision"(repository_id, commit_sha)`,
+  `CREATE INDEX IF NOT EXISTS hub_revision_repository_created_idx
+   ON "hub_revision"(repository_id, created_at)`,
+  `CREATE TABLE IF NOT EXISTS "hub_revision_file" (
+    id text PRIMARY KEY,
+    revision_id text NOT NULL REFERENCES "hub_revision"(id) ON DELETE CASCADE,
+    file_id text NOT NULL REFERENCES "file"(id) ON DELETE RESTRICT,
+    path text NOT NULL,
+    created_at timestamp NOT NULL DEFAULT now()
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_revision_file_path_uidx
+   ON "hub_revision_file"(revision_id, path)`,
+  `CREATE INDEX IF NOT EXISTS hub_revision_file_file_idx ON "hub_revision_file"(file_id)`,
+  `CREATE TABLE IF NOT EXISTS "hub_access_grant" (
+    id text PRIMARY KEY,
+    repository_id text NOT NULL REFERENCES "hub_repository"(id) ON DELETE CASCADE,
+    user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    status text NOT NULL DEFAULT 'pending',
+    requested_at timestamp NOT NULL DEFAULT now(),
+    decided_at timestamp,
+    decided_by text REFERENCES "user"(id) ON DELETE SET NULL,
+    CONSTRAINT hub_access_grant_status_check CHECK (status IN ('pending', 'approved', 'rejected'))
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_access_grant_repository_user_uidx
+   ON "hub_access_grant"(repository_id, user_id)`,
+  `CREATE INDEX IF NOT EXISTS hub_access_grant_repository_status_idx
+   ON "hub_access_grant"(repository_id, status)`,
   `CREATE TABLE IF NOT EXISTS "preset" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,

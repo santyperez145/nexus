@@ -1,4 +1,4 @@
-import type { ChatChunk, ChatCompletion, ChatRequest, NexusClientOptions } from "./types.js";
+import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, NexusClientOptions } from "./types.js";
 export declare class Nexus {
     #private;
     readonly apiKey: string;
@@ -507,7 +507,61 @@ declare class OauthResource {
 }
 declare class DatasetsResource {
     private readonly client;
+    readonly revisions: {
+        list: (namespace: string, slug: string) => Promise<{
+            data: unknown[];
+        }>;
+        create: (namespace: string, slug: string, body: DatasetRevisionRequest) => Promise<{
+            data: unknown;
+        }>;
+    };
+    readonly access: {
+        list: (namespace: string, slug: string) => Promise<{
+            data: unknown;
+        }>;
+        request: (namespace: string, slug: string) => Promise<{
+            data: {
+                status: string;
+            };
+        }>;
+        decide: (namespace: string, slug: string, id: string, status: "approved" | "rejected") => Promise<{
+            data: unknown;
+        }>;
+    };
     constructor(client: Nexus);
+    private path;
+    list(opts?: {
+        q?: string;
+        task?: string;
+        tag?: string;
+        mine?: boolean;
+        limit?: number;
+    }): Promise<{
+        data: DatasetRepository[];
+        meta: {
+            count: number;
+            scope: string;
+        };
+    }>;
+    get(namespace: string, slug: string): Promise<{
+        data: DatasetRepository & {
+            access: unknown;
+            revisions: unknown[];
+        };
+    }>;
+    create(body: DatasetCreateRequest): Promise<{
+        data: DatasetRepository;
+    }>;
+    update(namespace: string, slug: string, body: Partial<Omit<DatasetCreateRequest, "namespace" | "slug" | "workspace_id">>): Promise<{
+        data: DatasetRepository;
+    }>;
+    delete(namespace: string, slug: string): Promise<{
+        data: {
+            id: string;
+            deleted: boolean;
+        };
+    }>;
+    download(namespace: string, slug: string, revision: string | number, path: string): Promise<ArrayBuffer>;
     models(opts?: {
         window?: "7d" | "30d" | "all";
     }): Promise<{

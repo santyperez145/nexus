@@ -26,6 +26,11 @@ const ENDPOINTS = [
   ["GET/POST/PATCH/DELETE", "/api/v1/workspaces", "Workspaces + budgets"],
   ["GET", "/api/v1/analytics?days=", "Analytics (ventana + provider)"],
   ["GET/POST/DELETE", "/api/v1/files", "Files (file_ids en chat)"],
+  ["GET/POST", "/api/v1/datasets", "Hub de datasets públicos/privados"],
+  ["GET/PATCH/DELETE", "/api/v1/datasets/{namespace}/{slug}", "Ficha y política de dataset"],
+  ["GET/POST", "/api/v1/datasets/{namespace}/{slug}/revisions", "Snapshots inmutables"],
+  ["GET", "/api/v1/datasets/{namespace}/{slug}/resolve/{revision}/{path}", "Descarga versionada"],
+  ["GET/POST/PATCH", "/api/v1/datasets/{namespace}/{slug}/access", "Solicitudes gated"],
   ["POST", "/api/v1/oauth", "OAuth PKCE → API key"],
   ["GET/POST/DELETE", "/api/v1/presets", "Presets (@slug)"],
   ["GET", "/api/v1/datasets/models", "Rankings"],
@@ -40,6 +45,7 @@ const ENDPOINTS = [
 const SURFACES = [
   ["Studio", "/studio", "Imagen · TTS · STT · Video · Embeddings"],
   ["Chat", "/chat", "Playground texto + route trace"],
+  ["Dataset Hub", "/datasets", "Versionado · gating · distribución"],
   ["Status", "/status", "Cables de la instancia"],
 ];
 
@@ -62,7 +68,7 @@ export default function DocsPage() {
           </div>
           <p className="mt-1 text-sm text-zinc-600">
             Inferencia: Bearer <code className="text-zinc-800">sk-nx-</code>. Management:{" "}
-            <code className="text-zinc-800">sk-nx-mgmt-</code> (keys, BYOK, tenants). El header{" "}
+            <code className="text-zinc-800">sk-nx-mgmt-</code> (keys, BYOK, tenants, datasets). El header{" "}
             <code className="text-zinc-800">X-Nexus-Guest</code> habilita un eco aislado solo en
             desarrollo, con 8 rpm/IP y sin persistencia ni keys. Producción siempre requiere sesión
             o Bearer.
@@ -193,6 +199,25 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
           <code className="text-zinc-800">nexus/preset/mi-preset</code> mezcla el config guardado en
           Settings → Presets.
         </p>
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Dataset Hub</h2>
+        <p className="mb-3 text-sm text-zinc-600">
+          Creá un repositorio con <code className="text-zinc-800">POST /api/v1/datasets</code> y
+          publicá snapshots completos con archivos ya subidos. Las revisiones reciben un número y
+          un SHA estable; un archivo referenciado no puede borrarse y romper la historia.
+        </p>
+        <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+{`await nexus.datasets.create({
+  namespace: "mi-equipo",
+  slug: "support-evals",
+  title: "Support evals",
+  gated: true,
+});
+
+await nexus.datasets.revisions.create("mi-equipo", "support-evals", {
+  commit_message: "Publica split de entrenamiento",
+  files: [{ file_id: "file_…", path: "data/train.jsonl" }],
+});`}
+        </pre>
         <h2 className="mb-3 text-lg font-medium text-zinc-900">Enterprise / ZDR</h2>
         <p className="mb-3 text-sm text-zinc-600">
           Paridad con el control de privacidad de OpenRouter, sin enterprise marketing vacío:

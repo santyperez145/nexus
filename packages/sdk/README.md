@@ -1,6 +1,6 @@
 # nexus-sdk
 
-Cliente TypeScript oficial de Nexus. Un key (`sk-nx-`), 425 modelos, API compatible OpenAI.
+Cliente TypeScript oficial de Nexus. Un key (`sk-nx-`), múltiples proveedores, API compatible OpenAI y Hub versionado.
 
 ```bash
 npm add nexus-sdk
@@ -82,7 +82,9 @@ await nexus.chat.completions.create({
 | `nexus.routing.preview` | `POST /routing/preview` |
 | `nexus.status.get` | `GET /status` |
 | `nexus.shares.create` / `.get` / `.list` / `.delete` | `/shares` |
-| `nexus.datasets.models` | `/datasets/models` |
+| `nexus.datasets.list` / `.get` / `.create` / `.update` / `.delete` | `/datasets` |
+| `nexus.datasets.revisions.*` / `.access.*` / `.download` | `/datasets/{namespace}/{slug}/*` |
+| `nexus.datasets.models` | `/datasets/models` (ranking de modelos) |
 | `nexus.auth.key` | `/auth/key` |
 | `nexus.oauth.describe` / `.challenge` / `.exchange` | `/oauth` PKCE |
 

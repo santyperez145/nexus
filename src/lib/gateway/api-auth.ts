@@ -10,6 +10,26 @@ import type { AuthContext } from "./types";
 import { accessibleWorkspaceIds } from "./tenant";
 import { assertControlPlaneRateLimit } from "./rate-limit";
 
+export async function sessionAuthContext(userId: string): Promise<AuthContext> {
+  await ensureDb();
+  const [user] = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);
+  if (!user) {
+    throw Object.assign(new Error("Account not found"), { status: 401, code: "invalid_api_key" });
+  }
+  return {
+    userId: user.id,
+    billingUserId: user.id,
+    workspaceIds: await accessibleWorkspaceIds(user.id),
+    isManagement: true,
+    scopes: ["*"],
+    plan: user.plan,
+    creditMicros: user.creditMicros,
+    zdr: user.zdr,
+    allowTraining: user.allowTraining,
+    logPrompts: user.logPrompts,
+  };
+}
+
 export async function authenticateRequest(req: Request): Promise<AuthContext> {
   bindRequestId(req);
   await ensureDb();
@@ -96,25 +116,7 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
         throw Object.assign(new Error("Missing bearer token"), { status: 401, code: "invalid_api_key" });
       }
     } else {
-      const [user] = await db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.id, session.user.id))
-        .limit(1);
-      if (!user) throw Object.assign(new Error("Account not found"), { status: 401, code: "invalid_api_key" });
-      const workspaceIds = await accessibleWorkspaceIds(user.id);
-      ctx = {
-        userId: user.id,
-        billingUserId: user.id,
-        workspaceIds,
-        isManagement: true,
-        scopes: ["*"],
-        plan: user.plan,
-        creditMicros: user.creditMicros,
-        zdr: user.zdr,
-        allowTraining: user.allowTraining,
-        logPrompts: user.logPrompts,
-      };
+      ctx = await sessionAuthContext(session.user.id);
     }
   }
 
@@ -123,6 +125,23 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
     await assertControlPlaneRateLimit(ctx);
   }
   return ctx;
+}
+
+/**
+ * Resolve the same account/API-key identity as authenticateRequest while allowing
+ * a truly anonymous read. An explicit credential or guest header is never
+ * downgraded to anonymous when it is invalid.
+ */
+export async function authenticateOptionalRequest(req: Request): Promise<AuthContext | null> {
+  const authorization = req.headers.get("authorization");
+  if (authorization || req.headers.get("x-nexus-guest")) {
+    return authenticateRequest(req);
+  }
+  bindRequestId(req);
+  await ensureDb();
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session?.user) return null;
+  return authenticateRequest(req);
 }
 
 export { jsonError } from "./errors";

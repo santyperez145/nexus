@@ -118,3 +118,40 @@ export type NexusClientOptions = {
   fetch?: typeof fetch;
   defaultHeaders?: Record<string, string>;
 };
+
+export type DatasetRepository = {
+  id: string;
+  namespace: string;
+  slug: string;
+  path: string;
+  title: string;
+  description: string;
+  visibility: "public" | "private";
+  gated: boolean;
+  license: string;
+  task: string | null;
+  tags: string[];
+  latest_revision: number;
+  downloads: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DatasetCreateRequest = {
+  namespace: string;
+  slug: string;
+  title: string;
+  description?: string;
+  visibility?: "public" | "private";
+  gated?: boolean;
+  license?: string;
+  task?: string | null;
+  tags?: string[];
+  workspace_id?: string | null;
+};
+
+export type DatasetRevisionRequest = {
+  commit_message: string;
+  metadata?: Record<string, unknown>;
+  files: Array<{ file_id: string; path: string }>;
+};

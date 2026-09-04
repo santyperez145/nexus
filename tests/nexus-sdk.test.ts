@@ -205,6 +205,28 @@ describe("nexus-sdk", () => {
     assert.ok(calls[1].endsWith("/auth/key"));
   });
 
+  it("manages versioned dataset repositories without ambiguous paths", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-mgmt-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return Response.json({ data: { path: "acme/evals", revision: 1 } }, { status: 201 });
+      },
+    });
+    await nexus.datasets.create({ namespace: "acme", slug: "evals", title: "Evals" });
+    await nexus.datasets.revisions.create("acme", "evals", {
+      commit_message: "Initial",
+      files: [{ file_id: "file_1", path: "data/train.jsonl" }],
+    });
+    assert.equal(calls[0].url, "https://nexus.test/api/v1/datasets");
+    assert.equal(calls[0].init.method, "POST");
+    assert.equal(calls[1].url, "https://nexus.test/api/v1/datasets/acme/evals/revisions");
+    const revisionBody = JSON.parse(String(calls[1].init.body)) as { files: Array<{ path: string }> };
+    assert.equal(revisionBody.files[0].path, "data/train.jsonl");
+  });
+
   it("sends X-Nexus-Guest without bearer when guest:true", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const nexus = new Nexus({

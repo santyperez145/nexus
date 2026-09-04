@@ -85,6 +85,13 @@
       "when": 1788507984595,
       "tag": "0011_public_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788527916923,
+      "tag": "0012_last_warstar",
+      "breakpoints": true
     }
   ]
 }

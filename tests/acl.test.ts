@@ -73,6 +73,19 @@ describe("API path policy", () => {
     const readOnly: AuthContext = { ...mgmtKey, scopes: ["keys:read"] };
     enforcePathPolicy(readKeys, readOnly);
     assert.throws(() => enforcePathPolicy(writeKeys, readOnly), /missing scope keys:write/);
+
+    const readDatasets = new Request("http://localhost/api/v1/datasets");
+    const publishRevision = new Request(
+      "http://localhost/api/v1/datasets/nexus/evals/revisions",
+      { method: "POST" },
+    );
+    assert.equal(requiredScope(readDatasets), "datasets:read");
+    assert.equal(requiredScope(publishRevision), "datasets:write");
+    enforcePathPolicy(readDatasets, { ...mgmtKey, scopes: ["datasets:read"] });
+    assert.throws(
+      () => enforcePathPolicy(publishRevision, { ...mgmtKey, scopes: ["datasets:read"] }),
+      /missing scope datasets:write/,
+    );
   });
 
   it("rejects scopes outside the key class", () => {

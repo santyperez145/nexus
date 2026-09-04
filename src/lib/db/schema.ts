@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -398,6 +399,136 @@ export const files = pgTable("file", {
   content: text("content"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const hubNamespaces = pgTable(
+  "hub_namespace",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull(),
+    displayName: text("display_name").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").references(() => workspaces.id, {
+      onDelete: "cascade",
+    }),
+    verified: boolean("verified").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("hub_namespace_slug_uidx").on(t.slug),
+    uniqueIndex("hub_namespace_personal_owner_uidx")
+      .on(t.userId)
+      .where(sql`${t.workspaceId} IS NULL`),
+    uniqueIndex("hub_namespace_workspace_uidx")
+      .on(t.workspaceId)
+      .where(sql`${t.workspaceId} IS NOT NULL`),
+  ],
+);
+
+export const hubRepositories = pgTable(
+  "hub_repository",
+  {
+    id: text("id").primaryKey(),
+    namespaceId: text("namespace_id")
+      .notNull()
+      .references(() => hubNamespaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").references(() => workspaces.id, {
+      onDelete: "cascade",
+    }),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    visibility: text("visibility").notNull().default("public"),
+    gated: boolean("gated").notNull().default(false),
+    license: text("license").notNull().default("other"),
+    task: text("task"),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    latestRevision: integer("latest_revision").notNull().default(0),
+    downloads: integer("downloads").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("hub_repository_namespace_slug_uidx").on(t.namespaceId, t.slug),
+    index("hub_repository_public_updated_idx")
+      .on(t.updatedAt)
+      .where(sql`${t.visibility} = 'public'`),
+    index("hub_repository_user_idx").on(t.userId, t.updatedAt),
+    index("hub_repository_workspace_idx").on(t.workspaceId, t.updatedAt),
+    check("hub_repository_visibility_check", sql`${t.visibility} IN ('public', 'private')`),
+    check("hub_repository_revision_check", sql`${t.latestRevision} >= 0`),
+    check("hub_repository_downloads_check", sql`${t.downloads} >= 0`),
+  ],
+);
+
+export const hubRevisions = pgTable(
+  "hub_revision",
+  {
+    id: text("id").primaryKey(),
+    repositoryId: text("repository_id")
+      .notNull()
+      .references(() => hubRepositories.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    commitSha: text("commit_sha").notNull(),
+    commitMessage: text("commit_message").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("hub_revision_repository_number_uidx").on(t.repositoryId, t.revision),
+    uniqueIndex("hub_revision_repository_sha_uidx").on(t.repositoryId, t.commitSha),
+    index("hub_revision_repository_created_idx").on(t.repositoryId, t.createdAt),
+    check("hub_revision_number_check", sql`${t.revision} > 0`),
+  ],
+);
+
+export const hubRevisionFiles = pgTable(
+  "hub_revision_file",
+  {
+    id: text("id").primaryKey(),
+    revisionId: text("revision_id")
+      .notNull()
+      .references(() => hubRevisions.id, { onDelete: "cascade" }),
+    fileId: text("file_id")
+      .notNull()
+      .references(() => files.id, { onDelete: "restrict" }),
+    path: text("path").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("hub_revision_file_path_uidx").on(t.revisionId, t.path),
+    index("hub_revision_file_file_idx").on(t.fileId),
+  ],
+);
+
+export const hubAccessGrants = pgTable(
+  "hub_access_grant",
+  {
+    id: text("id").primaryKey(),
+    repositoryId: text("repository_id")
+      .notNull()
+      .references(() => hubRepositories.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    requestedAt: timestamp("requested_at").notNull().defaultNow(),
+    decidedAt: timestamp("decided_at"),
+    decidedBy: text("decided_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    uniqueIndex("hub_access_grant_repository_user_uidx").on(t.repositoryId, t.userId),
+    index("hub_access_grant_repository_status_idx").on(t.repositoryId, t.status),
+    check("hub_access_grant_status_check", sql`${t.status} IN ('pending', 'approved', 'rejected')`),
+  ],
+);
 
 export const presets = pgTable("preset", {
   id: text("id").primaryKey(),

@@ -530,8 +530,58 @@ class OauthResource {
 }
 class DatasetsResource {
     client;
+    revisions;
+    access;
     constructor(client) {
         this.client = client;
+        this.revisions = {
+            list: (namespace, slug) => this.client.request(this.path(namespace, slug, "/revisions")),
+            create: (namespace, slug, body) => this.client.request(this.path(namespace, slug, "/revisions"), {
+                method: "POST",
+                body,
+            }),
+        };
+        this.access = {
+            list: (namespace, slug) => this.client.request(this.path(namespace, slug, "/access")),
+            request: (namespace, slug) => this.client.request(this.path(namespace, slug, "/access"), {
+                method: "POST",
+            }),
+            decide: (namespace, slug, id, status) => this.client.request(this.path(namespace, slug, "/access"), {
+                method: "PATCH",
+                body: { id, status },
+            }),
+        };
+    }
+    path(namespace, slug, suffix = "") {
+        return `/datasets/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}${suffix}`;
+    }
+    list(opts = {}) {
+        return this.client.request("/datasets", { query: opts });
+    }
+    get(namespace, slug) {
+        return this.client.request(this.path(namespace, slug));
+    }
+    create(body) {
+        return this.client.request("/datasets", {
+            method: "POST",
+            body,
+        });
+    }
+    update(namespace, slug, body) {
+        return this.client.request(this.path(namespace, slug), {
+            method: "PATCH",
+            body,
+        });
+    }
+    delete(namespace, slug) {
+        return this.client.request(this.path(namespace, slug), { method: "DELETE" });
+    }
+    async download(namespace, slug, revision, path) {
+        const filePath = path.split("/").map(encodeURIComponent).join("/");
+        const response = await this.client.request(this.path(namespace, slug, `/resolve/${encodeURIComponent(String(revision))}/${filePath}`), { raw: true });
+        if (!response.ok)
+            throw new NexusError(response.statusText, { status: response.status });
+        return response.arrayBuffer();
     }
     models(opts) {
         const window = opts?.window && opts.window !== "all" ? opts.window : undefined;

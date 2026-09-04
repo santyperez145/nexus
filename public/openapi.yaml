@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.14.0
+  version: 0.15.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference. The X-Nexus-Guest local echo is development-only and disabled in production.
 servers:
   - url: /api/v1
@@ -612,6 +612,172 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: success }
+  /datasets:
+    get:
+      summary: List public datasets or the authenticated tenant repositories
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - in: query
+          name: mine
+          schema: { type: boolean, default: false }
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: task
+          schema: { type: string }
+        - in: query
+          name: tag
+          schema: { type: string }
+      responses:
+        "200": { description: Dataset repositories visible in the selected scope }
+    post:
+      summary: Create a dataset repository and claim its tenant namespace
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [namespace, slug, title]
+              properties:
+                namespace: { type: string }
+                slug: { type: string }
+                title: { type: string }
+                description: { type: string }
+                visibility: { type: string, enum: [public, private] }
+                gated: { type: boolean }
+                license: { type: string }
+                task: { type: [string, "null"] }
+                tags: { type: array, items: { type: string } }
+                workspace_id: { type: [string, "null"] }
+      responses:
+        "201": { description: Dataset repository created }
+  /datasets/{namespace}/{slug}:
+    parameters:
+      - in: path
+        name: namespace
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: Read a dataset card and authorized revision history
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200": { description: Dataset metadata; gated bytes are omitted until approved }
+        "404": { description: Dataset is missing or private to another tenant }
+    patch:
+      summary: Update dataset metadata and access policy
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Dataset updated }
+    delete:
+      summary: Delete a dataset repository and its revision records
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Dataset deleted; source files remain }
+  /datasets/{namespace}/{slug}/revisions:
+    parameters:
+      - in: path
+        name: namespace
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: List authorized immutable snapshots
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200": { description: Revision history }
+        "403": { description: Gated dataset approval required }
+    post:
+      summary: Atomically publish the next dataset snapshot
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [commit_message, files]
+              properties:
+                commit_message: { type: string, maxLength: 240 }
+                metadata: { type: object }
+                files:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [file_id, path]
+                    properties:
+                      file_id: { type: string }
+                      path: { type: string }
+      responses:
+        "201": { description: Snapshot committed with monotonic revision and SHA }
+  /datasets/{namespace}/{slug}/access:
+    parameters:
+      - in: path
+        name: namespace
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: Read own access state or owner approval queue
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Access grants }
+    post:
+      summary: Request access to a public gated dataset
+      security: [{ bearerAuth: [] }]
+      responses:
+        "201": { description: Access request pending }
+    patch:
+      summary: Approve or reject a gated access request
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Access decision persisted }
+  /datasets/{namespace}/{slug}/resolve/{revision}/{path}:
+    parameters:
+      - in: path
+        name: namespace
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+      - in: path
+        name: revision
+        required: true
+        schema: { type: string, description: Revision number, SHA, or main }
+      - in: path
+        name: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Download a file from an authorized dataset snapshot
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200": { description: File bytes with immutable caching for public pinned revisions }
+        "403": { description: Gated dataset approval required }
   /datasets/models:
     get:
       summary: Model rankings dataset

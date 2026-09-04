@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { canAccess } from "../src/lib/gateway/tenant";
 import { chatChunkPayload, chatChunkToProtocolSse } from "../src/lib/gateway/openai-compat";
 import { mapToolChoice } from "../src/lib/gateway/client-tools";
+import { hubTenantAccess } from "../src/lib/hub/datasets";
 
 describe("tenant isolation", () => {
   const authWs = {
@@ -42,6 +43,30 @@ describe("tenant isolation", () => {
     );
     assert.equal(
       canAccess(sessionIdentity, { userId: "owner", workspaceId: "ws_private" }),
+      false,
+    );
+  });
+
+  it("keeps Hub ownership subordinate to the active tenant", () => {
+    assert.equal(
+      hubTenantAccess(
+        { userId: "creator", workspaceIds: [] },
+        { userId: "creator", workspaceId: "ws_removed" },
+      ),
+      false,
+    );
+    assert.equal(
+      hubTenantAccess(
+        { userId: "member", workspaceIds: ["ws_shared"] },
+        { userId: "creator", workspaceId: "ws_shared" },
+      ),
+      true,
+    );
+    assert.equal(
+      hubTenantAccess(
+        { userId: "creator", workspaceId: "ws_shared", workspaceIds: ["ws_shared"] },
+        { userId: "creator", workspaceId: null },
+      ),
       false,
     );
   });

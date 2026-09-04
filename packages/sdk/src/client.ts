@@ -4,6 +4,9 @@ import type {
   ChatChunk,
   ChatCompletion,
   ChatRequest,
+  DatasetCreateRequest,
+  DatasetRepository,
+  DatasetRevisionRequest,
   NexusClientOptions,
 } from "./types.js";
 
@@ -601,7 +604,102 @@ class OauthResource {
 }
 
 class DatasetsResource {
-  constructor(private readonly client: Nexus) {}
+  readonly revisions: {
+    list: (namespace: string, slug: string) => Promise<{ data: unknown[] }>;
+    create: (
+      namespace: string,
+      slug: string,
+      body: DatasetRevisionRequest,
+    ) => Promise<{ data: unknown }>;
+  };
+  readonly access: {
+    list: (namespace: string, slug: string) => Promise<{ data: unknown }>;
+    request: (namespace: string, slug: string) => Promise<{ data: { status: string } }>;
+    decide: (
+      namespace: string,
+      slug: string,
+      id: string,
+      status: "approved" | "rejected",
+    ) => Promise<{ data: unknown }>;
+  };
+
+  constructor(private readonly client: Nexus) {
+    this.revisions = {
+      list: (namespace, slug) =>
+        this.client.request<{ data: unknown[] }>(this.path(namespace, slug, "/revisions")),
+      create: (namespace, slug, body) =>
+        this.client.request<{ data: unknown }>(this.path(namespace, slug, "/revisions"), {
+          method: "POST",
+          body,
+        }),
+    };
+    this.access = {
+      list: (namespace, slug) =>
+        this.client.request<{ data: unknown }>(this.path(namespace, slug, "/access")),
+      request: (namespace, slug) =>
+        this.client.request<{ data: { status: string } }>(this.path(namespace, slug, "/access"), {
+          method: "POST",
+        }),
+      decide: (namespace, slug, id, status) =>
+        this.client.request<{ data: unknown }>(this.path(namespace, slug, "/access"), {
+          method: "PATCH",
+          body: { id, status },
+        }),
+    };
+  }
+
+  private path(namespace: string, slug: string, suffix = "") {
+    return `/datasets/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}${suffix}`;
+  }
+
+  list(opts: { q?: string; task?: string; tag?: string; mine?: boolean; limit?: number } = {}) {
+    return this.client.request<{
+      data: DatasetRepository[];
+      meta: { count: number; scope: string };
+    }>("/datasets", { query: opts });
+  }
+
+  get(namespace: string, slug: string) {
+    return this.client.request<{
+      data: DatasetRepository & { access: unknown; revisions: unknown[] };
+    }>(this.path(namespace, slug));
+  }
+
+  create(body: DatasetCreateRequest) {
+    return this.client.request<{ data: DatasetRepository }>("/datasets", {
+      method: "POST",
+      body,
+    });
+  }
+
+  update(
+    namespace: string,
+    slug: string,
+    body: Partial<Omit<DatasetCreateRequest, "namespace" | "slug" | "workspace_id">>,
+  ) {
+    return this.client.request<{ data: DatasetRepository }>(this.path(namespace, slug), {
+      method: "PATCH",
+      body,
+    });
+  }
+
+  delete(namespace: string, slug: string) {
+    return this.client.request<{ data: { id: string; deleted: boolean } }>(
+      this.path(namespace, slug),
+      { method: "DELETE" },
+    );
+  }
+
+  async download(namespace: string, slug: string, revision: string | number, path: string) {
+    const filePath = path.split("/").map(encodeURIComponent).join("/");
+    const response = await this.client.request<Response>(
+      this.path(namespace, slug, `/resolve/${encodeURIComponent(String(revision))}/${filePath}`),
+      { raw: true },
+    );
+    if (!response.ok) throw new NexusError(response.statusText, { status: response.status });
+    return response.arrayBuffer();
+  }
+
   models(opts?: { window?: "7d" | "30d" | "all" }) {
     const window = opts?.window && opts.window !== "all" ? opts.window : undefined;
     return this.client.request<{

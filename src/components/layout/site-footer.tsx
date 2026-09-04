@@ -8,6 +8,7 @@ const COLS = [
     links: [
       ["/chat", "Chat"],
       ["/models", "Modelos"],
+      ["/datasets", "Datasets"],
       ["/rankings", "Ranking"],
       ["/compare", "Comparar"],
       ["/arena", "Arena"],

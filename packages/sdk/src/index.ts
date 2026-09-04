@@ -8,6 +8,9 @@ export type {
   ChatRequest,
   ChatRole,
   CompletionUsage,
+  DatasetCreateRequest,
+  DatasetRepository,
+  DatasetRevisionRequest,
   NexusClientOptions,
   ProviderPreferences,
 } from "./types.js";
