@@ -439,7 +439,9 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                     <div className="mt-2 text-xs text-zinc-500">
                       {isTokenPriced
                         ? "No ejecutable hasta verificar la tarifa de este host."
-                        : "La tarifa se calcula por modalidad antes de reservar saldo."}
+                        : routeSupported
+                          ? "La tarifa se calcula por modalidad antes de reservar saldo."
+                          : "Referencia no ejecutable: falta un adaptador compatible y una tarifa verificada."}
                     </div>
                   )}
                 </div>
