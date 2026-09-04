@@ -102,6 +102,9 @@ Checkout, la reconciliación del retorno y Billing Portal tienen límites Redis 
 antes de invocar Stripe. La creación admite 10 operaciones cada 10 minutos, el Portal 20 cada 10 minutos
 y el polling post-pago 30 por minuto; los bloqueos responden `429` con `Retry-After` y una falla del
 almacén distribuido cierra estas operaciones con `503`.
+El mismo control persistente protege operaciones con costo o impacto elevado: 3 emails de prueba por
+hora, 2 sincronizaciones de catálogo y 6 probes cada 10 minutos, 10 replays Stripe, 30 ajustes de saldo
+y 10 verificaciones de auto-recarga cada 10 minutos. Cada cuota está aislada por operador y operación.
 El inbox de Stripe es idempotente y conserva estado, intentos y error sin duplicar el payload. Un
 superadmin puede reprocesar un evento fallido desde `/admin/operations`; Nexus recupera el evento
 canónico con la API de Stripe, valida su tipo, reutiliza el mismo procesador del webhook y registra la

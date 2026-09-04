@@ -25,6 +25,10 @@ import {
   consumeBillingOperationRateLimit,
   type BillingOperation,
 } from "@/lib/billing/operation-rate-limit";
+import {
+  rateLimitExceededResponse,
+  rateLimitUnavailableResponse,
+} from "@/lib/operation-rate-limit";
 
 async function enforceBillingOperationLimit(
   userId: string,
@@ -33,25 +37,9 @@ async function enforceBillingOperationLimit(
   try {
     const result = await consumeBillingOperationRateLimit(userId, operation);
     if (result.allowed) return null;
-
-    return Response.json(
-      {
-        error: {
-          message:
-            "Demasiadas operaciones de facturación. Intentá nuevamente más tarde.",
-          type: "rate_limit_error",
-          code: "rate_limited",
-        },
-      },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(result.retryAfterSeconds),
-          "X-RateLimit-Limit": String(result.limit),
-          "X-RateLimit-Remaining": String(result.remaining),
-          "X-RateLimit-Reset": String(Math.ceil(result.resetAt / 1_000)),
-        },
-      },
+    return rateLimitExceededResponse(
+      result,
+      "Demasiadas operaciones de facturación. Intentá nuevamente más tarde.",
     );
   } catch (error) {
     console.error("Billing operation rate limit unavailable", {
@@ -59,17 +47,7 @@ async function enforceBillingOperationLimit(
       userId,
       error: error instanceof Error ? error.message : "unknown",
     });
-    return Response.json(
-      {
-        error: {
-          message:
-            "La protección de facturación no está disponible temporalmente.",
-          type: "server_error",
-          code: "rate_limit_unavailable",
-        },
-      },
-      { status: 503 },
-    );
+    return rateLimitUnavailableResponse();
   }
 }
 

@@ -3,18 +3,26 @@ import { APP_NAME, APP_URL } from "@/lib/config";
 import { sendMail } from "@/lib/email";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { enforceControlPlaneOperationRateLimit } from "@/lib/control-plane/operation-rate-limit";
 
 /** Send a one-shot test email to the signed-in user (uses same mail path as alerts). */
 export async function POST() {
   const session = await getSession();
-  if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await enforceControlPlaneOperationRateLimit(
+    session.user.id,
+    "notification_test",
+  );
+  if (limited) return limited;
 
   const [user] = await db
     .select()
     .from(schema.users)
     .where(eq(schema.users.id, session.user.id))
     .limit(1);
-  if (!user?.email) return Response.json({ error: "No email on account" }, { status: 400 });
+  if (!user?.email)
+    return Response.json({ error: "No email on account" }, { status: 400 });
 
   try {
     await sendMail({

@@ -5,6 +5,7 @@ import { isPlatformAdmin } from "@/lib/config";
 import { db, ensureDb, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { getStripe } from "@/lib/stripe";
+import { enforceControlPlaneOperationRateLimit } from "@/lib/control-plane/operation-rate-limit";
 
 const EVENT_ID = /^evt_[A-Za-z0-9]+$/;
 
@@ -46,7 +47,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession();
-  if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user)
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!isPlatformAdmin(session.user.email)) {
     return Response.json({ error: "Platform admin required" }, { status: 403 });
   }
@@ -55,8 +57,14 @@ export async function POST(
   if (!EVENT_ID.test(eventId) || eventId.length > 255) {
     return Response.json({ error: "Invalid Stripe event ID" }, { status: 400 });
   }
+  const limited = await enforceControlPlaneOperationRateLimit(
+    session.user.id,
+    "stripe_event_replay",
+  );
+  if (limited) return limited;
   const stripe = getStripe();
-  if (!stripe) return Response.json({ error: "Stripe not configured" }, { status: 503 });
+  if (!stripe)
+    return Response.json({ error: "Stripe not configured" }, { status: 503 });
 
   try {
     await ensureDb();
@@ -65,7 +73,11 @@ export async function POST(
       .from(schema.stripeWebhookEvents)
       .where(eq(schema.stripeWebhookEvents.id, eventId))
       .limit(1);
-    if (!stored) return Response.json({ error: "Stripe inbox event not found" }, { status: 404 });
+    if (!stored)
+      return Response.json(
+        { error: "Stripe inbox event not found" },
+        { status: 404 },
+      );
     await insertReplayAudit({
       actorId: session.user.id,
       actorEmail: session.user.email,
@@ -80,7 +92,10 @@ export async function POST(
         eventId,
         outcome: "type_mismatch",
       });
-      return Response.json({ error: "Canonical Stripe event type mismatch" }, { status: 409 });
+      return Response.json(
+        { error: "Canonical Stripe event type mismatch" },
+        { status: 409 },
+      );
     }
     const outcome = await processStripeEventOnce(stripe, event);
     await writeReplayOutcomeAudit({
@@ -90,7 +105,10 @@ export async function POST(
       outcome,
     });
     if (outcome === "already_processing") {
-      return Response.json({ error: "Stripe event is already processing" }, { status: 409 });
+      return Response.json(
+        { error: "Stripe event is already processing" },
+        { status: 409 },
+      );
     }
     return Response.json({ data: { event_id: eventId, outcome } });
   } catch (error) {
@@ -105,6 +123,9 @@ export async function POST(
       actorId: session.user.id,
       message: error instanceof Error ? error.message : "unknown",
     });
-    return Response.json({ error: "Stripe event replay failed" }, { status: 502 });
+    return Response.json(
+      { error: "Stripe event replay failed" },
+      { status: 502 },
+    );
   }
 }

@@ -1,18 +1,31 @@
 import { getSession } from "@/lib/auth";
-import { adjustUserCredits, MAX_ADMIN_CREDIT_ADJUSTMENT_MICROS } from "@/lib/admin/credit-adjustment";
+import {
+  adjustUserCredits,
+  MAX_ADMIN_CREDIT_ADJUSTMENT_MICROS,
+} from "@/lib/admin/credit-adjustment";
 import { isPlatformAdmin } from "@/lib/config";
 import { ensureDb } from "@/lib/db";
 import { usdToMicros } from "@/lib/money";
+import { enforceControlPlaneOperationRateLimit } from "@/lib/control-plane/operation-rate-limit";
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function POST(req: Request, context: Context) {
   try {
     const session = await getSession();
-    if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user)
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     if (!isPlatformAdmin(session.user.email)) {
-      return Response.json({ error: "Platform admin required" }, { status: 403 });
+      return Response.json(
+        { error: "Platform admin required" },
+        { status: 403 },
+      );
     }
+    const limited = await enforceControlPlaneOperationRateLimit(
+      session.user.id,
+      "credit_adjustment",
+    );
+    if (limited) return limited;
     const body = (await req.json()) as {
       amount_usd?: unknown;
       reason?: unknown;
@@ -20,11 +33,17 @@ export async function POST(req: Request, context: Context) {
     };
     const amountUsd = Number(body.amount_usd);
     if (!Number.isFinite(amountUsd) || amountUsd === 0) {
-      return Response.json({ error: "amount_usd must be a non-zero number" }, { status: 400 });
+      return Response.json(
+        { error: "amount_usd must be a non-zero number" },
+        { status: 400 },
+      );
     }
     const micros = usdToMicros(amountUsd);
     if (Math.abs(micros) > MAX_ADMIN_CREDIT_ADJUSTMENT_MICROS) {
-      return Response.json({ error: "amount_usd exceeds the USD 10,000 operator limit" }, { status: 400 });
+      return Response.json(
+        { error: "amount_usd exceeds the USD 10,000 operator limit" },
+        { status: 400 },
+      );
     }
     const { id: targetUserId } = await context.params;
     await ensureDb();
@@ -45,7 +64,10 @@ export async function POST(req: Request, context: Context) {
   } catch (error) {
     const status = Number((error as { status?: number }).status ?? 500);
     return Response.json(
-      { error: error instanceof Error ? error.message : "Credit adjustment failed" },
+      {
+        error:
+          error instanceof Error ? error.message : "Credit adjustment failed",
+      },
       { status: status >= 400 && status < 600 ? status : 500 },
     );
   }
