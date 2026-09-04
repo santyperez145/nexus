@@ -5,9 +5,8 @@ const LOCAL_ORIGINS = [
   "http://127.0.0.1:3003",
 ];
 
-const HOST_WILDCARDS = ["*.vercel.app", "*.up.railway.app", "*.fly.dev"];
-
 const ALLOW_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD";
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const ALLOW_HEADERS = [
   "Authorization",
   "Content-Type",
@@ -32,10 +31,20 @@ function extraOrigins() {
   return (process.env.CORS_ORIGINS ?? "")
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .map((value) => {
+      try {
+        return new URL(value).origin;
+      } catch {
+        return null;
+      }
+    })
+    .filter((origin): origin is string => Boolean(origin));
 }
 
-export function trustedAuthOrigins(appUrl: string) {
+export function trustedAuthOrigins(
+  appUrl: string,
+  environment = process.env.NODE_ENV,
+) {
   const fromApp = (() => {
     try {
       return [new URL(appUrl).origin];
@@ -43,25 +52,29 @@ export function trustedAuthOrigins(appUrl: string) {
       return [];
     }
   })();
-  return [...new Set([...fromApp, ...LOCAL_ORIGINS, ...HOST_WILDCARDS, ...extraOrigins()])];
+  const local = environment === "production" ? [] : LOCAL_ORIGINS;
+  return [...new Set([...fromApp, ...local, ...extraOrigins()])];
 }
 
-export function isTrustedOrigin(origin: string, appUrl: string) {
+export function isTrustedOrigin(
+  origin: string,
+  appUrl: string,
+  environment = process.env.NODE_ENV,
+) {
   if (!origin) return false;
-  if (trustedAuthOrigins(appUrl).includes(origin)) return true;
-  let host = "";
-  try {
-    host = new URL(origin).host;
-  } catch {
+  return trustedAuthOrigins(appUrl, environment).includes(origin);
+}
+
+export function shouldRejectCredentialedMutation(
+  req: Request,
+  appUrl: string,
+  environment = process.env.NODE_ENV,
+) {
+  if (!UNSAFE_METHODS.has(req.method.toUpperCase())) {
     return false;
   }
-  if (host === "localhost" || host.startsWith("localhost:") || host.startsWith("127.0.0.1")) {
-    return true;
-  }
-  return HOST_WILDCARDS.some((pattern) => {
-    const suffix = pattern.slice(1);
-    return host.endsWith(suffix) && host.length > suffix.length;
-  });
+  if (!req.headers.has("cookie")) return false;
+  return !isTrustedOrigin(req.headers.get("origin") ?? "", appUrl, environment);
 }
 
 function requestedHeaders(req: Request) {
@@ -95,12 +108,19 @@ export function credentialCorsHeaders(req: Request, appUrl: string) {
   };
 }
 
-export function corsModeForPath(pathname: string): "public" | "credentialed" | "skip" {
+export function corsModeForPath(
+  pathname: string,
+): "public" | "credentialed" | "skip" {
   if (pathname.startsWith("/api/webhooks")) return "skip";
-  if (pathname.startsWith("/api/v1") || pathname === "/v1" || pathname.startsWith("/v1/")) {
+  if (
+    pathname.startsWith("/api/v1") ||
+    pathname === "/v1" ||
+    pathname.startsWith("/v1/")
+  ) {
     return "public";
   }
-  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/internal")) return "credentialed";
+  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/internal"))
+    return "credentialed";
   if (pathname.startsWith("/api/")) return "public";
   return "skip";
 }
