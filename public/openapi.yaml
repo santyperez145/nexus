@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Nexus API
-  version: 0.16.0
+  version: 0.17.0
   description: OpenAI-compatible model gateway. One slug, many labs. 0% markup on inference. The X-Nexus-Guest local echo is development-only and disabled in production.
 servers:
   - url: /api/v1
@@ -142,7 +142,10 @@ paths:
         "502": { description: Provider error }
   /models:
     get:
-      summary: List models
+      summary: List executable gateway models and optionally reference-only Hub repositories
+      security:
+        - bearerAuth: []
+        - {}
       parameters:
         - in: query
           name: category
@@ -155,10 +158,41 @@ paths:
           schema: { type: string, example: tools }
         - in: query
           name: include_reference
-          description: Include discovery-only entries whose provider tariff is not yet verified.
+          description: Include discovery-only catalog entries and public Hub model repositories. Hub repositories are always non-executable.
+          schema: { type: boolean, default: false }
+        - in: query
+          name: mine
+          description: Return only model repositories owned by the authenticated tenant. Requires a management identity with models:read.
           schema: { type: boolean, default: false }
       responses:
         "200": { description: Catalog }
+    post:
+      summary: Create a reference-only model repository in the existing model Hub
+      description: Publishing a repository never creates an executable route or a price. Runtime promotion is an operator-controlled catalog process.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [namespace, slug, title]
+              properties:
+                namespace: { type: string }
+                slug: { type: string }
+                title: { type: string }
+                description: { type: string, maxLength: 5000 }
+                model_card: { type: string, maxLength: 64000 }
+                visibility: { type: string, enum: [public, private] }
+                gated: { type: boolean }
+                license: { type: string }
+                pipeline_tag: { type: [string, "null"] }
+                library_name: { type: [string, "null"] }
+                base_model: { type: [string, "null"] }
+                tags: { type: array, items: { type: string } }
+                workspace_id: { type: [string, "null"] }
+      responses:
+        "201": { description: Reference-only model repository created }
   /models/count:
     get:
       summary: Catalog size
@@ -177,19 +211,32 @@ paths:
                       executable: { type: integer }
                       reference_only: { type: integer }
   /models/{author}/{slug}:
+    parameters:
+      - in: path
+        name: author
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
     get:
-      summary: Model detail
-      parameters:
-        - in: path
-          name: author
-          required: true
-          schema: { type: string }
-        - in: path
-          name: slug
-          required: true
-          schema: { type: string }
+      summary: Executable catalog detail or Hub model repository profile
+      security:
+        - bearerAuth: []
+        - {}
       responses:
         "200": { description: Model }
+    patch:
+      summary: Update a tenant-owned Hub model card and access policy
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Model repository updated without changing execution state }
+    delete:
+      summary: Delete a tenant-owned Hub model repository
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Repository and its revision history deleted }
   /models/{author}/{slug}/endpoints:
     get:
       summary: Hosts that can serve a model slug
@@ -204,6 +251,100 @@ paths:
           schema: { type: string }
       responses:
         "200": { description: Endpoints list }
+  /models/{author}/{slug}/revisions:
+    parameters:
+      - in: path
+        name: author
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: List authorized immutable model repository snapshots
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200": { description: Revision history }
+        "403": { description: Gated model repository approval required }
+    post:
+      summary: Atomically publish the next model repository snapshot
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [commit_message, files]
+              properties:
+                commit_message: { type: string, maxLength: 240 }
+                metadata: { type: object }
+                files:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [file_id, path]
+                    properties:
+                      file_id: { type: string }
+                      path: { type: string }
+      responses:
+        "201": { description: Snapshot committed with monotonic revision and SHA }
+  /models/{author}/{slug}/access:
+    parameters:
+      - in: path
+        name: author
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+    get:
+      summary: Read own model access state or owner approval queue
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Access grants }
+    post:
+      summary: Request access to a public gated model repository
+      security: [{ bearerAuth: [] }]
+      responses:
+        "201": { description: Access request pending }
+    patch:
+      summary: Approve or reject a model repository access request
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Access decision persisted }
+  /models/{author}/{slug}/resolve/{revision}/{path}:
+    parameters:
+      - in: path
+        name: author
+        required: true
+        schema: { type: string }
+      - in: path
+        name: slug
+        required: true
+        schema: { type: string }
+      - in: path
+        name: revision
+        required: true
+        schema: { type: string, description: Revision number, SHA, or main }
+      - in: path
+        name: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Download an authorized model repository artifact
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200": { description: Artifact bytes with immutable caching for public pinned revisions }
+        "403": { description: Gated model repository approval required }
   /providers:
     get:
       summary: Inference hosts

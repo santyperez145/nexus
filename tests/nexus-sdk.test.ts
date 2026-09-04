@@ -253,6 +253,26 @@ describe("nexus-sdk", () => {
     assert.equal(result.choices[0]?.message.content, "done");
   });
 
+  it("manages reference-only model repositories without conflating runtime models", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-mgmt-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return Response.json({ data: { path: "acme/spanish-7b", revision: 1 } }, { status: 201 });
+      },
+    });
+    await nexus.models.repositories.create({ namespace: "acme", slug: "spanish-7b", title: "Spanish 7B" });
+    await nexus.models.repositories.revisions.create("acme", "spanish-7b", {
+      commit_message: "Publish weights",
+      files: [{ file_id: "file_1", path: "weights/model.safetensors" }],
+    });
+    assert.equal(calls[0].url, "https://nexus.test/api/v1/models");
+    assert.equal(calls[0].init.method, "POST");
+    assert.equal(calls[1].url, "https://nexus.test/api/v1/models/acme/spanish-7b/revisions");
+  });
+
   it("sends X-Nexus-Guest without bearer when guest:true", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const nexus = new Nexus({

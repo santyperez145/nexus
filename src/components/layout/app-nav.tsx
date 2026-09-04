@@ -13,6 +13,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
       { href: "/chat", label: "Chat" },
       { href: "/studio", label: "Estudio multimedia" },
       { href: "/models", label: "Modelos" },
+      { href: "/settings/models", label: "Repositorios de modelos" },
       { href: "/settings/datasets", label: "Hub de datasets" },
       { href: "/settings/spaces", label: "Spaces" },
     ],

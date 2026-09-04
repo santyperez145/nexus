@@ -7,6 +7,9 @@ import type {
   DatasetCreateRequest,
   DatasetRepository,
   DatasetRevisionRequest,
+  ModelRepository,
+  ModelRepositoryCreateRequest,
+  ModelRepositoryRevisionRequest,
   Space,
   SpaceCreateRequest,
   NexusClientOptions,
@@ -174,13 +177,53 @@ class ChatResource {
 }
 
 class ModelsResource {
-  constructor(private readonly client: Nexus) {}
+  readonly repositories: {
+    list: (opts?: { q?: string; pipeline_tag?: string; tag?: string; mine?: boolean; limit?: number }) => Promise<{ data: ModelRepository[]; meta: { count: number; scope: string } }>;
+    get: (namespace: string, slug: string) => Promise<{ data: ModelRepository & { access: unknown; revisions: unknown[] } }>;
+    create: (body: ModelRepositoryCreateRequest) => Promise<{ data: ModelRepository }>;
+    update: (namespace: string, slug: string, body: Partial<Omit<ModelRepositoryCreateRequest, "namespace" | "slug" | "workspace_id">>) => Promise<{ data: ModelRepository }>;
+    delete: (namespace: string, slug: string) => Promise<{ data: { id: string; deleted: boolean } }>;
+    revisions: {
+      list: (namespace: string, slug: string) => Promise<{ data: unknown[] }>;
+      create: (namespace: string, slug: string, body: ModelRepositoryRevisionRequest) => Promise<{ data: unknown }>;
+    };
+    download: (namespace: string, slug: string, revision: string | number, path: string) => Promise<ArrayBuffer>;
+  };
+
+  constructor(private readonly client: Nexus) {
+    const path = (namespace: string, slug: string, suffix = "") =>
+      `/models/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}${suffix}`;
+    this.repositories = {
+      list: (opts = {}) => this.client.request("/models", { query: { ...opts, mine: opts.mine ?? true } }),
+      get: (namespace, slug) => this.client.request(path(namespace, slug)),
+      create: (body) => this.client.request("/models", { method: "POST", body }),
+      update: (namespace, slug, body) => this.client.request(path(namespace, slug), { method: "PATCH", body }),
+      delete: (namespace, slug) => this.client.request(path(namespace, slug), { method: "DELETE" }),
+      revisions: {
+        list: (namespace, slug) => this.client.request(path(namespace, slug, "/revisions")),
+        create: (namespace, slug, body) => this.client.request(path(namespace, slug, "/revisions"), { method: "POST", body }),
+      },
+      download: async (namespace, slug, revision, filePath) => {
+        const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
+        const response = await this.client.request<Response>(
+          path(namespace, slug, `/resolve/${encodeURIComponent(String(revision))}/${encodedPath}`),
+          { raw: true },
+        );
+        if (!response.ok) throw new NexusError(response.statusText, { status: response.status });
+        return response.arrayBuffer();
+      },
+    };
+  }
   list(
     query: {
       category?: string;
       output_modalities?: string;
       supported_parameters?: string;
       include_reference?: boolean;
+      pipeline_tag?: string;
+      tag?: string;
+      q?: string;
+      limit?: number;
     } = {},
   ) {
     return this.client.request<{ data: unknown[] }>("/models", { query });

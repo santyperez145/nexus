@@ -430,6 +430,7 @@ export const hubRepositories = pgTable(
   "hub_repository",
   {
     id: text("id").primaryKey(),
+    kind: text("kind").notNull().default("dataset"),
     namespaceId: text("namespace_id")
       .notNull()
       .references(() => hubNamespaces.id, { onDelete: "cascade" }),
@@ -442,10 +443,13 @@ export const hubRepositories = pgTable(
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
+    modelCard: text("model_card"),
     visibility: text("visibility").notNull().default("public"),
     gated: boolean("gated").notNull().default(false),
     license: text("license").notNull().default("other"),
     task: text("task"),
+    libraryName: text("library_name"),
+    baseModel: text("base_model"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     latestRevision: integer("latest_revision").notNull().default(0),
     downloads: integer("downloads").notNull().default(0),
@@ -453,13 +457,14 @@ export const hubRepositories = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("hub_repository_namespace_slug_uidx").on(t.namespaceId, t.slug),
+    uniqueIndex("hub_repository_kind_namespace_slug_uidx").on(t.kind, t.namespaceId, t.slug),
     index("hub_repository_public_updated_idx")
       .on(t.updatedAt)
       .where(sql`${t.visibility} = 'public'`),
     index("hub_repository_user_idx").on(t.userId, t.updatedAt),
     index("hub_repository_workspace_idx").on(t.workspaceId, t.updatedAt),
     check("hub_repository_visibility_check", sql`${t.visibility} IN ('public', 'private')`),
+    check("hub_repository_kind_check", sql`${t.kind} IN ('dataset', 'model')`),
     check("hub_repository_revision_check", sql`${t.latestRevision} >= 0`),
     check("hub_repository_downloads_check", sql`${t.downloads} >= 0`),
   ],

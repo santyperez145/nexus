@@ -328,27 +328,46 @@ export const SCHEMA_SQL = [
    ON "hub_namespace"(workspace_id) WHERE workspace_id IS NOT NULL`,
   `CREATE TABLE IF NOT EXISTS "hub_repository" (
     id text PRIMARY KEY,
+    kind text NOT NULL DEFAULT 'dataset',
     namespace_id text NOT NULL REFERENCES "hub_namespace"(id) ON DELETE CASCADE,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
     workspace_id text REFERENCES "workspace"(id) ON DELETE CASCADE,
     slug text NOT NULL,
     title text NOT NULL,
     description text NOT NULL DEFAULT '',
+    model_card text,
     visibility text NOT NULL DEFAULT 'public',
     gated boolean NOT NULL DEFAULT false,
     license text NOT NULL DEFAULT 'other',
     task text,
+    library_name text,
+    base_model text,
     tags jsonb NOT NULL DEFAULT '[]'::jsonb,
     latest_revision integer NOT NULL DEFAULT 0,
     downloads integer NOT NULL DEFAULT 0,
     created_at timestamp NOT NULL DEFAULT now(),
     updated_at timestamp NOT NULL DEFAULT now(),
     CONSTRAINT hub_repository_visibility_check CHECK (visibility IN ('public', 'private')),
+    CONSTRAINT hub_repository_kind_check CHECK (kind IN ('dataset', 'model')),
     CONSTRAINT hub_repository_revision_check CHECK (latest_revision >= 0),
     CONSTRAINT hub_repository_downloads_check CHECK (downloads >= 0)
   )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS hub_repository_namespace_slug_uidx
-   ON "hub_repository"(namespace_id, slug)`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'dataset'`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS model_card text`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS library_name text`,
+  `ALTER TABLE "hub_repository" ADD COLUMN IF NOT EXISTS base_model text`,
+  `DO $$
+   BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM pg_constraint WHERE conname = 'hub_repository_kind_check'
+     ) THEN
+       ALTER TABLE "hub_repository"
+       ADD CONSTRAINT hub_repository_kind_check CHECK (kind IN ('dataset', 'model'));
+     END IF;
+   END $$`,
+  `DROP INDEX IF EXISTS hub_repository_namespace_slug_uidx`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS hub_repository_kind_namespace_slug_uidx
+   ON "hub_repository"(kind, namespace_id, slug)`,
   `CREATE INDEX IF NOT EXISTS hub_repository_public_updated_idx
    ON "hub_repository"(updated_at) WHERE visibility = 'public'`,
   `CREATE INDEX IF NOT EXISTS hub_repository_user_idx ON "hub_repository"(user_id, updated_at)`,

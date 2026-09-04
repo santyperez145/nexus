@@ -96,6 +96,26 @@ describe("API path policy", () => {
       () => enforcePathPolicy(writeSpace, { ...mgmtKey, scopes: ["spaces:read"] }),
       /missing scope spaces:write/,
     );
+
+    const publicModels = new Request("http://localhost/api/v1/models?include_reference=true");
+    const modelRepository = new Request("http://localhost/api/v1/models/acme/spanish-7b");
+    const ownModels = new Request("http://localhost/api/v1/models?mine=1");
+    const publishModel = new Request("http://localhost/api/v1/models", { method: "POST" });
+    assert.equal(isManagementPath(publicModels), false);
+    assert.equal(requiredScope(publicModels), null);
+    assert.equal(requiredScope(modelRepository), "models:read");
+    assert.equal(isManagementPath(ownModels), true);
+    assert.equal(requiredScope(ownModels), "models:read");
+    assert.equal(requiredScope(publishModel), "models:write");
+    enforcePathPolicy(ownModels, { ...mgmtKey, scopes: ["models:read"] });
+    assert.throws(
+      () => enforcePathPolicy(modelRepository, { ...inferenceKey, scopes: ["inference:write"] }),
+      /missing scope models:read/,
+    );
+    assert.throws(
+      () => enforcePathPolicy(publishModel, { ...mgmtKey, scopes: ["models:read"] }),
+      /missing scope models:write/,
+    );
   });
 
   it("treats Space execution as inference while keeping its CRUD in management", () => {

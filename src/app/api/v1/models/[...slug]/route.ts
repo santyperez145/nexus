@@ -1,4 +1,15 @@
 import { findModel } from "@/lib/catalog";
+import { authenticateOptionalRequest, authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
+import { writeAudit } from "@/lib/gateway/audit";
+import { invalidModelRepositoryInput, updateModelRepositorySchema } from "@/lib/hub/model-repositories";
+import {
+  deleteModelRepository,
+  findModelRepository,
+  listModelRevisions,
+  modelRepositoryAccess,
+  publicModelRepository,
+  updateModelRepository,
+} from "@/lib/hub/model-repository-store";
 import { isEndpointNoTrainingConfirmed, isEndpointZdrConfirmed } from "@/lib/providers/privacy";
 
 function publicEndpoint(endpoint: NonNullable<ReturnType<typeof findModel>>["endpoints"][number]) {
@@ -23,12 +34,47 @@ function publicEndpoint(endpoint: NonNullable<ReturnType<typeof findModel>>["end
   };
 }
 
-export async function GET(_req: Request, ctx: { params: Promise<{ slug: string[] }> }) {
+type Context = { params: Promise<{ slug: string[] }> };
+
+export async function GET(req: Request, ctx: Context) {
   const { slug } = await ctx.params;
   const wantsEndpoints = slug.at(-1) === "endpoints";
   const id = (wantsEndpoints ? slug.slice(0, -1) : slug).join("/");
   const model = findModel(id);
-  if (!model) return Response.json({ error: { message: "Model not found" } }, { status: 404 });
+  if (!model) {
+    if (wantsEndpoints || slug.length !== 2) {
+      return Response.json({ error: { message: "Model not found" } }, { status: 404 });
+    }
+    try {
+      const auth = await authenticateOptionalRequest(req);
+      const repository = await findModelRepository(slug[0], slug[1]);
+      if (!repository) throw Object.assign(new Error("model repository not found"), { status: 404 });
+      const access = await modelRepositoryAccess(repository, auth);
+      if (!access.metadata) throw Object.assign(new Error("model repository not found"), { status: 404 });
+      const revisions = access.content ? await listModelRevisions(repository.id) : [];
+      return Response.json({
+        data: {
+          ...publicModelRepository(repository),
+          access,
+          revisions: revisions.map((revision) => ({
+            revision: revision.revision,
+            commit_sha: revision.commitSha,
+            commit_message: revision.commitMessage,
+            metadata: revision.metadata,
+            created_at: revision.createdAt,
+            files: revision.files.map((file) => ({
+              id: file.fileId,
+              path: file.path,
+              bytes: file.size,
+              mime: file.mime,
+            })),
+          })),
+        },
+      });
+    } catch (error) {
+      return jsonError(error);
+    }
+  }
   if (wantsEndpoints) {
     return Response.json({
       data: {
@@ -50,4 +96,43 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string[]
       endpoints: model.endpoints.map(publicEndpoint),
     },
   });
+}
+
+export async function PATCH(req: Request, ctx: Context) {
+  try {
+    const auth = await authenticateRequest(req);
+    const { slug } = await ctx.params;
+    if (slug.length !== 2) throw Object.assign(new Error("model repository not found"), { status: 404 });
+    const parsed = updateModelRepositorySchema.safeParse(await req.json());
+    if (!parsed.success) throw invalidModelRepositoryInput(parsed.error);
+    const repository = await updateModelRepository(auth, slug[0], slug[1], parsed.data);
+    if (!repository) throw Object.assign(new Error("model repository not found"), { status: 404 });
+    await writeAudit(auth, "model_repository.update", {
+      resource: "model_repository",
+      resourceId: repository.id,
+      headers: req.headers,
+      meta: { fields: Object.keys(parsed.data) },
+    });
+    return Response.json({ data: publicModelRepository(repository) });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function DELETE(req: Request, ctx: Context) {
+  try {
+    const auth = await authenticateRequest(req);
+    const { slug } = await ctx.params;
+    if (slug.length !== 2) throw Object.assign(new Error("model repository not found"), { status: 404 });
+    const repository = await deleteModelRepository(auth, slug[0], slug[1]);
+    await writeAudit(auth, "model_repository.delete", {
+      resource: "model_repository",
+      resourceId: repository.id,
+      headers: req.headers,
+      meta: { path: `${repository.namespace}/${repository.slug}` },
+    });
+    return Response.json({ data: { id: repository.id, deleted: true } });
+  } catch (error) {
+    return jsonError(error);
+  }
 }

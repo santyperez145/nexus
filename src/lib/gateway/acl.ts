@@ -11,6 +11,7 @@ const GUEST_PATHS = [
 const MANAGEMENT_PATHS = [
   "/api/v1/keys",
   "/api/v1/byok",
+  "/api/v1/models",
   "/api/v1/datasets",
   "/api/v1/spaces",
   "/api/v1/files",
@@ -42,6 +43,7 @@ const RESOURCE_PATHS = [
   ["/api/v1/credits", "billing"],
   ["/api/v1/keys", "keys"],
   ["/api/v1/byok", "byok"],
+  ["/api/v1/models", "models"],
   ["/api/v1/datasets", "datasets"],
   ["/api/v1/spaces", "spaces"],
   ["/api/v1/files", "files"],
@@ -61,6 +63,8 @@ const MANAGEMENT_SCOPES = new Set([
   "keys:write",
   "byok:read",
   "byok:write",
+  "models:read",
+  "models:write",
   "datasets:read",
   "datasets:write",
   "spaces:read",
@@ -125,6 +129,15 @@ export function isGuestInferencePath(req: Request) {
 export function isManagementPath(req: Request) {
   const path = pathnameOf(req);
   if (/^\/api\/v1\/spaces\/[^/]+\/[^/]+\/run$/.test(path)) return false;
+  if (path === "/api/v1/models" || path.startsWith("/api/v1/models/")) {
+    if (req.method !== "GET" && req.method !== "HEAD") return true;
+    if (path.endsWith("/access")) return true;
+    try {
+      return new URL(req.url).searchParams.get("mine") === "1";
+    } catch {
+      return false;
+    }
+  }
   return matches(path, MANAGEMENT_PATHS);
 }
 
@@ -138,6 +151,9 @@ export function requiredScope(req: Request) {
     return "inference:write";
   }
   const path = pathnameOf(req);
+  if ((path === "/api/v1/models" || path.startsWith("/api/v1/models/")) && !isManagementPath(req)) {
+    return path === "/api/v1/models" || path.endsWith("/endpoints") ? null : "models:read";
+  }
   const resource = RESOURCE_PATHS.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`))?.[1];
   if (!resource) return null;
   const action = req.method === "GET" || req.method === "HEAD" ? "read" : "write";

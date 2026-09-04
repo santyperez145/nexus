@@ -156,6 +156,55 @@ export type DatasetRevisionRequest = {
   files: Array<{ file_id: string; path: string }>;
 };
 
+export type ModelRepository = {
+  id: string;
+  namespace: string;
+  slug: string;
+  path: string;
+  title: string;
+  description: string;
+  model_card: string;
+  visibility: "public" | "private";
+  gated: boolean;
+  license: string;
+  pipeline_tag: string | null;
+  library_name: string | null;
+  base_model: string | null;
+  tags: string[];
+  latest_revision: number;
+  downloads: number;
+  created_at: string;
+  updated_at: string;
+  nexus: {
+    source: "hub";
+    executable: false;
+    reference_only: true;
+    verification_status: "unverified";
+  };
+};
+
+export type ModelRepositoryCreateRequest = {
+  namespace: string;
+  slug: string;
+  title: string;
+  description?: string;
+  model_card?: string;
+  visibility?: "public" | "private";
+  gated?: boolean;
+  license?: string;
+  pipeline_tag?: string | null;
+  library_name?: string | null;
+  base_model?: string | null;
+  tags?: string[];
+  workspace_id?: string | null;
+};
+
+export type ModelRepositoryRevisionRequest = {
+  commit_message: string;
+  metadata?: Record<string, unknown>;
+  files: Array<{ file_id: string; path: string }>;
+};
+
 export type Space = {
   id: string;
   namespace: string;

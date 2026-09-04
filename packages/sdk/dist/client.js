@@ -150,8 +150,28 @@ class ChatResource {
 }
 class ModelsResource {
     client;
+    repositories;
     constructor(client) {
         this.client = client;
+        const path = (namespace, slug, suffix = "") => `/models/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}${suffix}`;
+        this.repositories = {
+            list: (opts = {}) => this.client.request("/models", { query: { ...opts, mine: opts.mine ?? true } }),
+            get: (namespace, slug) => this.client.request(path(namespace, slug)),
+            create: (body) => this.client.request("/models", { method: "POST", body }),
+            update: (namespace, slug, body) => this.client.request(path(namespace, slug), { method: "PATCH", body }),
+            delete: (namespace, slug) => this.client.request(path(namespace, slug), { method: "DELETE" }),
+            revisions: {
+                list: (namespace, slug) => this.client.request(path(namespace, slug, "/revisions")),
+                create: (namespace, slug, body) => this.client.request(path(namespace, slug, "/revisions"), { method: "POST", body }),
+            },
+            download: async (namespace, slug, revision, filePath) => {
+                const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
+                const response = await this.client.request(path(namespace, slug, `/resolve/${encodeURIComponent(String(revision))}/${encodedPath}`), { raw: true });
+                if (!response.ok)
+                    throw new NexusError(response.statusText, { status: response.status });
+                return response.arrayBuffer();
+            },
+        };
     }
     list(query = {}) {
         return this.client.request("/models", { query });

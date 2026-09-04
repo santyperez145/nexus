@@ -35,6 +35,9 @@ type Row = {
   input: string[];
   pricing: { prompt: number; completion: number; image: number; request: number };
   endpoints: Array<{ adapter: string; zdr?: boolean }>;
+  source?: "gateway" | "hub";
+  latestRevision?: number;
+  downloads?: number;
 };
 
 function matchesMod(m: Row, mod: string) {
@@ -59,6 +62,7 @@ function priceSortValue(m: Row) {
 }
 
 function priceLabel(m: Row) {
+  if (m.source === "hub") return "Artefacto de referencia";
   const kind = modelKind(m);
   if (m.id === "nexus/free") return "Gratis";
   if (m.id === "nexus/auto") return "Según la ruta elegida";
@@ -82,6 +86,9 @@ function priceLabel(m: Row) {
 }
 
 function capabilityLabel(m: Row) {
+  if (m.source === "hub") {
+    return m.latestRevision ? `Revisión v${m.latestRevision}` : "Sin revisión publicada";
+  }
   const kind = modelKind(m);
   if (kind !== "text" && !isModelRouteSupported(kind, m.id)) return "Metadatos de catálogo";
   if (kind === "image") return "1024² · calidad media";
@@ -502,7 +509,7 @@ export function ModelsExplorer({
                       className={`border-t border-zinc-100 hover:bg-zinc-50/70 ${i % 2 ? "bg-zinc-50/40" : ""}`}
                     >
                       <td className="px-2 py-2.5">
-                        {kind === "text" ? (
+                        {kind === "text" && supported ? (
                           <input
                             type="checkbox"
                             checked={on}
@@ -536,7 +543,7 @@ export function ModelsExplorer({
                             </span>
                           ) : (
                             <span className="rounded border border-zinc-200 bg-zinc-50 px-1 text-[10px] text-zinc-500">
-                              sólo catálogo
+                              {m.source === "hub" ? "Hub · referencia" : "sólo catálogo"}
                             </span>
                           )}
                           {m.free && supported ? (
@@ -573,7 +580,7 @@ export function ModelsExplorer({
                         <div className="flex flex-wrap gap-1">
                           {(m.endpoints.map((e) => e.adapter).length
                             ? m.endpoints.map((e) => e.adapter)
-                            : ["nexus"]
+                            : [m.source === "hub" ? "Hub" : "nexus"]
                           )
                             .slice(0, 4)
                             .map((a) => (
@@ -627,7 +634,7 @@ export function ModelsExplorer({
                   >
                     {action.label}
                   </Link>
-                  {kind === "text" ? (
+                  {kind === "text" && supported ? (
                     <input
                       type="checkbox"
                       checked={on}
@@ -677,7 +684,7 @@ export function ModelsExplorer({
                       </span>
                     ) : (
                       <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
-                        Sólo catálogo
+                        {m.source === "hub" ? "Hub · referencia" : "Sólo catálogo"}
                       </span>
                     )}
                     {m.free && supported ? (
@@ -693,7 +700,9 @@ export function ModelsExplorer({
                         {OUTPUT_LABELS[o] ?? o}
                       </span>
                     ))}
-                    {(m.endpoints.length ? m.endpoints.map((e) => e.adapter) : ["Nexus"])
+                    {(m.endpoints.length
+                      ? m.endpoints.map((e) => e.adapter)
+                      : [m.source === "hub" ? "Hub" : "Nexus"])
                       .slice(0, 3)
                       .map((a) => (
                         <span

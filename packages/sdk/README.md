@@ -63,6 +63,7 @@ await nexus.chat.completions.create({
 | `nexus.responses.create` | `POST /responses` |
 | `nexus.messages.create` | `POST /messages` |
 | `nexus.models.list` / `.get` / `.endpoints` / `.count` | `/models` |
+| `nexus.models.repositories.*` / `.revisions.*` / `.download` | `/models/{namespace}/{slug}/*` (Hub reference-only) |
 | `nexus.credits.get` | `/credits` |
 | `nexus.generations.get` / `.list` | `/generation` |
 | `nexus.embeddings.create` | `/embeddings` |

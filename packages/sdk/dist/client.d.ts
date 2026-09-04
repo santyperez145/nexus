@@ -1,4 +1,4 @@
-import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
+import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
 export declare class Nexus {
     #private;
     readonly apiKey: string;
@@ -60,12 +60,58 @@ declare class ChatResource {
 }
 declare class ModelsResource {
     private readonly client;
+    readonly repositories: {
+        list: (opts?: {
+            q?: string;
+            pipeline_tag?: string;
+            tag?: string;
+            mine?: boolean;
+            limit?: number;
+        }) => Promise<{
+            data: ModelRepository[];
+            meta: {
+                count: number;
+                scope: string;
+            };
+        }>;
+        get: (namespace: string, slug: string) => Promise<{
+            data: ModelRepository & {
+                access: unknown;
+                revisions: unknown[];
+            };
+        }>;
+        create: (body: ModelRepositoryCreateRequest) => Promise<{
+            data: ModelRepository;
+        }>;
+        update: (namespace: string, slug: string, body: Partial<Omit<ModelRepositoryCreateRequest, "namespace" | "slug" | "workspace_id">>) => Promise<{
+            data: ModelRepository;
+        }>;
+        delete: (namespace: string, slug: string) => Promise<{
+            data: {
+                id: string;
+                deleted: boolean;
+            };
+        }>;
+        revisions: {
+            list: (namespace: string, slug: string) => Promise<{
+                data: unknown[];
+            }>;
+            create: (namespace: string, slug: string, body: ModelRepositoryRevisionRequest) => Promise<{
+                data: unknown;
+            }>;
+        };
+        download: (namespace: string, slug: string, revision: string | number, path: string) => Promise<ArrayBuffer>;
+    };
     constructor(client: Nexus);
     list(query?: {
         category?: string;
         output_modalities?: string;
         supported_parameters?: string;
         include_reference?: boolean;
+        pipeline_tag?: string;
+        tag?: string;
+        q?: string;
+        limit?: number;
     }): Promise<{
         data: unknown[];
     }>;

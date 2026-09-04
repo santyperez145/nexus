@@ -27,6 +27,10 @@ const ENDPOINTS = [
   ["GET", "/api/v1/analytics?days=", "Analytics (ventana + provider)"],
   ["GET/POST/DELETE", "/api/v1/files", "Files (file_ids en chat)"],
   ["GET/POST", "/api/v1/datasets", "Hub de datasets públicos/privados"],
+  ["GET/POST", "/api/v1/models", "Catálogo ejecutable + repositorios de modelos reference-only"],
+  ["GET/PATCH/DELETE", "/api/v1/models/{namespace}/{slug}", "Model card, política y ciclo de vida"],
+  ["GET/POST", "/api/v1/models/{namespace}/{slug}/revisions", "Artefactos versionados e inmutables"],
+  ["GET/POST/PATCH", "/api/v1/models/{namespace}/{slug}/access", "Acceso gated a artefactos"],
   ["GET/PATCH/DELETE", "/api/v1/datasets/{namespace}/{slug}", "Ficha y política de dataset"],
   ["GET/POST", "/api/v1/datasets/{namespace}/{slug}/revisions", "Snapshots inmutables"],
   ["GET", "/api/v1/datasets/{namespace}/{slug}/resolve/{revision}/{path}", "Descarga versionada"],
@@ -220,6 +224,28 @@ const image = await nexus.images.generate({ prompt: "Amber mesh" });`}
 await nexus.datasets.revisions.create("mi-equipo", "support-evals", {
   commit_message: "Publica split de entrenamiento",
   files: [{ file_id: "file_…", path: "data/train.jsonl" }],
+});`}
+        </pre>
+        <h2 className="mb-3 text-lg font-medium text-zinc-900">Model repositories</h2>
+        <p className="mb-3 text-sm text-zinc-600">
+          El mismo <code className="text-zinc-800">/api/v1/models</code> combina el catálogo de
+          ejecución con repositorios Hub opt-in. Crearlos o versionarlos exige una management key
+          con <code className="text-zinc-800">models:write</code>. Todo repositorio publicado queda
+          marcado <code className="text-zinc-800">reference_only</code> y no puede entrar al routing.
+        </p>
+        <pre className="mb-8 overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+{`await nexus.models.repositories.create({
+  namespace: "mi-equipo",
+  slug: "modelo-espanol-7b",
+  title: "Modelo Español 7B",
+  pipeline_tag: "text-generation",
+  library_name: "transformers",
+  model_card: "Uso previsto, evaluación y limitaciones…",
+});
+
+await nexus.models.repositories.revisions.create("mi-equipo", "modelo-espanol-7b", {
+  commit_message: "Publica pesos cuantizados",
+  files: [{ file_id: "file_…", path: "weights/model.safetensors" }],
 });`}
         </pre>
         <h2 className="mb-3 text-lg font-medium text-zinc-900">Enterprise / ZDR</h2>

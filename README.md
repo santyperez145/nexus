@@ -168,7 +168,7 @@ referencia, pero sólo entra al router cuando la tarifa de ese proveedor/modelo 
 precio `0` sin marca explícita de gratuidad se interpreta como desconocido y falla cerrado; los feeds
 externos no pueden auto-certificar precios ni reemplazar las entradas curadas de Nexus.
 
-El Hub comparte un namespace tenant-safe entre datasets versionados y Nexus Spaces. Un Space publica
+El Hub comparte un namespace tenant-safe entre repositorios de modelos, datasets versionados y Nexus Spaces. Los modelos publicados incluyen model card, licencia, pipeline, librería, base model, artefactos, revisiones inmutables y gating. Permanecen `reference_only`: nunca entran al router ni fijan precios hasta que un operador los incorpora al catálogo verificado. Un Space publica
 una experiencia de chat configurable sobre cualquier modelo de texto ejecutable, sin crear un segundo
 backend: cada run pasa por el router multi‑proveedor, ZDR, guardrails, rate limits, observabilidad y el
 ledger `reserve→settle`. La identidad que ejecuta paga el uso; el propietario del Space nunca se cobra
@@ -182,7 +182,7 @@ falla con `403 guardrail_blocked`. El preview autenticado ejecuta los mismos pre
 filtros de privacidad que la inferencia, sin consumir saldo.
 
 Las API keys aplican scopes de mínimo privilegio por recurso (`inference:write`, `spaces:read/write`,
-`datasets:read/write`, `keys:read/write`, entre otros). Los presupuestos,
+`models:read/write`, `datasets:read/write`, `keys:read/write`, entre otros). Los presupuestos,
 límites por key, créditos y membresías de workspace se validan en el servidor; no dependen del cliente.
 El workspace predeterminado de una organización incluye a todos sus miembros. Los demás requieren
 asignación explícita; owner/admin conservan acceso administrativo global y un workspace compartido

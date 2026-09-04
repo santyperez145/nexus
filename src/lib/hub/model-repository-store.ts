@@ -4,35 +4,35 @@ import { sha256 } from "@/lib/crypto";
 import { resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
 import type { AuthContext } from "@/lib/gateway/types";
 import { id } from "@/lib/ids";
+import { hubTenantAccess } from "./datasets";
 import {
-  assertUniqueRevisionPaths,
-  datasetContentReadable,
-  datasetMetadataVisible,
   hubSlug,
-  hubTenantAccess,
-  normalizeDatasetPath,
+  normalizeModelPath,
   normalizeTags,
-  parseDatasetRevision,
-} from "./datasets";
+  parseModelRevision,
+} from "./model-repositories";
 import { ownedHubNamespace } from "./namespace-store";
 
 type Repository = typeof schema.hubRepositories.$inferSelect;
 type Namespace = typeof schema.hubNamespaces.$inferSelect;
-export type DatasetRepository = Repository & {
+export type ModelRepository = Repository & {
   namespace: string;
   namespaceDisplayName: string;
   namespaceVerified: boolean;
 };
 
-type DatasetCreate = {
+type ModelCreate = {
   namespace: string;
   slug: string;
   title: string;
   description: string;
+  model_card: string;
   visibility: "public" | "private";
   gated: boolean;
   license: string;
-  task?: string | null;
+  pipeline_tag?: string | null;
+  library_name?: string | null;
+  base_model?: string | null;
   tags: string[];
   workspace_id?: string | null;
 };
@@ -44,18 +44,17 @@ type RevisionCreate = {
 };
 
 function notFound() {
-  return Object.assign(new Error("dataset not found"), { status: 404, code: "not_found" });
+  return Object.assign(new Error("model repository not found"), { status: 404, code: "not_found" });
 }
 
 function forbidden() {
-  return Object.assign(new Error("dataset write access required"), { status: 403, code: "forbidden" });
+  return Object.assign(new Error("model repository write access required"), {
+    status: 403,
+    code: "forbidden",
+  });
 }
 
-function conflict(message: string) {
-  return Object.assign(new Error(message), { status: 409, code: "conflict" });
-}
-
-function combine(repository: Repository, namespace: Namespace): DatasetRepository {
+function combine(repository: Repository, namespace: Namespace): ModelRepository {
   return {
     ...repository,
     namespace: namespace.slug,
@@ -64,7 +63,7 @@ function combine(repository: Repository, namespace: Namespace): DatasetRepositor
   };
 }
 
-export function publicDataset(repository: DatasetRepository) {
+export function publicModelRepository(repository: ModelRepository) {
   return {
     id: repository.id,
     namespace: repository.namespace,
@@ -74,35 +73,41 @@ export function publicDataset(repository: DatasetRepository) {
     path: `${repository.namespace}/${repository.slug}`,
     title: repository.title,
     description: repository.description,
+    model_card: repository.modelCard ?? "",
     visibility: repository.visibility,
     gated: repository.gated,
     license: repository.license,
-    task: repository.task,
+    pipeline_tag: repository.task,
+    library_name: repository.libraryName,
+    base_model: repository.baseModel,
     tags: repository.tags,
     latest_revision: repository.latestRevision,
     downloads: repository.downloads,
     created_at: repository.createdAt,
     updated_at: repository.updatedAt,
+    nexus: {
+      source: "hub",
+      executable: false,
+      reference_only: true,
+      verification_status: "unverified",
+    },
   };
 }
 
-export async function findDatasetRepository(
+export async function findModelRepository(
   namespaceValue: string,
   slugValue: string,
   executor: DbExecutor = db,
 ) {
   const namespace = hubSlug(namespaceValue, "namespace");
-  const slug = hubSlug(slugValue, "dataset");
+  const slug = hubSlug(slugValue, "model");
   const [row] = await executor
     .select({ repository: schema.hubRepositories, namespace: schema.hubNamespaces })
     .from(schema.hubRepositories)
-    .innerJoin(
-      schema.hubNamespaces,
-      eq(schema.hubNamespaces.id, schema.hubRepositories.namespaceId),
-    )
+    .innerJoin(schema.hubNamespaces, eq(schema.hubNamespaces.id, schema.hubRepositories.namespaceId))
     .where(
       and(
-        eq(schema.hubRepositories.kind, "dataset"),
+        eq(schema.hubRepositories.kind, "model"),
         eq(schema.hubNamespaces.slug, namespace),
         eq(schema.hubRepositories.slug, slug),
       ),
@@ -111,8 +116,17 @@ export async function findDatasetRepository(
   return row ? combine(row.repository, row.namespace) : null;
 }
 
-export async function hasApprovedDatasetGrant(repositoryId: string, auth: AuthContext | null) {
-  if (!auth || auth.guest) return false;
+function modelTenantAccess(
+  auth: AuthContext | null,
+  repository: { userId: string; workspaceId?: string | null },
+) {
+  if (!auth) return false;
+  if (auth.apiKeyId && !auth.isManagement) return false;
+  return hubTenantAccess(auth, repository);
+}
+
+async function hasApprovedGrant(repositoryId: string, auth: AuthContext | null) {
+  if (!auth || auth.guest || (auth.apiKeyId && !auth.isManagement)) return false;
   const [grant] = await db
     .select({ id: schema.hubAccessGrants.id })
     .from(schema.hubAccessGrants)
@@ -127,24 +141,23 @@ export async function hasApprovedDatasetGrant(repositoryId: string, auth: AuthCo
   return Boolean(grant);
 }
 
-export async function datasetAccess(repository: DatasetRepository, auth: AuthContext | null) {
-  const approved = await hasApprovedDatasetGrant(repository.id, auth);
-  const tenant = hubTenantAccess(auth, repository);
-  const manager = tenant;
+export async function modelRepositoryAccess(repository: ModelRepository, auth: AuthContext | null) {
+  const approved = await hasApprovedGrant(repository.id, auth);
+  const tenant = modelTenantAccess(auth, repository);
   return {
-    metadata: datasetMetadataVisible(repository, auth, approved),
-    content: datasetContentReadable(repository, auth, approved),
+    metadata: repository.visibility === "public" || approved || tenant,
+    content: tenant || approved || (repository.visibility === "public" && !repository.gated),
     tenant,
-    manager,
+    manager: tenant,
     approved,
   };
 }
 
-export async function listDatasetRepositories(input: {
+export async function listModelRepositories(input: {
   auth?: AuthContext | null;
   mine?: boolean;
   query?: string;
-  task?: string;
+  pipelineTag?: string;
   tag?: string;
   limit?: number;
 }) {
@@ -155,7 +168,7 @@ export async function listDatasetRepositories(input: {
       ? userScope(input.auth, schema.hubRepositories.userId, schema.hubRepositories.workspaceId)
       : sql`false`
     : eq(schema.hubRepositories.visibility, "public");
-  const base = and(eq(schema.hubRepositories.kind, "dataset"), visibility);
+  const base = and(eq(schema.hubRepositories.kind, "model"), visibility);
   const where = search
     ? and(
         base,
@@ -169,45 +182,41 @@ export async function listDatasetRepositories(input: {
   const rows = await db
     .select({ repository: schema.hubRepositories, namespace: schema.hubNamespaces })
     .from(schema.hubRepositories)
-    .innerJoin(
-      schema.hubNamespaces,
-      eq(schema.hubNamespaces.id, schema.hubRepositories.namespaceId),
-    )
+    .innerJoin(schema.hubNamespaces, eq(schema.hubNamespaces.id, schema.hubRepositories.namespaceId))
     .where(where)
     .orderBy(desc(schema.hubRepositories.updatedAt))
     .limit(200);
   return rows
     .map((row) => combine(row.repository, row.namespace))
-    .filter((row) => !input.task || row.task === input.task)
+    .filter((row) => !input.pipelineTag || row.task === input.pipelineTag)
     .filter((row) => !input.tag || row.tags.includes(input.tag))
     .slice(0, limit);
 }
 
-export async function createDatasetRepository(auth: AuthContext, input: DatasetCreate) {
+export async function createModelRepository(auth: AuthContext, input: ModelCreate) {
   const workspaceId = await resolveOwnedWorkspace(auth, input.workspace_id);
   const namespaceSlug = hubSlug(input.namespace, "namespace");
-  const repositorySlug = hubSlug(input.slug, "dataset");
-  const tags = normalizeTags(input.tags);
+  const repositorySlug = hubSlug(input.slug, "model");
   try {
-    const created = await withTransaction(async (tx) => {
+    return await withTransaction(async (tx) => {
       const namespace = await ownedHubNamespace(tx, auth, namespaceSlug, input.namespace.trim(), workspaceId);
       const row = {
-        id: id("ds"),
-        kind: "dataset",
+        id: id("mdlrepo"),
+        kind: "model",
         namespaceId: namespace.id,
         userId: auth.userId,
         workspaceId,
         slug: repositorySlug,
         title: input.title,
         description: input.description,
-        modelCard: null,
+        modelCard: input.model_card,
         visibility: input.visibility,
         gated: input.gated,
         license: input.license,
-        task: input.task || null,
-        libraryName: null,
-        baseModel: null,
-        tags,
+        task: input.pipeline_tag || null,
+        libraryName: input.library_name || null,
+        baseModel: input.base_model || null,
+        tags: normalizeTags(input.tags),
       };
       await tx.insert(schema.hubRepositories).values(row);
       return combine(
@@ -215,84 +224,97 @@ export async function createDatasetRepository(auth: AuthContext, input: DatasetC
         namespace,
       );
     });
-    return created;
   } catch (error) {
-    if (typeof error === "object" && error && "code" in error && error.code === "conflict") throw error;
-    const message = error instanceof Error ? error.message : "";
-    if (/unique|duplicate/i.test(message)) throw conflict("dataset path already exists");
+    if (/unique|duplicate/i.test(error instanceof Error ? error.message : "")) {
+      throw Object.assign(new Error("model path already exists"), { status: 409, code: "conflict" });
+    }
     throw error;
   }
 }
 
-export async function assertDatasetMutation(
-  auth: AuthContext,
-  namespace: string,
-  slug: string,
-) {
-  const repository = await findDatasetRepository(namespace, slug);
+export async function assertModelRepositoryMutation(auth: AuthContext, namespace: string, slug: string) {
+  const repository = await findModelRepository(namespace, slug);
   if (!repository) throw notFound();
-  if (!hubTenantAccess(auth, repository)) throw forbidden();
+  if (!modelTenantAccess(auth, repository)) throw forbidden();
   return repository;
 }
 
-export async function updateDatasetRepository(
+export async function updateModelRepository(
   auth: AuthContext,
   namespace: string,
   slug: string,
-  patch: Partial<Pick<Repository, "title" | "description" | "visibility" | "gated" | "license" | "task" | "tags">>,
+  patch: {
+    title?: string;
+    description?: string;
+    model_card?: string;
+    visibility?: "public" | "private";
+    gated?: boolean;
+    license?: string;
+    pipeline_tag?: string | null;
+    library_name?: string | null;
+    base_model?: string | null;
+    tags?: string[];
+  },
 ) {
-  const repository = await assertDatasetMutation(auth, namespace, slug);
+  const repository = await assertModelRepositoryMutation(auth, namespace, slug);
   await db
     .update(schema.hubRepositories)
     .set({
-      ...patch,
-      ...(patch.tags ? { tags: normalizeTags(patch.tags) } : {}),
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
+      ...(patch.description !== undefined ? { description: patch.description } : {}),
+      ...(patch.model_card !== undefined ? { modelCard: patch.model_card } : {}),
+      ...(patch.visibility !== undefined ? { visibility: patch.visibility } : {}),
+      ...(patch.gated !== undefined ? { gated: patch.gated } : {}),
+      ...(patch.license !== undefined ? { license: patch.license } : {}),
+      ...(patch.pipeline_tag !== undefined ? { task: patch.pipeline_tag } : {}),
+      ...(patch.library_name !== undefined ? { libraryName: patch.library_name } : {}),
+      ...(patch.base_model !== undefined ? { baseModel: patch.base_model } : {}),
+      ...(patch.tags !== undefined ? { tags: normalizeTags(patch.tags) } : {}),
       updatedAt: new Date(),
     })
     .where(eq(schema.hubRepositories.id, repository.id));
-  return findDatasetRepository(namespace, slug);
+  return findModelRepository(namespace, slug);
 }
 
-export async function deleteDatasetRepository(auth: AuthContext, namespace: string, slug: string) {
-  const repository = await assertDatasetMutation(auth, namespace, slug);
+export async function deleteModelRepository(auth: AuthContext, namespace: string, slug: string) {
+  const repository = await assertModelRepositoryMutation(auth, namespace, slug);
   await db.delete(schema.hubRepositories).where(eq(schema.hubRepositories.id, repository.id));
   return repository;
 }
 
-export async function createDatasetRevision(
+export async function createModelRevision(
   auth: AuthContext,
   namespace: string,
   slug: string,
   input: RevisionCreate,
 ) {
-  const repository = await assertDatasetMutation(auth, namespace, slug);
-  assertUniqueRevisionPaths(input.files);
-  const fileIds = [...new Set(input.files.map((file) => file.file_id))];
+  const repository = await assertModelRepositoryMutation(auth, namespace, slug);
+  const normalizedFiles = input.files.map((file) => ({
+    fileId: file.file_id,
+    path: normalizeModelPath(file.path),
+  }));
+  if (new Set(normalizedFiles.map((file) => file.path)).size !== normalizedFiles.length) {
+    throw Object.assign(new Error("duplicate model file path"), { status: 400, code: "invalid_request" });
+  }
   const storedFiles = await db
     .select()
     .from(schema.files)
-    .where(inArray(schema.files.id, fileIds));
+    .where(inArray(schema.files.id, [...new Set(normalizedFiles.map((file) => file.fileId))]));
   const storedById = new Map(storedFiles.map((file) => [file.id, file]));
-  for (const requested of input.files) {
-    const file = storedById.get(requested.file_id);
+  for (const requested of normalizedFiles) {
+    const file = storedById.get(requested.fileId);
     const exactScope = repository.workspaceId
       ? file?.workspaceId === repository.workspaceId
       : file?.workspaceId == null && file?.userId === repository.userId;
-    if (!file || !hubTenantAccess(auth, file) || !exactScope) {
-      throw Object.assign(new Error(`file is outside the dataset tenant: ${requested.file_id}`), {
+    if (!file || !modelTenantAccess(auth, file) || !exactScope) {
+      throw Object.assign(new Error(`file is outside the model tenant: ${requested.fileId}`), {
         status: 404,
         code: "not_found",
       });
     }
   }
-
   return withTransaction(async (tx) => {
-    await tx.execute(sql`
-      SELECT id
-      FROM hub_repository
-      WHERE id = ${repository.id}
-      FOR UPDATE
-    `);
+    await tx.execute(sql`SELECT id FROM hub_repository WHERE id = ${repository.id} FOR UPDATE`);
     const [locked] = await tx
       .select({ latestRevision: schema.hubRepositories.latestRevision })
       .from(schema.hubRepositories)
@@ -300,26 +322,36 @@ export async function createDatasetRevision(
       .limit(1);
     if (!locked) throw notFound();
     const revision = Number(locked.latestRevision) + 1;
-    const normalizedFiles = input.files.map((file) => ({
-      fileId: file.file_id,
-      path: normalizeDatasetPath(file.path),
-    }));
+    const revisionMetadata = {
+      ...input.metadata,
+      nexus: {
+        reference_only: true,
+        executable: false,
+        model_card: repository.modelCard ?? "",
+        description: repository.description,
+        license: repository.license,
+        pipeline_tag: repository.task,
+        library_name: repository.libraryName,
+        base_model: repository.baseModel,
+        tags: repository.tags,
+      },
+    };
     const commitSha = sha256(
-      JSON.stringify({ repository: repository.id, revision, files: normalizedFiles, metadata: input.metadata }),
+      JSON.stringify({ repository: repository.id, revision, files: normalizedFiles, metadata: revisionMetadata }),
     ).slice(0, 16);
     const revisionRow = {
-      id: id("rev"),
+      id: id("mdlrev"),
       repositoryId: repository.id,
       revision,
       commitSha,
       commitMessage: input.commit_message,
-      metadata: input.metadata,
+      metadata: revisionMetadata,
       createdBy: auth.userId,
     };
     await tx.insert(schema.hubRevisions).values(revisionRow);
     await tx.insert(schema.hubRevisionFiles).values(
       normalizedFiles.map((file) => ({
-        id: id("rf"),
+        id: id("mdlfile"),
         revisionId: revisionRow.id,
         fileId: file.fileId,
         path: file.path,
@@ -333,14 +365,13 @@ export async function createDatasetRevision(
   });
 }
 
-export async function listDatasetRevisions(repositoryId: string) {
+export async function listModelRevisions(repositoryId: string) {
   const revisions = await db
     .select()
     .from(schema.hubRevisions)
     .where(eq(schema.hubRevisions.repositoryId, repositoryId))
     .orderBy(desc(schema.hubRevisions.revision));
   if (!revisions.length) return [];
-  const revisionIds = revisions.map((revision) => revision.id);
   const files = await db
     .select({
       id: schema.hubRevisionFiles.id,
@@ -353,30 +384,30 @@ export async function listDatasetRevisions(repositoryId: string) {
     })
     .from(schema.hubRevisionFiles)
     .innerJoin(schema.files, eq(schema.files.id, schema.hubRevisionFiles.fileId))
-    .where(inArray(schema.hubRevisionFiles.revisionId, revisionIds));
+    .where(inArray(schema.hubRevisionFiles.revisionId, revisions.map((revision) => revision.id)));
   return revisions.map((revision) => ({
     ...revision,
     files: files.filter((file) => file.revisionId === revision.id),
   }));
 }
 
-export async function resolveDatasetFile(
-  repository: DatasetRepository,
+export async function resolveModelFile(
+  repository: ModelRepository,
   revisionValue: string,
   pathValue: string,
 ) {
-  const revisionSelector = parseDatasetRevision(revisionValue, repository.latestRevision);
+  const selector = parseModelRevision(revisionValue, repository.latestRevision);
   const revisionWhere =
-    typeof revisionSelector === "number"
-      ? eq(schema.hubRevisions.revision, revisionSelector)
-      : eq(schema.hubRevisions.commitSha, revisionSelector);
+    typeof selector === "number"
+      ? eq(schema.hubRevisions.revision, selector)
+      : eq(schema.hubRevisions.commitSha, selector);
   const [revision] = await db
     .select()
     .from(schema.hubRevisions)
     .where(and(eq(schema.hubRevisions.repositoryId, repository.id), revisionWhere))
     .limit(1);
   if (!revision) throw notFound();
-  const path = normalizeDatasetPath(pathValue);
+  const path = normalizeModelPath(pathValue);
   const [file] = await db
     .select({
       id: schema.files.id,
@@ -399,11 +430,11 @@ export async function resolveDatasetFile(
   return { revision, file };
 }
 
-export async function requestDatasetAccess(auth: AuthContext, repository: DatasetRepository) {
+export async function requestModelAccess(auth: AuthContext, repository: ModelRepository) {
   if (repository.visibility !== "public" || !repository.gated) throw notFound();
-  if (hubTenantAccess(auth, repository)) return { status: "owner" as const };
+  if (modelTenantAccess(auth, repository)) return { status: "owner" as const };
   const row = {
-    id: id("grant"),
+    id: id("mdlgrant"),
     repositoryId: repository.id,
     userId: auth.userId,
     status: "pending",
@@ -411,19 +442,15 @@ export async function requestDatasetAccess(auth: AuthContext, repository: Datase
     decidedAt: null,
     decidedBy: null,
   };
-  await db
-    .insert(schema.hubAccessGrants)
-    .values(row)
-    .onConflictDoUpdate({
-      target: [schema.hubAccessGrants.repositoryId, schema.hubAccessGrants.userId],
-      set: { status: "pending", requestedAt: row.requestedAt, decidedAt: null, decidedBy: null },
-    });
+  await db.insert(schema.hubAccessGrants).values(row).onConflictDoUpdate({
+    target: [schema.hubAccessGrants.repositoryId, schema.hubAccessGrants.userId],
+    set: { status: "pending", requestedAt: row.requestedAt, decidedAt: null, decidedBy: null },
+  });
   return { status: "pending" as const };
 }
 
-export async function listDatasetAccess(auth: AuthContext, repository: DatasetRepository) {
-  const manager = hubTenantAccess(auth, repository);
-  if (!manager) {
+export async function listModelAccess(auth: AuthContext, repository: ModelRepository) {
+  if (!modelTenantAccess(auth, repository)) {
     if (repository.visibility !== "public") throw notFound();
     const [grant] = await db
       .select({ status: schema.hubAccessGrants.status, requestedAt: schema.hubAccessGrants.requestedAt })
@@ -454,13 +481,13 @@ export async function listDatasetAccess(auth: AuthContext, repository: DatasetRe
   return { manager: true, grants };
 }
 
-export async function decideDatasetAccess(
+export async function decideModelAccess(
   auth: AuthContext,
-  repository: DatasetRepository,
+  repository: ModelRepository,
   grantId: string,
   status: "approved" | "rejected",
 ) {
-  if (!hubTenantAccess(auth, repository)) throw forbidden();
+  if (!modelTenantAccess(auth, repository)) throw forbidden();
   const [grant] = await db
     .select()
     .from(schema.hubAccessGrants)
@@ -479,15 +506,3 @@ export async function decideDatasetAccess(
     .where(eq(schema.hubAccessGrants.id, grant.id));
   return { ...grant, status, decidedAt, decidedBy: auth.userId };
 }
-
-export async function fileReferencedByHubRevision(fileId: string) {
-  const [reference] = await db
-    .select({ id: schema.hubRevisionFiles.id })
-    .from(schema.hubRevisionFiles)
-    .where(eq(schema.hubRevisionFiles.fileId, fileId))
-    .limit(1);
-  return Boolean(reference);
-}
-
-/** @deprecated Use fileReferencedByHubRevision; revisions are shared by datasets and models. */
-export const fileReferencedByDataset = fileReferencedByHubRevision;

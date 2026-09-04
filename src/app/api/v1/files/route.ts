@@ -4,7 +4,7 @@ import { authenticateRequest, jsonError } from "@/lib/gateway/api-auth";
 import { canAccess, canMutateResource, userScope } from "@/lib/gateway/tenant";
 import { extractFileText } from "@/lib/files/extract";
 import { id } from "@/lib/ids";
-import { fileReferencedByDataset } from "@/lib/hub/repository-store";
+import { fileReferencedByHubRevision } from "@/lib/hub/repository-store";
 
 const MAX_BYTES = 8_000_000;
 
@@ -86,9 +86,9 @@ export async function DELETE(req: Request) {
     if (!row || !canAccess(auth, row) || !(await canMutateResource(auth, row))) {
       return jsonError(Object.assign(new Error("not found"), { status: 404 }));
     }
-    if (await fileReferencedByDataset(row.id)) {
+    if (await fileReferencedByHubRevision(row.id)) {
       return jsonError(
-        Object.assign(new Error("file belongs to an immutable dataset revision"), {
+        Object.assign(new Error("file belongs to an immutable Hub revision"), {
           status: 409,
           code: "resource_in_use",
         }),

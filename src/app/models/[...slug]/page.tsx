@@ -5,6 +5,7 @@ import { MarketingShell } from "@/components/layout/marketing-shell";
 import { Button } from "@/components/ui/button";
 import { CostEstimator } from "@/components/models/cost-estimator";
 import { ModelArtwork } from "@/components/models/model-artwork";
+import { HubModelProfile } from "@/components/models/hub-model-profile";
 import {
   allModels,
   findModel,
@@ -163,7 +164,10 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
   const { slug } = await params;
   const id = slug.join("/");
   const model = findModel(id);
-  if (!model) notFound();
+  if (!model) {
+    if (slug.length !== 2) notFound();
+    return <HubModelProfile namespace={slug[0]} slug={slug[1]} />;
+  }
 
   const configured = new Set(wiredProviders().map((p) => p.id));
   let operational = new Set<string>();
