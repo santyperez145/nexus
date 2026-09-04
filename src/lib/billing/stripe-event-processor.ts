@@ -70,7 +70,7 @@ export async function reconcileWalletCheckout(
     stripeAmountMinor: intent.amount_received,
     stripeCurrency: intent.currency,
     customerId: objectId(session.customer),
-    note: `Compra Stripe ${creditsUsd} USD (fee ${creditPurchaseFeeUsd(creditsUsd).toFixed(2)} USD en el cargo)`,
+    note: `Compra Stripe ${creditsUsd} USD (comisión ${creditPurchaseFeeUsd(creditsUsd).toFixed(2)} USD en el cargo)`,
   });
   await ensureAutoTopupPaymentMethod(stripe, session);
   await reconcileSucceededRefunds(stripe, intent);

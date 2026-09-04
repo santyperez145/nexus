@@ -71,6 +71,10 @@ const LEDGER_DATE_FORMAT = new Intl.DateTimeFormat("es-AR", {
   timeStyle: "short",
 });
 
+function ledgerNoteLabel(note: string) {
+  return note.replace("(fee ", "(comisión ");
+}
+
 function CreditsInner() {
   const params = useSearchParams();
   const checkoutSessionId = params.get("checkout_session");
@@ -342,7 +346,7 @@ function CreditsInner() {
                       : `${runway}d`}
                 </div>
                 <div className="text-[11px] text-zinc-500">
-                  saldo ÷ burn diario
+                  saldo ÷ consumo diario
                 </div>
               </div>
             </div>
@@ -598,7 +602,10 @@ function CreditsInner() {
                     {LEDGER_TYPE_LABELS[l.type] ?? "Movimiento"}
                   </span>
                   {l.note ? (
-                    <span className="text-zinc-500"> · {l.note}</span>
+                    <span className="text-zinc-500">
+                      {" "}
+                      · {ledgerNoteLabel(l.note)}
+                    </span>
                   ) : null}
                   <div className="text-[11px] text-zinc-600">
                     {LEDGER_DATE_FORMAT.format(new Date(l.created_at))}
