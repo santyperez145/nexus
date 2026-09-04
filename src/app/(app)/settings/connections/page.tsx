@@ -156,7 +156,7 @@ export default function ConnectionsPage() {
         <p className="mt-2 text-zinc-500">
           Eventos: <code>checkout.session.completed</code>, <code>checkout.session.async_payment_succeeded</code>,{" "}
           <code>customer.subscription.*</code>, <code>invoice.paid</code>,{" "}
-          <code>invoice.payment_failed</code> y <code>payment_intent.succeeded</code>.
+          <code>invoice.payment_failed</code>, <code>payment_intent.succeeded</code>, refunds y disputas.
         </p>
         {status.gatewayUrl ? (
           <p className="mt-2 text-zinc-500">Gateway data plane: {status.gatewayUrl}</p>

@@ -225,13 +225,20 @@ export const creditLedger = pgTable(
     type: text("type").notNull(),
     micros: bigint("micros", { mode: "number" }).notNull(),
     stripeSessionId: text("stripe_session_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    stripeAmountMinor: integer("stripe_amount_minor"),
+    stripeCurrency: text("stripe_currency"),
     generationId: text("generation_id"),
     note: text("note"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
     index("ledger_user_idx").on(t.userId),
+    index("ledger_stripe_payment_intent_idx").on(t.stripePaymentIntentId),
     uniqueIndex("ledger_stripe_session_uidx").on(t.stripeSessionId),
+    uniqueIndex("ledger_purchase_payment_intent_uidx")
+      .on(t.stripePaymentIntentId)
+      .where(sql`${t.type} = 'purchase' AND ${t.stripePaymentIntentId} IS NOT NULL`),
     uniqueIndex("ledger_generation_type_uidx").on(t.generationId, t.type),
   ],
 );

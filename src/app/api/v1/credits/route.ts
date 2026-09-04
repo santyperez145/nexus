@@ -24,10 +24,18 @@ export async function GET(req: Request) {
       .orderBy(desc(schema.subscriptions.updatedAt))
       .limit(1);
     const purchased = ledger
-      .filter((entry) => entry.micros > 0 && entry.type !== "reserve_release")
+      .filter(
+        (entry) =>
+          entry.micros > 0 &&
+          entry.type !== "reserve_release" &&
+          entry.type !== "stripe_dispute_release",
+      )
       .reduce((sum, entry) => sum + entry.micros, 0);
     const used = ledger
-      .filter((entry) => entry.micros < 0 && entry.type !== "reserve")
+      .filter(
+        (entry) =>
+          entry.micros < 0 && (entry.type === "inference" || entry.type === "byok_fee"),
+      )
       .reduce((sum, entry) => sum + Math.abs(entry.micros), 0);
     return Response.json({
       data: {

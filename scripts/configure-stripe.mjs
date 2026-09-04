@@ -101,6 +101,13 @@ const webhookEvents = [
   "invoice.payment_failed",
   "payment_intent.succeeded",
   "payment_intent.payment_failed",
+  "refund.created",
+  "refund.updated",
+  "charge.dispute.created",
+  "charge.dispute.updated",
+  "charge.dispute.closed",
+  "charge.dispute.funds_withdrawn",
+  "charge.dispute.funds_reinstated",
 ];
 const webhookEndpoints = await stripe.webhookEndpoints.list({ limit: 100 });
 const webhook = webhookEndpoints.data.find((candidate) => candidate.url === webhookUrl);

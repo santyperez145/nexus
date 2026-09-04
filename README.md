@@ -83,10 +83,16 @@ bootstrap idempotente queda limitado al entorno local y a las pruebas.
 Para Stripe, configurá
 el webhook `{APP_URL}/api/webhooks/stripe` con `checkout.session.completed`,
 `checkout.session.async_payment_succeeded|failed`, `customer.subscription.created|updated|deleted`,
-`invoice.paid`, `invoice.payment_failed` y `payment_intent.succeeded|payment_failed`.
+`invoice.paid`, `invoice.payment_failed`, `payment_intent.succeeded|payment_failed`,
+`refund.created|updated` y el ciclo `charge.dispute.*` configurado por el script.
 `npm run stripe:configure` reconcilia idempotentemente Products, Prices, eventos del webhook ya
 firmado y una configuración de Billing Portal; devuelve los tres IDs no secretos que deben guardarse
 en el despliegue. Requiere `-- --allow-live` para modificar live mode.
+Cada compra de wallet conserva su PaymentIntent, importe cobrado y moneda en el ledger. Refunds
+parciales y disputas se convierten en débitos o retenciones transaccionales e idempotentes; la
+exposición combinada nunca revierte más crédito que la compra y una disputa ganada libera sólo lo
+que ya no sigue reembolsado. Si el saldo fue consumido antes del refund, queda deuda auditable y la
+inferencia paga permanece bloqueada hasta regularizarla.
 CI aplica todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build; una
 migración inválida bloquea el merge.
 

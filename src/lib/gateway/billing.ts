@@ -468,6 +468,9 @@ export async function maybeAutoTopup(userId: string) {
   await creditPurchaseOnce({
     userId,
     stripeSessionId: intent.id,
+    stripePaymentIntentId: intent.id,
+    stripeAmountMinor: intent.amount_received,
+    stripeCurrency: intent.currency,
     creditsUsd: amount,
     customerId: user.stripeCustomerId,
     note: `Auto top-up Stripe ${amount} USD (saldo < ${threshold})`,

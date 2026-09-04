@@ -1,7 +1,13 @@
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { SUBSCRIPTION_PLANS, creditPurchaseFeeUsd } from "@/lib/config";
-import { creditPurchaseOnce } from "@/lib/billing/stripe-credit";
+import {
+  creditPurchaseOnce,
+  holdStripeDisputeOnce,
+  releaseStripeDisputeOnce,
+  reverseStripeRefundOnce,
+  type StripeCreditAdjustmentResult,
+} from "@/lib/billing/stripe-credit";
 import { ensureAutoTopupPaymentMethod } from "@/lib/billing/stripe-payment-method";
 import {
   reconcileStripeSubscription,
@@ -28,14 +34,103 @@ async function creditCheckout(stripe: Stripe, session: Stripe.Checkout.Session) 
   const userId = session.metadata?.userId;
   const creditsUsd = Number(session.metadata?.creditsUsd ?? 0);
   if (!userId || !(creditsUsd > 0)) return;
+  const paymentIntentId = objectId(session.payment_intent);
+  if (!paymentIntentId) throw new Error("Paid wallet checkout is missing its PaymentIntent");
+  const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  if (
+    intent.status !== "succeeded" ||
+    intent.amount_received <= 0 ||
+    intent.metadata?.userId !== userId ||
+    Number(intent.metadata?.creditsUsd ?? 0) !== creditsUsd
+  ) {
+    throw new Error("Paid wallet checkout does not match its canonical PaymentIntent");
+  }
   await creditPurchaseOnce({
     userId,
     creditsUsd,
     stripeSessionId: session.id,
+    stripePaymentIntentId: intent.id,
+    stripeAmountMinor: intent.amount_received,
+    stripeCurrency: intent.currency,
     customerId: objectId(session.customer),
     note: `Compra Stripe ${creditsUsd} USD (fee ${creditPurchaseFeeUsd(creditsUsd).toFixed(2)} USD en el cargo)`,
   });
   await ensureAutoTopupPaymentMethod(stripe, session);
+  await reconcileSucceededRefunds(stripe, intent);
+}
+
+function isWalletPaymentIntent(intent: Stripe.PaymentIntent) {
+  return Boolean(
+    intent.metadata?.userId &&
+      Number(intent.metadata?.creditsUsd ?? 0) > 0,
+  );
+}
+
+function requireWalletAdjustment(result: StripeCreditAdjustmentResult, intent: Stripe.PaymentIntent) {
+  if (
+    isWalletPaymentIntent(intent) &&
+    (result.reason === "no_purchase" || result.reason === "missing_charge_amount")
+  ) {
+    throw new Error(`Wallet credit adjustment cannot find canonical purchase for ${intent.id}`);
+  }
+}
+
+async function reverseSucceededRefund(
+  stripe: Stripe,
+  refund: Stripe.Refund,
+  knownIntent?: Stripe.PaymentIntent,
+) {
+  if (refund.status !== "succeeded") return;
+  const paymentIntentId = objectId(refund.payment_intent);
+  if (!paymentIntentId) return;
+  const intent = knownIntent?.id === paymentIntentId
+    ? knownIntent
+    : await stripe.paymentIntents.retrieve(paymentIntentId);
+  const result = await reverseStripeRefundOnce({
+    refundId: refund.id,
+    paymentIntentId,
+    amountMinor: refund.amount,
+    currency: refund.currency,
+  });
+  requireWalletAdjustment(result, intent);
+}
+
+async function reconcileSucceededRefunds(stripe: Stripe, intent: Stripe.PaymentIntent) {
+  for await (const refund of stripe.refunds.list({ payment_intent: intent.id, limit: 100 })) {
+    await reverseSucceededRefund(stripe, refund, intent);
+  }
+}
+
+async function reconcileDispute(stripe: Stripe, snapshot: Stripe.Dispute) {
+  const dispute = await stripe.disputes.retrieve(snapshot.id);
+  const paymentIntentId = objectId(dispute.payment_intent);
+  if (!paymentIntentId) return;
+  const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  let result: StripeCreditAdjustmentResult | null = null;
+  if (
+    dispute.status === "needs_response" ||
+    dispute.status === "under_review" ||
+    dispute.status === "lost"
+  ) {
+    result = await holdStripeDisputeOnce({
+      disputeId: dispute.id,
+      paymentIntentId,
+      amountMinor: dispute.amount,
+      currency: dispute.currency,
+    });
+  } else if (
+    dispute.status === "won" ||
+    dispute.status === "warning_closed" ||
+    dispute.status === "prevented"
+  ) {
+    result = await releaseStripeDisputeOnce({
+      disputeId: dispute.id,
+      paymentIntentId,
+      amountMinor: dispute.amount,
+      currency: dispute.currency,
+    });
+  }
+  if (result) requireWalletAdjustment(result, intent);
 }
 
 async function creditSubscriptionInvoice(invoice: Stripe.Invoice) {
@@ -92,9 +187,13 @@ async function processStripeEvent(stripe: Stripe, event: Stripe.Event) {
         userId,
         creditsUsd,
         stripeSessionId: intent.id,
+        stripePaymentIntentId: intent.id,
+        stripeAmountMinor: intent.amount_received,
+        stripeCurrency: intent.currency,
         customerId: objectId(intent.customer),
         note: `Auto top-up Stripe ${creditsUsd} USD`,
       });
+      await reconcileSucceededRefunds(stripe, intent);
     }
   } else if (event.type === "payment_intent.payment_failed") {
     const intent = event.data.object;
@@ -110,6 +209,16 @@ async function processStripeEvent(stripe: Stripe, event: Stripe.Event) {
         userId,
       });
     }
+  } else if (event.type === "refund.created" || event.type === "refund.updated") {
+    await reverseSucceededRefund(stripe, event.data.object);
+  } else if (
+    event.type === "charge.dispute.created" ||
+    event.type === "charge.dispute.updated" ||
+    event.type === "charge.dispute.closed" ||
+    event.type === "charge.dispute.funds_withdrawn" ||
+    event.type === "charge.dispute.funds_reinstated"
+  ) {
+    await reconcileDispute(stripe, event.data.object);
   }
 }
 
