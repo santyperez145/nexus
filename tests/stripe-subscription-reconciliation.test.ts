@@ -15,6 +15,7 @@ delete process.env.POSTGRES_PRISMA_URL;
 
 let database: typeof import("../src/lib/db");
 let reconciliation: typeof import("../src/lib/billing/stripe-subscription");
+let webhookEvents: typeof import("../src/lib/billing/stripe-webhook-event");
 
 function subscription(input: {
   id: string;
@@ -44,6 +45,7 @@ function subscription(input: {
 before(async () => {
   database = await import("../src/lib/db");
   reconciliation = await import("../src/lib/billing/stripe-subscription");
+  webhookEvents = await import("../src/lib/billing/stripe-webhook-event");
   await database.ensureDb();
   await database.db.insert(database.schema.users).values({
     id: "usr_reconcile",
@@ -53,6 +55,64 @@ before(async () => {
 });
 
 after(() => rmSync(dataDir, { recursive: true, force: true }));
+
+describe("Stripe webhook inbox", () => {
+  it("claims once, records failure and allows an idempotent retry", async () => {
+    const firstAttempt = new Date("2026-09-03T12:00:00.000Z");
+    const input = {
+      id: "evt_retry_once",
+      eventType: "invoice.paid",
+      stripeCreatedAt: new Date("2026-09-03T11:59:58.000Z"),
+      now: firstAttempt,
+    };
+    assert.equal(await webhookEvents.claimStripeWebhookEvent(input), "claimed");
+    assert.equal(await webhookEvents.claimStripeWebhookEvent(input), "already_processing");
+
+    await webhookEvents.markStripeWebhookFailed(input.id, new Error("temporary Stripe lookup failure"));
+    assert.equal(
+      await webhookEvents.claimStripeWebhookEvent({
+        ...input,
+        now: new Date("2026-09-03T12:00:01.000Z"),
+      }),
+      "claimed",
+    );
+    await webhookEvents.markStripeWebhookProcessed(input.id, new Date("2026-09-03T12:00:02.000Z"));
+    assert.equal(await webhookEvents.claimStripeWebhookEvent(input), "already_processed");
+
+    const [stored] = await database.db
+      .select()
+      .from(database.schema.stripeWebhookEvents)
+      .where(eq(database.schema.stripeWebhookEvents.id, input.id));
+    assert.equal(stored.status, "processed");
+    assert.equal(stored.attempts, 2);
+    assert.equal(stored.lastError, null);
+    assert.equal(stored.processedAt?.toISOString(), "2026-09-03T12:00:02.000Z");
+  });
+
+  it("reclaims an abandoned processing lease without duplicating a live attempt", async () => {
+    const input = {
+      id: "evt_stale_lease",
+      eventType: "customer.subscription.updated",
+      stripeCreatedAt: new Date("2026-09-03T12:10:00.000Z"),
+      now: new Date("2026-09-03T12:10:01.000Z"),
+    };
+    assert.equal(await webhookEvents.claimStripeWebhookEvent(input), "claimed");
+    assert.equal(
+      await webhookEvents.claimStripeWebhookEvent({
+        ...input,
+        now: new Date("2026-09-03T12:14:59.000Z"),
+      }),
+      "already_processing",
+    );
+    assert.equal(
+      await webhookEvents.claimStripeWebhookEvent({
+        ...input,
+        now: new Date("2026-09-03T12:15:02.000Z"),
+      }),
+      "claimed",
+    );
+  });
+});
 
 describe("Stripe subscription reconciliation", () => {
   it("retrieves canonical Stripe state instead of trusting an out-of-order webhook snapshot", async () => {

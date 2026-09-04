@@ -281,6 +281,25 @@ export const subscriptions = pgTable(
   (t) => [index("subscription_user_idx").on(t.userId), index("subscription_customer_idx").on(t.customerId)],
 );
 
+export const stripeWebhookEvents = pgTable(
+  "stripe_webhook_event",
+  {
+    id: text("id").primaryKey(),
+    eventType: text("event_type").notNull(),
+    status: text("status").notNull().default("processing"),
+    attempts: integer("attempts").notNull().default(1),
+    stripeCreatedAt: timestamp("stripe_created_at").notNull(),
+    receivedAt: timestamp("received_at").notNull().defaultNow(),
+    lastAttemptAt: timestamp("last_attempt_at").notNull().defaultNow(),
+    processedAt: timestamp("processed_at"),
+    lastError: text("last_error"),
+  },
+  (t) => [
+    index("stripe_webhook_event_status_idx").on(t.status, t.lastAttemptAt),
+    index("stripe_webhook_event_received_idx").on(t.receivedAt),
+  ],
+);
+
 export const generations = pgTable(
   "generation",
   {

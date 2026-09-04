@@ -8,6 +8,11 @@ import {
   reconcileStripeSubscriptionById,
   subscriptionIdFromInvoice,
 } from "@/lib/billing/stripe-subscription";
+import {
+  claimStripeWebhookEvent,
+  markStripeWebhookFailed,
+  markStripeWebhookProcessed,
+} from "@/lib/billing/stripe-webhook-event";
 import { db, ensureDb, schema } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 
@@ -72,6 +77,57 @@ async function creditSubscriptionInvoice(invoice: Stripe.Invoice) {
   });
 }
 
+async function processStripeEvent(stripe: Stripe, event: Stripe.Event) {
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
+    await creditCheckout(stripe, event.data.object);
+  } else if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    await reconcileStripeSubscription(stripe, event.data.object, {
+      allowCanceledSnapshot: event.type === "customer.subscription.deleted",
+    });
+  } else if (event.type === "invoice.paid") {
+    const subscriptionId = subscriptionIdFromInvoice(event.data.object);
+    if (subscriptionId) await reconcileStripeSubscriptionById(stripe, subscriptionId);
+    await creditSubscriptionInvoice(event.data.object);
+  } else if (event.type === "invoice.payment_failed") {
+    const subscriptionId = subscriptionIdFromInvoice(event.data.object);
+    if (subscriptionId) await reconcileStripeSubscriptionById(stripe, subscriptionId);
+  } else if (event.type === "payment_intent.succeeded") {
+    const intent = event.data.object;
+    const creditsUsd = Number(intent.metadata?.creditsUsd ?? 0);
+    const userId = intent.metadata?.userId;
+    if (intent.metadata?.auto_topup === "1" && userId && creditsUsd > 0) {
+      await creditPurchaseOnce({
+        userId,
+        creditsUsd,
+        stripeSessionId: intent.id,
+        customerId: objectId(intent.customer),
+        note: `Auto top-up Stripe ${creditsUsd} USD`,
+      });
+    }
+  } else if (event.type === "payment_intent.payment_failed") {
+    const intent = event.data.object;
+    const userId = intent.metadata?.userId;
+    if (intent.metadata?.auto_topup === "1" && userId) {
+      await db
+        .update(schema.users)
+        .set({ autoTopupEnabled: false })
+        .where(eq(schema.users.id, userId));
+      console.warn("Auto top-up disabled after a failed Stripe payment", {
+        eventId: event.id,
+        paymentIntentId: intent.id,
+        userId,
+      });
+    }
+  }
+}
+
 export async function POST(req: Request) {
   const stripe = getStripe();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -89,58 +145,36 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  let claimed = false;
   try {
     await ensureDb();
-    if (
-      event.type === "checkout.session.completed" ||
-      event.type === "checkout.session.async_payment_succeeded"
-    ) {
-      await creditCheckout(stripe, event.data.object);
-    } else if (
-      event.type === "customer.subscription.created" ||
-      event.type === "customer.subscription.updated" ||
-      event.type === "customer.subscription.deleted"
-    ) {
-      await reconcileStripeSubscription(stripe, event.data.object, {
-        allowCanceledSnapshot: event.type === "customer.subscription.deleted",
-      });
-    } else if (event.type === "invoice.paid") {
-      const subscriptionId = subscriptionIdFromInvoice(event.data.object);
-      if (subscriptionId) await reconcileStripeSubscriptionById(stripe, subscriptionId);
-      await creditSubscriptionInvoice(event.data.object);
-    } else if (event.type === "invoice.payment_failed") {
-      const subscriptionId = subscriptionIdFromInvoice(event.data.object);
-      if (subscriptionId) await reconcileStripeSubscriptionById(stripe, subscriptionId);
-    } else if (event.type === "payment_intent.succeeded") {
-      const intent = event.data.object;
-      const creditsUsd = Number(intent.metadata?.creditsUsd ?? 0);
-      const userId = intent.metadata?.userId;
-      if (intent.metadata?.auto_topup === "1" && userId && creditsUsd > 0) {
-        await creditPurchaseOnce({
-          userId,
-          creditsUsd,
-          stripeSessionId: intent.id,
-          customerId: objectId(intent.customer),
-          note: `Auto top-up Stripe ${creditsUsd} USD`,
-        });
-      }
-    } else if (event.type === "payment_intent.payment_failed") {
-      const intent = event.data.object;
-      const userId = intent.metadata?.userId;
-      if (intent.metadata?.auto_topup === "1" && userId) {
-        await db
-          .update(schema.users)
-          .set({ autoTopupEnabled: false })
-          .where(eq(schema.users.id, userId));
-        console.warn("Auto top-up disabled after a failed Stripe payment", {
-          eventId: event.id,
-          paymentIntentId: intent.id,
-          userId,
-        });
-      }
+    const claim = await claimStripeWebhookEvent({
+      id: event.id,
+      eventType: event.type,
+      stripeCreatedAt: new Date(event.created * 1_000),
+    });
+    if (claim === "already_processed") {
+      return Response.json({ received: true, duplicate: true, state: claim });
     }
+    if (claim === "already_processing") {
+      return Response.json(
+        { received: false, retry: true, state: claim },
+        { status: 409 },
+      );
+    }
+    claimed = true;
+    await processStripeEvent(stripe, event);
+    await markStripeWebhookProcessed(event.id);
     return Response.json({ received: true });
   } catch (error) {
+    if (claimed) {
+      await markStripeWebhookFailed(event.id, error).catch((markError) => {
+        console.error("Could not persist Stripe webhook failure", {
+          eventId: event.id,
+          message: markError instanceof Error ? markError.message : "unknown",
+        });
+      });
+    }
     console.error("Stripe webhook processing failed", {
       eventId: event.id,
       eventType: event.type,

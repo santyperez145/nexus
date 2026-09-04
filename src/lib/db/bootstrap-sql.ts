@@ -184,6 +184,19 @@ export const SCHEMA_SQL = [
   )`,
   `CREATE INDEX IF NOT EXISTS subscription_user_idx ON "subscription"(user_id)`,
   `CREATE INDEX IF NOT EXISTS subscription_customer_idx ON "subscription"(customer_id)`,
+  `CREATE TABLE IF NOT EXISTS "stripe_webhook_event" (
+    id text PRIMARY KEY,
+    event_type text NOT NULL,
+    status text NOT NULL DEFAULT 'processing',
+    attempts integer NOT NULL DEFAULT 1,
+    stripe_created_at timestamp NOT NULL,
+    received_at timestamp NOT NULL DEFAULT now(),
+    last_attempt_at timestamp NOT NULL DEFAULT now(),
+    processed_at timestamp,
+    last_error text
+  )`,
+  `CREATE INDEX IF NOT EXISTS stripe_webhook_event_status_idx ON "stripe_webhook_event"(status, last_attempt_at)`,
+  `CREATE INDEX IF NOT EXISTS stripe_webhook_event_received_idx ON "stripe_webhook_event"(received_at)`,
   `CREATE TABLE IF NOT EXISTS "generation" (
     id text PRIMARY KEY,
     user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,

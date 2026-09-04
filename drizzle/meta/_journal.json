@@ -43,6 +43,13 @@
       "when": 1788481945799,
       "tag": "0005_loud_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788487280934,
+      "tag": "0006_fancy_blue_shield",
+      "breakpoints": true
     }
   ]
 }
