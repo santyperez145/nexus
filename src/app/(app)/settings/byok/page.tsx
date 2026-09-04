@@ -2,11 +2,12 @@
 
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { Input } from "@/components/ui/input";
 import { BYOK_FEE } from "@/lib/config";
+import { useRemoteData } from "@/lib/use-remote-data";
 
 type Lab = { name: string; label?: string; wired?: boolean };
 type Row = { id: string; provider: string; label: string | null; created_at?: string };
@@ -15,75 +16,61 @@ export default function ByokPage() {
   const [provider, setProvider] = useState("openai");
   const [label, setLabel] = useState("");
   const [key, setKey] = useState("");
-  const [labs, setLabs] = useState<Lab[]>([]);
-  const [rows, setRows] = useState<Row[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [rowsData, reloadRows, rowsError] = useRemoteData<Row[]>("/api/v1/byok");
+  const [labsData, reloadLabs, labsError] = useRemoteData<Lab[]>("/api/v1/providers");
+  const rows = rowsData ?? [];
+  const labs = labsData ?? [];
+  const selectedProvider = labs.some((lab) => lab.name === provider)
+    ? provider
+    : (labs[0]?.name ?? provider);
+  const loadError = rowsError ?? labsError;
 
-  const reload = useCallback(() => {
-    Promise.all([
-      fetch("/api/v1/byok").then((r) => r.json()),
-      fetch("/api/v1/providers").then((r) => r.json()),
-    ]).then(([keys, providers]) => {
-      setRows(keys.data ?? []);
-      const list = (providers.data ?? []) as Lab[];
-      setLabs(list);
-      setProvider((current) =>
-        list.some((l) => l.name === current) ? current : (list[0]?.name ?? current),
-      );
-    });
-  }, []);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    Promise.all([
-      fetch("/api/v1/byok", { signal: ac.signal }).then((r) => r.json()),
-      fetch("/api/v1/providers", { signal: ac.signal }).then((r) => r.json()),
-    ]).then(([keys, providers]) => {
-      if (ac.signal.aborted) return;
-      setRows(keys.data ?? []);
-      const list = (providers.data ?? []) as Lab[];
-      setLabs(list);
-      setProvider((current) =>
-        list.some((l) => l.name === current) ? current : (list[0]?.name ?? current),
-      );
-    });
-    return () => ac.abort();
-  }, []);
+  function reload() {
+    reloadRows();
+    reloadLabs();
+  }
 
   async function save() {
     setMsg(null);
-    const res = await fetch("/api/v1/byok", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider, key, label: label || undefined }),
-    });
-    const json = await res.json();
-    setMsg(json.data ? "Key guardada (cifrada)." : json.error?.message ?? "error");
-    setKey("");
-    setLabel("");
-    reload();
+    try {
+      const res = await fetch("/api/v1/byok", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: selectedProvider, key, label: label || undefined }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message ?? "No se pudo guardar la credencial");
+      setMsg("Key guardada (cifrada).");
+      setKey("");
+      setLabel("");
+      reload();
+    } catch (reason) {
+      setMsg(reason instanceof Error ? reason.message : "No se pudo guardar la credencial");
+    }
   }
 
   async function testRoute() {
     setPreview(null);
-    const res = await fetch("/api/v1/routing/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "nexus/auto",
-        provider: { only: [provider], allow_fallbacks: false },
-        messages: [{ role: "user", content: "byok preview" }],
-      }),
-    });
-    const json = await res.json();
-    const hops = json.data?.hops ?? [];
-    const wired = hops.filter((h: { wired?: boolean }) => h.wired).length;
-    setPreview(
-      json.data
-        ? `mode=${json.data.mode} · hops=${hops.length} · wired=${wired} (incluye BYOK de sesión)`
-        : json.error?.message ?? "preview error",
-    );
+    try {
+      const res = await fetch("/api/v1/routing/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "nexus/auto",
+          provider: { only: [selectedProvider], allow_fallbacks: false },
+          messages: [{ role: "user", content: "byok preview" }],
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message ?? "No se pudo calcular la ruta");
+      const hops = json.data?.hops ?? [];
+      const wired = hops.filter((h: { wired?: boolean }) => h.wired).length;
+      setPreview(`mode=${json.data.mode} · hops=${hops.length} · wired=${wired} (incluye BYOK de sesión)`);
+    } catch (reason) {
+      setPreview(reason instanceof Error ? reason.message : "No se pudo calcular la ruta");
+    }
   }
 
   const feePct = (BYOK_FEE * 100).toFixed(0);
@@ -104,7 +91,7 @@ export default function ByokPage() {
 
       <div className="mb-6 grid gap-2 md:grid-cols-2 lg:grid-cols-4">
         <select
-          value={provider}
+          value={selectedProvider}
           onChange={(e) => setProvider(e.target.value)}
           aria-label="Proveedor"
           className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm"
@@ -129,6 +116,14 @@ export default function ByokPage() {
       </div>
       {preview ? <p className="mb-4 font-mono text-xs text-zinc-500">{preview}</p> : null}
       {msg ? <p className="mb-4 text-sm text-zinc-600">{msg}</p> : null}
+      {loadError ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>No se pudieron cargar las conexiones: {loadError}</span>
+          <Button size="sm" variant="outline" onClick={reload}>
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-2">
         {rows.map((r) => (
@@ -149,13 +144,22 @@ export default function ByokPage() {
               description="Nexus dejará de usar esta credencial. Las solicitudes que dependan de ella podrían dejar de funcionar."
               confirmLabel="Quitar credencial"
               onConfirm={async () => {
-                await fetch(`/api/v1/byok?id=${r.id}`, { method: "DELETE" });
-                reload();
+                try {
+                  const response = await fetch(`/api/v1/byok?id=${r.id}`, { method: "DELETE" });
+                  const json = await response.json();
+                  if (!response.ok) {
+                    throw new Error(json.error?.message ?? "No se pudo quitar la credencial");
+                  }
+                  setMsg("Credencial eliminada.");
+                  reload();
+                } catch (reason) {
+                  setMsg(reason instanceof Error ? reason.message : "No se pudo quitar la credencial");
+                }
               }}
             />
           </div>
         ))}
-        {!rows.length ? (
+        {!rows.length && !loadError ? (
           <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-500">
             Todavía no hay BYOK. Guardá una key o usá{" "}
             <Link href="/settings/connections" className="text-violet-700 hover:underline">

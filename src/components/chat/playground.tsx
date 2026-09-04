@@ -103,9 +103,10 @@ export function Playground({
   const [sessionId, setSessionId] = useState(() => newSessionId());
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const sessions = useChatSessions();
-  const [filesData, reloadFiles] = useRemoteData<FileRow[]>("/api/v1/files");
+  const [filesData, reloadFiles, filesError] = useRemoteData<FileRow[]>("/api/v1/files");
   const files = filesData ?? [];
-  const presets = useRemoteData<PresetRow[]>("/api/v1/presets")[0] ?? [];
+  const [presetsData, , presetsError] = useRemoteData<PresetRow[]>("/api/v1/presets");
+  const presets = presetsData ?? [];
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const echoRisk = platformLabs === 0 && !hasByok;
   const sawLocal = lanes.some((l) => l.stats?.provider === "local");
@@ -695,6 +696,11 @@ export function Playground({
       ) : (
         <p className="text-xs text-zinc-500">Sin archivos adjuntos. Subí uno o gestioná en Settings → Files.</p>
       )}
+      {filesError || presetsError ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          No se pudo cargar {filesError && presetsError ? "archivos ni presets" : filesError ? "archivos" : "presets"}. Recargá la página o revisá la conexión.
+        </p>
+      ) : null}
       <Textarea
         value={system}
         onChange={(e) => setSystem(e.target.value)}

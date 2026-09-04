@@ -97,7 +97,7 @@ export function MediaStudio({
     null,
   );
   const [genId, setGenId] = useState<string | null>(null);
-  const [analytics] = useRemoteData<{ recent?: Recent[]; totals?: { local_pct?: number } }>(
+  const [analytics, , analyticsError] = useRemoteData<{ recent?: Recent[]; totals?: { local_pct?: number } }>(
     "/api/v1/analytics?days=7",
   );
 
@@ -483,6 +483,12 @@ export function MediaStudio({
             {genId}
           </Link>{" "}
           · queda en Activity / Analytics
+        </p>
+      ) : null}
+
+      {analyticsError ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          No se pudo cargar la actividad reciente: {analyticsError}
         </p>
       ) : null}
 

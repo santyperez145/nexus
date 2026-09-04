@@ -29,7 +29,7 @@ npm run dev
 | `CREDENTIALS_SECRET` | Cifrado BYOK (obligatorio en prod) |
 | `BETTER_AUTH_SECRET` | Secreto de sesión de al menos 32 caracteres (obligatorio en prod) |
 | `RESEND_API_KEY` + `EMAIL_FROM` | Verificación y recuperación de cuenta; remitente verificado, obligatorios en prod |
-| `ADMIN_EMAILS` | Allowlist, separada por comas, para Superadmin, tareas globales y ajustes auditados de saldo |
+| `ADMIN_EMAILS` | Allowlist explícita, separada por comas, para Superadmin, tareas globales y ajustes auditados de saldo; también se aplica en desarrollo |
 | `CRON_SECRET` | Secreto aleatorio de al menos 32 caracteres para tareas internas |
 | `DATABASE_URL` | Postgres/Neon pooled (obligatorio en prod; local: PGlite) |
 | `DATABASE_URL_UNPOOLED` | Conexión directa para `npm run db:migrate` |

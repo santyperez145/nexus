@@ -104,7 +104,6 @@ export function limitsForPlan(plan?: string) {
 }
 
 export function isPlatformAdmin(email?: string | null) {
-  if (process.env.NODE_ENV !== "production") return true;
   if (!email) return false;
   const admins = (process.env.ADMIN_EMAILS ?? "")
     .split(",")

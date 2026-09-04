@@ -11,7 +11,17 @@ type Limits = {
 };
 
 export function RateLimitsCard() {
-  const [data] = useRemoteData<Limits>("/api/internal/rate-limits");
+  const [data, reload, error] = useRemoteData<Limits>("/api/internal/rate-limits");
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+        <p>No se pudieron cargar las cuotas: {error}</p>
+        <button type="button" onClick={reload} className="mt-3 font-medium underline underline-offset-4">
+          Reintentar
+        </button>
+      </div>
+    );
+  }
   if (!data) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-500">

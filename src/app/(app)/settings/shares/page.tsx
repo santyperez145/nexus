@@ -18,7 +18,7 @@ type ShareRow = {
 };
 
 export default function SharesSettingsPage() {
-  const [rows, reload] = useRemoteData<ShareRow[]>("/api/v1/shares");
+  const [rows, reload, remoteError] = useRemoteData<ShareRow[]>("/api/v1/shares");
   const [localError, setLocalError] = useState<string | null>(null);
 
   async function remove(id: string) {
@@ -37,7 +37,7 @@ export default function SharesSettingsPage() {
     await navigator.clipboard.writeText(absolute);
   }
 
-  const err = localError;
+  const err = localError ?? remoteError;
 
   return (
     <div>
@@ -52,9 +52,9 @@ export default function SharesSettingsPage() {
         </p>
       ) : null}
 
-      {!rows ? (
+      {!rows && !err ? (
         <p className="text-sm text-zinc-500">Cargando…</p>
-      ) : rows.length === 0 ? (
+      ) : rows?.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-10 text-center">
           <p className="text-sm text-zinc-400">Todavía no tenés shares propios.</p>
           <p className="mt-1 text-xs text-zinc-600">
@@ -64,7 +64,7 @@ export default function SharesSettingsPage() {
             <Link href="/chat">Abrir playground</Link>
           </Button>
         </div>
-      ) : (
+      ) : rows ? (
         <ul className="divide-y divide-white/5 rounded-2xl border border-zinc-200">
           {rows.map((row) => (
             <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -91,7 +91,7 @@ export default function SharesSettingsPage() {
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </div>
   );
 }
