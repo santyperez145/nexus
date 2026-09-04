@@ -62,8 +62,8 @@ export default function ActivityPage() {
   const [workspace, setWorkspace] = useState("");
   const [app, setApp] = useState("");
 
-  const [keys] = useRemoteData<KeyRow[]>("/api/v1/keys");
-  const [workspaces] = useRemoteData<WsRow[]>("/api/v1/workspaces");
+  const [keys, , keysError] = useRemoteData<KeyRow[]>("/api/v1/keys");
+  const [workspaces, , workspacesError] = useRemoteData<WsRow[]>("/api/v1/workspaces");
 
   const qs = useMemo(() => {
     const p = new URLSearchParams({ limit: String(limit) });
@@ -78,7 +78,7 @@ export default function ActivityPage() {
     return p.toString();
   }, [model, provider, byok, errors, days, limit, apiKey, workspace, app]);
 
-  const [rows] = useRemoteData<Row[]>(`/api/v1/generations?${qs}`);
+  const [rows, reloadRows, rowsError] = useRemoteData<Row[]>(`/api/v1/generations?${qs}`);
   const list = rows ?? [];
   const tokens = list.reduce((s, r) => s + r.tokens_prompt + r.tokens_completion, 0);
   const cost = list.reduce((s, r) => s + r.total_cost, 0);
@@ -176,6 +176,21 @@ export default function ActivityPage() {
         Revisá cada solicitud, su costo, rendimiento y resultado. Filtrá por aplicación, clave o espacio de trabajo.
       </AppPageHeader>
 
+      {rowsError ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span>No pudimos cargar la actividad: {rowsError}</span>
+          <Button size="sm" variant="outline" onClick={reloadRows}>
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
+
+      {keysError || workspacesError ? (
+        <p className="mb-4 text-xs text-amber-800">
+          Algunos filtros no están disponibles en este momento.
+        </p>
+      ) : null}
+
       <div className="mb-4 grid gap-3 sm:grid-cols-4">
         {[
           { k: "Solicitudes", v: String(list.length) },
@@ -190,7 +205,7 @@ export default function ActivityPage() {
         ))}
       </div>
       {errN > 0 ? (
-        <p className="mb-3 text-xs text-rose-300/90">
+        <p className="mb-3 text-xs text-rose-700">
           {errN} error{errN === 1 ? "" : "es"} en esta vista filtrada.
         </p>
       ) : null}
@@ -300,7 +315,7 @@ export default function ActivityPage() {
                 list.map((r, i) => (
                   <tr
                     key={r.id}
-                    className={`border-t border-zinc-100 hover:bg-zinc-50 ${i % 2 === 1 ? "bg-white/[0.015]" : ""}`}
+                    className={`border-t border-zinc-100 hover:bg-zinc-50 ${i % 2 === 1 ? "bg-zinc-50/40" : ""}`}
                   >
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs text-zinc-500" title={fmtWhen(r.created_at)}>
                       {relativeWhen(r.created_at)}
@@ -310,8 +325,8 @@ export default function ActivityPage() {
                       <span
                         className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
                           r.error
-                            ? "border-rose-400/30 text-rose-300"
-                            : "border-emerald-500/25 text-emerald-300/90"
+                            ? "border-rose-300 bg-rose-50 text-rose-700"
+                            : "border-emerald-300 bg-emerald-50 text-emerald-700"
                         }`}
                       >
                         {r.error ? "err" : "ok"}
@@ -334,7 +349,7 @@ export default function ActivityPage() {
                         {r.model}
                       </Link>
                     </td>
-                    <td className="px-3 py-2.5 text-zinc-400">{r.provider_name}</td>
+                    <td className="px-3 py-2.5 text-zinc-600">{r.provider_name}</td>
                     <td className="px-3 py-2.5 font-mono text-[11px] text-zinc-500">
                       {r.finish_reason ?? "—"}
                     </td>
@@ -344,7 +359,7 @@ export default function ActivityPage() {
                     <td className="max-w-[88px] truncate px-3 py-2.5 font-mono text-[10px] text-zinc-600" title={r.api_key_id ?? ""}>
                       {r.api_key_id ? shortId(r.api_key_id) : "—"}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-400">
+                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-600">
                       {r.tokens_prompt.toLocaleString()}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-zinc-600">

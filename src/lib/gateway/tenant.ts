@@ -2,9 +2,9 @@ import { and, eq, inArray, or, type Column, type SQL } from "drizzle-orm";
 import type { AuthContext } from "./types";
 import { db, schema } from "@/lib/db";
 
-/** Key/workspace scoped row access. Session without workspace sees the whole user. */
+/** Exact for workspace-scoped keys; sessions see owned rows plus explicitly accessible workspaces. */
 export function canAccess(
-  auth: AuthContext,
+  auth: Pick<AuthContext, "userId" | "workspaceId" | "workspaceIds">,
   row: { userId: string; workspaceId?: string | null },
 ) {
   if (auth.workspaceId) {

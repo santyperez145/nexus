@@ -33,6 +33,18 @@ describe("tenant isolation", () => {
       true,
     );
   });
+
+  it("session identity sees assigned shared workspaces but not unassigned tenants", () => {
+    const sessionIdentity = { userId: "u1", workspaceIds: ["ws_shared"] };
+    assert.equal(
+      canAccess(sessionIdentity, { userId: "owner", workspaceId: "ws_shared" }),
+      true,
+    );
+    assert.equal(
+      canAccess(sessionIdentity, { userId: "owner", workspaceId: "ws_private" }),
+      false,
+    );
+  });
 });
 
 describe("protocol streaming", () => {

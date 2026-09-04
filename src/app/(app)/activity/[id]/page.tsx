@@ -8,6 +8,7 @@ import { formatUsd, microsToUsd } from "@/lib/money";
 import { AppPageHeader } from "@/components/layout/app-page-header";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import { accessibleWorkspaceIds, canAccess } from "@/lib/gateway/tenant";
 
 export default async function GenerationPage({
   params,
@@ -18,7 +19,9 @@ export default async function GenerationPage({
   if (!session?.user) redirect("/login");
   const { id } = await params;
   const [row] = await db.select().from(schema.generations).where(eq(schema.generations.id, id)).limit(1);
-  if (!row || row.userId !== session.user.id) notFound();
+  if (!row) notFound();
+  const workspaceIds = await accessibleWorkspaceIds(session.user.id);
+  if (!canAccess({ userId: session.user.id, workspaceIds }, row)) notFound();
 
   const meta = (row.metadata ?? {}) as Record<string, unknown>;
   const cached = Number(meta.cached_tokens ?? 0);
@@ -34,10 +37,10 @@ export default async function GenerationPage({
 
   const totalTok = Math.max(1, row.promptTokens + row.completionTokens + row.reasoningTokens + cached);
   const tokenParts = [
-    { label: "prompt", n: row.promptTokens, color: "bg-violet-500" },
-    { label: "completion", n: row.completionTokens, color: "bg-emerald-400/60" },
-    { label: "reasoning", n: row.reasoningTokens, color: "bg-sky-400/50" },
-    { label: "cached", n: cached, color: "bg-zinc-400/40" },
+    { label: "entrada", n: row.promptTokens, color: "bg-violet-500" },
+    { label: "salida", n: row.completionTokens, color: "bg-emerald-500" },
+    { label: "razonamiento", n: row.reasoningTokens, color: "bg-sky-500" },
+    { label: "caché", n: cached, color: "bg-zinc-400" },
   ].filter((p) => p.n > 0);
 
   const curl = `curl ${APP_URL}/api/v1/chat/completions \\
@@ -70,8 +73,8 @@ export default async function GenerationPage({
 
   return (
     <div className="max-w-4xl">
-      <Link href="/activity" className="text-sm text-zinc-500 hover:text-white">
-        ← Activity
+      <Link href="/activity" className="text-sm text-zinc-500 hover:text-zinc-900">
+        ← Actividad
       </Link>
       <AppPageHeader
         title={row.id}
@@ -83,7 +86,7 @@ export default async function GenerationPage({
               <Link href={`/chat?model=${encodeURIComponent(row.routedModel)}`}>Abrir en chat</Link>
             </Button>
             <Button asChild size="sm" variant="ghost">
-              <Link href="/studio">Studio</Link>
+              <Link href="/studio">Estudio</Link>
             </Button>
           </>
         }
@@ -98,14 +101,14 @@ export default async function GenerationPage({
 
       <div className="mb-6 flex flex-wrap gap-2">
         {[
-          row.streamed ? "streamed" : "sync",
-          row.isByok ? "byok" : "pool",
-          local ? "local echo" : "lab",
-          row.error ? "failed" : "ok",
+          row.streamed ? "transmisión" : "directa",
+          row.isByok ? "credencial propia" : "fondo Nexus",
+          local ? "eco local" : "laboratorio",
+          row.error ? "fallida" : "correcta",
         ].map((b) => (
           <span
             key={b}
-            className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-zinc-400"
+            className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[11px] uppercase tracking-wide text-zinc-600"
           >
             {b}
           </span>
@@ -117,7 +120,7 @@ export default async function GenerationPage({
           { label: "Costo", value: formatUsd(microsToUsd(row.costMicros)) },
           { label: "Tokens", value: String(row.promptTokens + row.completionTokens) },
           { label: "Latencia", value: row.latencyMs != null ? `${row.latencyMs} ms` : "—" },
-          { label: "Finish", value: row.finishReason ?? "—" },
+          { label: "Finalización", value: row.finishReason ?? "—" },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-zinc-200 bg-white px-3 py-3">
             <div className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">{s.label}</div>
@@ -129,8 +132,8 @@ export default async function GenerationPage({
       </div>
 
       <section className="mb-8 rounded-2xl border border-zinc-200 px-4 py-4">
-        <div className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Token split</div>
-        <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-white/5">
+        <div className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Distribución de tokens</div>
+        <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-zinc-100">
           {tokenParts.map((p) => (
             <div
               key={p.label}
@@ -151,15 +154,15 @@ export default async function GenerationPage({
 
       {hops.length ? (
         <section className="mb-8">
-          <h2 className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Route hops</h2>
+          <h2 className="mb-2 text-xs uppercase tracking-[0.1em] text-zinc-500">Ruta ejecutada</h2>
           <ol className="flex flex-wrap gap-1.5">
             {hops.map((h, i) => (
               <li
                 key={`${h.adapter}-${h.model}-${i}`}
                 className={`rounded border px-1.5 py-0.5 font-mono text-[11px] ${
                   h.adapter === row.provider
-                    ? "border-violet-300 text-zinc-700"
-                    : "border-zinc-200 text-zinc-500"
+                    ? "border-violet-300 bg-violet-50 text-violet-800"
+                    : "border-zinc-200 text-zinc-600"
                 }`}
                 title={h.zdr ? "ZDR" : "standard"}
               >
@@ -174,15 +177,15 @@ export default async function GenerationPage({
       <dl className="mb-8 grid gap-0 overflow-hidden rounded-2xl border border-zinc-200 text-sm md:grid-cols-2">
         {[
           ["Pedido", row.requestedModel],
-          ["Ruteado", row.routedModel],
-          ["Provider", row.provider],
+          ["Enrutado", row.routedModel],
+          ["Proveedor", row.provider],
           ["BYOK", row.isByok ? "sí" : "no"],
-          ["Prompt tokens", String(row.promptTokens)],
-          ["Completion tokens", String(row.completionTokens)],
-          ["Reasoning tokens", String(row.reasoningTokens)],
-          ["Cached tokens", String(cached)],
-          ["App title", row.appTitle ?? "—"],
-          ["Referer", row.appReferer ?? "—"],
+          ["Tokens de entrada", String(row.promptTokens)],
+          ["Tokens de salida", String(row.completionTokens)],
+          ["Tokens de razonamiento", String(row.reasoningTokens)],
+          ["Tokens en caché", String(cached)],
+          ["Aplicación", row.appTitle ?? "—"],
+          ["Referente", row.appReferer ?? "—"],
           ["Error", row.error ?? "—"],
         ].map(([k, v], i) => (
           <div
@@ -202,7 +205,7 @@ export default async function GenerationPage({
       {row.prompt ? (
         <section className="mb-4">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">Prompt</h2>
+            <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">Entrada</h2>
             <CopyButton value={row.prompt} />
           </div>
           <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-600">
@@ -213,7 +216,7 @@ export default async function GenerationPage({
       {row.completion ? (
         <section className="mb-4">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">Completion</h2>
+            <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">Salida</h2>
             <CopyButton value={row.completion} />
           </div>
           <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-800">
@@ -222,7 +225,7 @@ export default async function GenerationPage({
         </section>
       ) : (
         <p className="mb-6 text-sm text-zinc-500">
-          Prompt/completion no se guardan salvo que actives logging en Privacy.
+          La entrada y la salida no se guardan salvo que actives el registro en Privacidad.
         </p>
       )}
 
@@ -231,7 +234,7 @@ export default async function GenerationPage({
           <h2 className="text-xs uppercase tracking-[0.1em] text-zinc-500">JSON (API shape)</h2>
           <CopyButton value={JSON.stringify(payload, null, 2)} />
         </div>
-        <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-[11px] text-zinc-400">
+        <pre className="overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-[11px] text-zinc-700">
           {JSON.stringify(payload, null, 2)}
         </pre>
       </section>
