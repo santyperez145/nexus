@@ -1,0 +1,66 @@
+name: Production operations
+
+on:
+  schedule:
+    - cron: "3/5 * * * *"
+    - cron: "7,22,37,52 * * * *"
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: production-operations-${{ github.event.schedule || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  retry-observability-deliveries:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '3/5 * * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Retry due deliveries
+        env:
+          NEXUS_APP_URL: ${{ secrets.NEXUS_APP_URL }}
+          NEXUS_CRON_SECRET: ${{ secrets.NEXUS_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${NEXUS_APP_URL:-}"
+          test -n "${NEXUS_CRON_SECRET:-}"
+          curl --fail-with-body --silent --show-error --retry 2 --retry-all-errors --retry-delay 5 --max-time 55 \
+            --header "Authorization: Bearer ${NEXUS_CRON_SECRET}" \
+            "${NEXUS_APP_URL%/}/api/internal/cron/webhooks"
+
+  refresh-provider-health:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '7,22,37,52 * * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Refresh provider and commerce health
+        env:
+          NEXUS_APP_URL: ${{ secrets.NEXUS_APP_URL }}
+          NEXUS_CRON_SECRET: ${{ secrets.NEXUS_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${NEXUS_APP_URL:-}"
+          test -n "${NEXUS_CRON_SECRET:-}"
+          curl --fail-with-body --silent --show-error --retry 2 --retry-all-errors --retry-delay 5 --max-time 55 \
+            --header "Authorization: Bearer ${NEXUS_CRON_SECRET}" \
+            "${NEXUS_APP_URL%/}/api/internal/cron/health"
+
+  refresh-catalog:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '41 3 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Refresh catalog discovery snapshot
+        env:
+          NEXUS_APP_URL: ${{ secrets.NEXUS_APP_URL }}
+          NEXUS_CRON_SECRET: ${{ secrets.NEXUS_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "${NEXUS_APP_URL:-}"
+          test -n "${NEXUS_CRON_SECRET:-}"
+          curl --fail-with-body --silent --show-error --retry 2 --retry-all-errors --retry-delay 5 --max-time 55 \
+            --header "Authorization: Bearer ${NEXUS_CRON_SECRET}" \
+            "${NEXUS_APP_URL%/}/api/internal/cron/catalog"

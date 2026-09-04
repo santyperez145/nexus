@@ -66,10 +66,11 @@ auditar respuestas, próximos intentos y dead letters sin exponer el payload.
 Webhooks, `web_fetch`, feeds de catálogo y probes configurables usan resolución DNS pública fijada al
 socket, rechazan redirects y limitan el cuerpo leído; URLs privadas, metadata, NAT64 y 6to4 hacia
 rangos reservados fallan antes de acceder a la red interna.
-Los crons fallan cerrados si `CRON_SECRET` no está configurado. Vercel ejecuta el retry cada cinco
-minutos y verifica proveedores/Stripe cada quince; en Railway se deben programar los endpoints
-`/api/internal/cron/webhooks` y `/api/internal/cron/health` con
-`Authorization: Bearer $CRON_SECRET`, además del intento inmediato que realiza el gateway.
+Los crons fallan cerrados si `CRON_SECRET` no está configurado. En Railway, el workflow
+`Production operations` llama con un secreto de repositorio a `/api/internal/cron/webhooks` cada
+cinco minutos, `/api/internal/cron/health` cada quince y `/api/internal/cron/catalog` diariamente.
+Los horarios evitan el comienzo de la hora, cuando GitHub advierte mayor probabilidad de demora. El
+gateway conserva además el primer intento inmediato de cada entrega.
 Un proveedor sólo figura operativo tras responder 2xx durante los últimos 30 minutos; 401/403,
 timeouts y pruebas vencidas mantienen `/status` en atención.
 
