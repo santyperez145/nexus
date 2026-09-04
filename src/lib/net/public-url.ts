@@ -82,11 +82,24 @@ export function isBlockedHost(hostname: string): boolean {
         ? `${words[6] >> 8}.${words[6] & 255}.${words[7] >> 8}.${words[7] & 255}`
         : null;
     if (mappedV4 && isBlockedHost(mappedV4)) return true;
+    const nat64WellKnown =
+      words[0] === 0x0064 &&
+      words[1] === 0xff9b &&
+      words.slice(2, 6).every((word) => word === 0);
+    const nat64Local = words[0] === 0x0064 && words[1] === 0xff9b && words[2] === 1;
+    const sixToFourV4 =
+      words[0] === 0x2002
+        ? `${words[1] >> 8}.${words[1] & 255}.${words[2] >> 8}.${words[2] & 255}`
+        : null;
+    if (nat64WellKnown || nat64Local || (sixToFourV4 && isBlockedHost(sixToFourV4))) {
+      return true;
+    }
     if (
       words.every((word) => word === 0) ||
       (words.slice(0, 7).every((word) => word === 0) && words[7] === 1) ||
       (words[0] & 0xfe00) === 0xfc00 ||
       (words[0] & 0xffc0) === 0xfe80 ||
+      (words[0] & 0xffc0) === 0xfec0 ||
       (words[0] & 0xff00) === 0xff00 ||
       (words[0] === 0x2001 && words[1] === 0x0db8)
     ) {
@@ -139,4 +152,45 @@ export async function fetchPublicUrl(raw: string, init?: RequestInit): Promise<R
     dispatcher: publicOnlyDispatcher,
   } as unknown as Parameters<typeof undiciFetch>[1];
   return undiciFetch(url, requestInit) as unknown as Promise<Response>;
+}
+
+function responseTooLarge(maxBytes: number) {
+  return Object.assign(new Error(`Upstream response exceeds ${maxBytes} bytes`), {
+    status: 413,
+    code: "response_too_large",
+  });
+}
+
+export async function readResponseTextLimited(response: Response, maxBytes: number) {
+  if (!Number.isInteger(maxBytes) || maxBytes < 1) throw new Error("maxBytes must be positive");
+  const advertised = Number(response.headers.get("content-length"));
+  if (Number.isFinite(advertised) && advertised > maxBytes) {
+    await response.body?.cancel("response too large");
+    throw responseTooLarge(maxBytes);
+  }
+  if (!response.body) return "";
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel("response too large");
+        throw responseTooLarge(maxBytes);
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export async function readResponseJsonLimited<T>(response: Response, maxBytes: number): Promise<T> {
+  return JSON.parse(await readResponseTextLimited(response, maxBytes)) as T;
 }

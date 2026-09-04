@@ -2,7 +2,11 @@ import { createHmac, randomBytes } from "node:crypto";
 import { and, eq, inArray, lte, or } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { id } from "@/lib/ids";
-import { assertPublicHttpUrl, fetchPublicUrl } from "@/lib/net/public-url";
+import {
+  assertPublicHttpUrl,
+  fetchPublicUrl,
+  readResponseTextLimited,
+} from "@/lib/net/public-url";
 
 const MAX_DELIVERY_ATTEMPTS = 6;
 
@@ -195,6 +199,6 @@ export async function pingWebhookDestination(opts: {
     body: envelope,
     signal: AbortSignal.timeout(8_000),
   });
-  const text = await res.text().catch(() => "");
+  const text = await readResponseTextLimited(res, 64_000);
   return { ok: res.ok, status: res.status, body: text.slice(0, 500) };
 }

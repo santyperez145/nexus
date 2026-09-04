@@ -8,6 +8,7 @@ import {
   modelsUrl,
   type NexusProvider,
 } from "@/lib/providers/registry";
+import { fetchPublicUrl, readResponseJsonLimited } from "@/lib/net/public-url";
 
 type Discovered = { id: string; name: string; providerModel: string; adapter: string };
 
@@ -31,9 +32,13 @@ function slugAuthor(p: NexusProvider) {
 }
 
 async function safeJson(url: string, headers: Record<string, string>) {
-  const res = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(10000) });
+  const res = await fetchPublicUrl(url, {
+    headers,
+    cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!res.ok) return null;
-  return res.json();
+  return readResponseJsonLimited(res, 5_000_000);
 }
 
 function parseList(p: NexusProvider, json: unknown): Discovered[] {

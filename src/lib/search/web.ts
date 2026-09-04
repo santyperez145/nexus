@@ -1,4 +1,4 @@
-import { fetchPublicUrl } from "@/lib/net/public-url";
+import { fetchPublicUrl, readResponseTextLimited } from "@/lib/net/public-url";
 
 export type SearchHit = { title: string; url: string; snippet: string; engine: string };
 
@@ -127,7 +127,7 @@ export async function fetchUrlText(url: string) {
   const res = await fetchPublicUrl(url, {
     headers: { "User-Agent": "NexusBot/1.0 (gateway; +https://nexus.dev)" },
   });
-  const raw = await res.text();
+  const raw = await readResponseTextLimited(res, 512_000);
   const text = raw
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")

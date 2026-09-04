@@ -53,6 +53,9 @@ la misma ACL, scopes, rate limiting y ledger; no existe una ruta rápida que evi
 Los webhooks de observabilidad se persisten antes del primer intento, incluyen `x-nexus-delivery` y
 se reintentan desde el worker o `GET /api/internal/cron/webhooks` con backoff progresivo (máximo 6 intentos); el Delivery log permite
 auditar respuestas, próximos intentos y dead letters sin exponer el payload.
+Webhooks, `web_fetch`, feeds de catálogo y probes configurables usan resolución DNS pública fijada al
+socket, rechazan redirects y limitan el cuerpo leído; URLs privadas, metadata, NAT64 y 6to4 hacia
+rangos reservados fallan antes de acceder a la red interna.
 Los crons fallan cerrados si `CRON_SECRET` no está configurado. Vercel ejecuta el retry cada cinco
 minutos y verifica proveedores/Stripe cada quince; en Railway se deben programar los endpoints
 `/api/internal/cron/webhooks` y `/api/internal/cron/health` con
