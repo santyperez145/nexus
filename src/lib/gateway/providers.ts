@@ -395,6 +395,118 @@ export async function embedTexts(opts: {
   return { embeddings: result.embeddings, tokens: result.usage.tokens };
 }
 
+export function rerankProviderPayload(input: {
+  adapter: string;
+  model: string;
+  query: string;
+  documents: string[];
+  topN: number;
+  truncation: boolean;
+}) {
+  const common = {
+    model: input.model,
+    query: input.query,
+    documents: input.documents,
+    return_documents: false,
+    truncation: input.truncation,
+  };
+  return input.adapter === "voyage"
+    ? { ...common, top_k: input.topN }
+    : { ...common, top_n: input.topN };
+}
+
+export async function rerankDocuments(opts: {
+  endpoint: ModelEndpoint;
+  query: string;
+  documents: string[];
+  topN: number;
+  truncation: boolean;
+  byok?: string;
+  signal?: AbortSignal;
+}) {
+  const access = await runtimeProviderAccess(opts.endpoint, opts.byok);
+  if (!access) {
+    throw Object.assign(new Error("No provider credentials for this rerank route."), {
+      status: 503,
+      code: "provider_unwired",
+    });
+  }
+  const kind =
+    access.protocol ??
+    opts.endpoint.runtimeProtocol ??
+    providerById(opts.endpoint.adapter)?.kind ??
+    "openai";
+  if (kind !== "openai") {
+    throw Object.assign(new Error("Provider protocol does not support reranking"), {
+      status: 503,
+      code: "provider_unsupported",
+    });
+  }
+  const baseURL = access.baseUrl ?? opts.endpoint.runtimeBaseUrl ?? (() => {
+    const spec = providerById(opts.endpoint.adapter);
+    return spec ? liveBaseURL(spec) : undefined;
+  })();
+  if (!baseURL) {
+    throw Object.assign(new Error("Rerank provider has no runtime URL"), {
+      status: 503,
+      code: "provider_unwired",
+    });
+  }
+  const response = await fetchPublicUrlLimited(
+    `${baseURL.replace(/\/$/, "")}/rerank`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${access.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        rerankProviderPayload({
+          adapter: opts.endpoint.adapter,
+          model: opts.endpoint.providerModel,
+          query: opts.query,
+          documents: opts.documents,
+          topN: opts.topN,
+          truncation: opts.truncation,
+        }),
+      ),
+      signal: opts.signal
+        ? AbortSignal.any([opts.signal, AbortSignal.timeout(60_000)])
+        : AbortSignal.timeout(60_000),
+    },
+    8 * 1024 * 1024,
+    { status: 502, code: "provider_invalid_response" },
+  );
+  if (!response.ok) {
+    await response.body?.cancel("provider rejected rerank request").catch(() => undefined);
+    throw Object.assign(new Error("Rerank provider rejected the request"), {
+      status: 502,
+      code: "provider_error",
+      provider: opts.endpoint.adapter,
+    });
+  }
+  let payload: {
+    id?: unknown;
+    data?: unknown;
+    results?: unknown;
+    usage?: { total_tokens?: unknown };
+  };
+  try {
+    payload = await response.json();
+  } catch {
+    throw Object.assign(new Error("Rerank provider returned invalid JSON"), {
+      status: 502,
+      code: "provider_invalid_response",
+      provider: opts.endpoint.adapter,
+    });
+  }
+  return {
+    results: payload.results ?? payload.data,
+    tokens: payload.usage?.total_tokens,
+    upstreamId: typeof payload.id === "string" ? payload.id : undefined,
+  };
+}
+
 async function localComplete(messages: ChatMessage[], endpoint: ModelEndpoint) {
   const text = localEchoText(messages);
   const reply = `[Nexus local · ${endpoint.adapter}/${endpoint.providerModel}] Sin key de lab en este deploy. Agregá BYOK en Settings → Connections o configurá la key de plataforma. Echo: ${text.slice(0, 400)}`;

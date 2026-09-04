@@ -6,7 +6,7 @@ import {
 import { hasExecutableEndpoint, isTextGenerationModel } from "./pricing";
 import type { CatalogModel } from "./types";
 
-export type ModelKind = "text" | "image" | "video" | "speech" | "transcription" | "embeddings";
+export type ModelKind = "text" | "image" | "video" | "speech" | "transcription" | "embeddings" | "rerank";
 
 export function modelKind(model: { id: string; input: string[]; output: string[] }): ModelKind {
   const output = new Set(model.output.map((value) => value.toLowerCase()));
@@ -14,6 +14,7 @@ export function modelKind(model: { id: string; input: string[]; output: string[]
   const id = model.id.toLowerCase();
   if (output.has("image")) return "image";
   if (output.has("video")) return "video";
+  if (output.has("rerank")) return "rerank";
   if (output.has("embeddings") || id.includes("embedding")) return "embeddings";
   if (output.has("audio") || output.has("speech")) return "speech";
   if (input.has("audio") && output.has("text")) return "transcription";
@@ -31,6 +32,7 @@ export function isModelRouteSupported(kind: ModelKind, id: string) {
   if (kind === "speech") return SPEECH_MODELS.includes(candidate);
   if (kind === "transcription") return TRANSCRIPTION_MODELS.includes(candidate);
   if (kind === "embeddings") return true;
+  if (kind === "rerank") return true;
   return id === "nexus/video";
 }
 
@@ -52,7 +54,7 @@ export function isModelExecutionReady(model: CatalogModel) {
     input: model.architecture.inputModalities,
     output: model.architecture.outputModalities,
   });
-  if (kind === "text" || kind === "embeddings") return hasExecutableEndpoint(model);
+  if (kind === "text" || kind === "embeddings" || kind === "rerank") return hasExecutableEndpoint(model);
   return isModelRouteSupported(kind, model.id);
 }
 
@@ -75,5 +77,6 @@ export function modelKindLabel(kind: ModelKind) {
     speech: "Voz",
     transcription: "Transcripción",
     embeddings: "Vectores",
+    rerank: "Reranking",
   }[kind];
 }

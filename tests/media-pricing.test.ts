@@ -58,6 +58,13 @@ describe("media billing quotes", () => {
       label: "Ver disponibilidad",
     });
     assert.equal(isModelRouteSupported("image", "openai/gpt-image-2"), true);
+    const rerank = modelKind({ id: "nexus/rerank-fast", input: ["text"], output: ["rerank"] });
+    assert.equal(rerank, "rerank");
+    assert.equal(isModelRouteSupported(rerank, "nexus/rerank-fast"), true);
+    assert.deepEqual(modelAction(rerank, "nexus/rerank-fast"), {
+      href: "/studio?mode=rerank&model=nexus%2Frerank-fast",
+      label: "Abrir en Studio",
+    });
   });
 
   it("prefers and correctly attributes customer video credentials", () => {

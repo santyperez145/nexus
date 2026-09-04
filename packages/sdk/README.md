@@ -85,6 +85,7 @@ pueden volver a firmar durante ese período.
 | `nexus.credits.get` | `/credits` |
 | `nexus.generations.get` / `.list` | `/generation` |
 | `nexus.embeddings.create` | `/embeddings` |
+| `nexus.rerank.create` | `/rerank` |
 | `nexus.images.generate` | `/images/generations` |
 | `nexus.audio.speech` / `.transcriptions` | `/audio/*` |
 | `nexus.videos.create` / `.get` | `/videos` |

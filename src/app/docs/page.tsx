@@ -7,6 +7,7 @@ const ENDPOINTS = [
   ["POST", "/api/v1/messages", "Anthropic Messages (envelope)"],
   ["POST", "/api/v1/responses", "OpenAI Responses (envelope)"],
   ["POST", "/api/v1/embeddings", "Embeddings (+ ledger)"],
+  ["POST", "/api/v1/rerank", "Reranking multi-proveedor (+ ledger)"],
   ["POST", "/api/v1/images/generations", "Imágenes (+ ledger)"],
   ["POST", "/api/v1/audio/speech", "TTS (+ ledger)"],
   ["POST", "/api/v1/audio/transcriptions", "STT / Whisper (+ ledger)"],
@@ -53,7 +54,7 @@ const ENDPOINTS = [
 ];
 
 const SURFACES = [
-  ["Studio", "/studio", "Imagen · TTS · STT · Video · Embeddings"],
+  ["Studio", "/studio", "Imagen · TTS · STT · Video · Embeddings · Reranking"],
   ["Chat", "/chat", "Playground texto + route trace"],
   ["Dataset Hub", "/datasets", "Versionado · gating · distribución"],
   ["Spaces", "/spaces", "Apps publicables · runtime multi‑proveedor"],
@@ -104,7 +105,7 @@ export default function DocsPage() {
             ["/docs/parameters", "Parameters", "sampling · tools · JSON · transforms"],
             ["/docs/streaming", "Streaming", "SSE · usage · X-Request-Id"],
             ["/docs/envelopes", "Envelopes", "Messages · Responses · completions"],
-            ["/docs/media", "Media", "imagen · TTS · STT · video · embed"],
+            ["/docs/media", "Inferencia", "imagen · audio · video · embed · rerank"],
             ["/docs/errors", "Errors", "códigos gateway tipados"],
             ["/docs/limits", "Limits", "RPD free · budgets · files"],
             ["/rss.xml", "RSS", "changelog feed"],

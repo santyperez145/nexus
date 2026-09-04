@@ -11,10 +11,10 @@ export default function MediaDocsPage() {
             Docs
           </Link>
           <span className="mx-2 text-zinc-300">/</span>
-          Media
+          Inferencia
         </p>
-        <MarketingPageHeader title="Media">
-          Imagen, TTS, STT, embeddings y video jobs. Sin credenciales o tarifa operativa devuelve un error explícito;
+        <MarketingPageHeader title="Media, embeddings y reranking">
+          Imagen, TTS, STT, embeddings, reranking y video jobs. Sin credenciales o tarifa operativa devuelve un error explícito;
           con provider/BYOK válido ejecuta upstream real y concilia el ledger. UI:{" "}
           <Link href="/studio" className="text-violet-700 hover:underline">
             Studio
@@ -86,6 +86,37 @@ const e = await nexus.embeddings.create({
   model: "openai/text-embedding-3-small",
   input: "gateway OpenAI-compatible",
   dimensions: 512,
+});`}
+          </pre>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="mb-2 text-lg font-semibold text-zinc-900">
+            Reranking
+          </h2>
+          <p className="mb-3 text-sm leading-6 text-zinc-600">
+            Reordena candidatos para búsqueda semántica y RAG. El contrato público usa
+            <code className="text-zinc-800"> top_n</code>; Nexus lo traduce al dialecto nativo de cada
+            proveedor, valida índices, scores y consumo antes de liquidar, y nunca enruta a un host sin
+            precio verificado.
+          </p>
+          <pre className="overflow-x-auto border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+{`curl $NEXUS_URL/api/v1/rerank \\
+  -H "Authorization: Bearer $NEXUS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "nexus/rerank-fast",
+    "query": "capital de Francia",
+    "documents": ["Madrid", "París", "Roma"],
+    "top_n": 2,
+    "provider": { "sort": "price", "allow_fallbacks": true }
+  }'
+
+const ranking = await nexus.rerank.create({
+  model: "nexus/rerank-fast",
+  query: "capital de Francia",
+  documents: ["Madrid", "París", "Roma"],
+  top_n: 2,
 });`}
           </pre>
         </section>

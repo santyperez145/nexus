@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const rootAlias = { source: "/v1/:path*", destination: "/api/v1/:path*" };
     if (!gateway) return [rootAlias];
-    const protocols = ["chat", "completions", "embeddings", "responses", "messages"] as const;
+    const protocols = ["chat", "completions", "embeddings", "rerank", "responses", "messages"] as const;
     return [
       ...protocols.flatMap((protocol) => [
         {

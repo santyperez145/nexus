@@ -11,6 +11,7 @@ import { handleChat } from "../src/lib/gateway/handle-chat";
 import type { ChatRequest } from "../src/lib/gateway/types";
 import { inferencePlaneReady, readinessSnapshot } from "../src/lib/health/readiness";
 import { POST as embeddingsPost } from "../src/app/api/v1/embeddings/route";
+import { POST as rerankPost } from "../src/app/api/v1/rerank/route";
 import { GET as modelsGet } from "../src/app/api/v1/models/route";
 import { POST as responsesPost } from "../src/app/api/v1/responses/route";
 import { POST as messagesPost } from "../src/app/api/v1/messages/route";
@@ -58,6 +59,7 @@ app.get("/v1/models", (c) => modelsGet(c.req.raw));
 // Keep the independently-scaled data plane on the exact same auth, rate-limit,
 // billing and protocol code paths as the Next.js control plane.
 app.post(DATA_PLANE_PROTOCOL_ROUTES.embeddings, (c) => embeddingsPost(c.req.raw));
+app.post(DATA_PLANE_PROTOCOL_ROUTES.rerank, (c) => rerankPost(c.req.raw));
 app.post(DATA_PLANE_PROTOCOL_ROUTES.responses, (c) => responsesPost(c.req.raw));
 app.post(DATA_PLANE_PROTOCOL_ROUTES.messages, (c) => messagesPost(c.req.raw));
 

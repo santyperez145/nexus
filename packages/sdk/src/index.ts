@@ -22,4 +22,8 @@ export type {
   SpaceCreateRequest,
   NexusClientOptions,
   ProviderPreferences,
+  RerankDocument,
+  RerankRequest,
+  RerankResponse,
+  RerankResult,
 } from "./types.js";

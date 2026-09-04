@@ -1,4 +1,4 @@
-import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, ModelEvaluation, ModelEvaluationCreateRequest, ModelPromotion, ModelPromotionCreateRequest, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
+import type { ChatChunk, ChatCompletion, ChatRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, ModelEvaluation, ModelEvaluationCreateRequest, ModelPromotion, ModelPromotionCreateRequest, RerankRequest, RerankResponse, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
 export declare class Nexus {
     #private;
     readonly apiKey: string;
@@ -11,6 +11,7 @@ export declare class Nexus {
     readonly credits: CreditsResource;
     readonly generations: GenerationsResource;
     readonly embeddings: EmbeddingsResource;
+    readonly rerank: RerankResource;
     readonly images: ImagesResource;
     readonly audio: AudioResource;
     readonly responses: ResponsesResource;
@@ -187,13 +188,32 @@ declare class EmbeddingsResource {
     create(body: {
         model?: string;
         input: string | string[];
+        encoding_format?: "float" | "base64";
+        dimensions?: number;
+        user?: string;
+        provider?: {
+            order?: string[];
+            ignore?: string[];
+            only?: string[];
+            allow_fallbacks?: boolean;
+            data_collection?: "allow" | "deny";
+            zdr?: boolean;
+            sort?: "price" | "throughput" | "latency";
+        };
     }): Promise<{
         data: Array<{
-            embedding: number[];
+            embedding: number[] | string;
             index: number;
         }>;
         model: string;
+        provider: string;
+        id: string;
     }>;
+}
+declare class RerankResource {
+    private readonly client;
+    constructor(client: Nexus);
+    create(body: RerankRequest): Promise<RerankResponse>;
 }
 declare class ImagesResource {
     private readonly client;

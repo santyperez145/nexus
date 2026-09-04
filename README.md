@@ -61,7 +61,7 @@ El recorrido HTTP local de contención se valida con
 cero hops conectados y una única respuesta local guest. Staging/producción usa `NEXUS_API_KEY` y
 `NEXUS_STRICT_LIVE=1` para exigir un proveedor externo real y consultar después la generación persistida.
 
-Cuando `GATEWAY_URL` está configurado, Chat Completions, Completions, Embeddings, Responses y
+Cuando `GATEWAY_URL` está configurado, Chat Completions, Completions, Embeddings, Reranking, Responses y
 Anthropic Messages se enrutan al data plane independiente. Responses y Messages conservan sus
 ciclos SSE nativos, incluidos tool calls, uso acumulado, estados incompletos y errores de stream.
 Ambos mounts (`/api/v1` y el alias raíz `/v1`) comparten
@@ -96,7 +96,7 @@ La sonda recurrente del cron de health vuelve a descubrir esos contratos y una f
 proveedor del routing sin exponer ni devolver su secreto. El precio de lista se traslada sin markup:
 el ingreso de Nexus continúa siendo el 5% transparente en recargas y uso BYOK.
 Los modelos gestionados verificados alimentan el mismo catálogo runtime de Chat, Responses, Messages,
-Embeddings, comparación, rankings, Spaces y promociones del Hub; una suspensión o expiración de salud los retira
+Embeddings, Reranking, comparación, rankings, Spaces y promociones del Hub; una suspensión o expiración de salud los retira
 de todos esos consumidores sin dejar referencias ejecutables parciales.
 
 Cada despliegue ejecuta `node scripts/migrate.mjs migrate` como predeploy y no inicia la nueva versión

@@ -40,6 +40,10 @@ export function isEmbeddingModel(model: CatalogModel) {
   return model.architecture.outputModalities.includes("embeddings");
 }
 
+export function isRerankModel(model: CatalogModel) {
+  return model.architecture.outputModalities.includes("rerank");
+}
+
 export function isTokenGatewayModel(model: CatalogModel) {
-  return isTextGenerationModel(model) || isEmbeddingModel(model);
+  return isTextGenerationModel(model) || isEmbeddingModel(model) || isRerankModel(model);
 }

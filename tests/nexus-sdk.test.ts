@@ -140,6 +140,42 @@ describe("nexus-sdk", () => {
     assert.equal(analytics.data.totals.requests, 1);
   });
 
+  it("reranks documents through the typed multi-provider resource", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const nexus = new Nexus({
+      apiKey: "sk-nx-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return Response.json({
+          id: "gen-rerank",
+          model: "nexus/rerank-fast",
+          provider: "voyage",
+          results: [{ index: 1, relevance_score: 0.98, document: { text: "París" } }],
+          usage: { search_units: 1, total_tokens: 7, cost: 0.00000014 },
+        });
+      },
+    });
+    const result = await nexus.rerank.create({
+      model: "nexus/rerank-fast",
+      query: "capital de Francia",
+      documents: ["Madrid", "París"],
+      top_n: 1,
+      provider: { allow_fallbacks: true },
+    });
+    assert.equal(result.results[0]?.index, 1);
+    assert.equal(calls[0].url, "https://nexus.test/api/v1/rerank");
+    assert.equal(calls[0].init.method, "POST");
+    const body = JSON.parse(String(calls[0].init.body)) as { query: string; top_n: number };
+    assert.deepEqual(body, {
+      model: "nexus/rerank-fast",
+      query: "capital de Francia",
+      documents: ["Madrid", "París"],
+      top_n: 1,
+      provider: { allow_fallbacks: true },
+    });
+  });
+
   it("runs the reserve, signed PUT, and verify flow for large artifacts", async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
     const nexus = new Nexus({

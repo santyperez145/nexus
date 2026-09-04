@@ -84,6 +84,14 @@ function modelStats(model: CatalogModel, kind: ModelKind, usage: Usage, supporte
       requestUsage,
     ];
   }
+  if (kind === "rerank") {
+    return [
+      { label: "Modalidad", value: "Reranking", detail: "búsqueda y RAG" },
+      { label: "Procesado / 1 M", value: supported ? formatUsd(usdPerMillion(model.pricing.prompt), 3) : "—", detail: "tokens reportados" },
+      { label: "Contexto", value: `${Math.round(model.contextLength / 1000)}k`, detail: "por documento" },
+      requestUsage,
+    ];
+  }
   if (model.id === "nexus/auto") {
     return [
       { label: "Contexto máximo", value: `${Math.round(model.contextLength / 1000)}k`, detail: "según ruta" },
@@ -141,6 +149,14 @@ function apiSample(id: string, kind: ModelKind) {
       `  -H "Authorization: Bearer $NEXUS_API_KEY" \\`,
       `  -H "Content-Type: application/json" \\`,
       `  -d '{"model":"${id}","input":["gateway de modelos"]}'`,
+    ].join("\n");
+  }
+  if (kind === "rerank") {
+    return [
+      `${common}/rerank \\`,
+      `  -H "Authorization: Bearer $NEXUS_API_KEY" \\`,
+      `  -H "Content-Type: application/json" \\`,
+      `  -d '{"model":"${id}","query":"capital de Francia","documents":["Madrid","París"],"top_n":1}'`,
     ].join("\n");
   }
   if (kind === "video") {
@@ -215,11 +231,11 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
   const tokenPricingVerified = model.endpoints.some(isExecutableEndpoint);
   const supported =
     isBuiltinRouter ||
-    (routeSupported && (kind !== "text" && kind !== "embeddings" ? true : tokenPricingVerified));
+    (routeSupported && (kind !== "text" && kind !== "embeddings" && kind !== "rerank" ? true : tokenPricingVerified));
   const action = supported
     ? modelAction(kind, model.id)
     : { href: "/providers", label: "Ver disponibilidad" };
-  const isTokenPriced = kind === "text" || kind === "embeddings";
+  const isTokenPriced = kind === "text" || kind === "embeddings" || kind === "rerank";
   const stats = modelStats(model, kind, usage, supported);
   const sample = supported ? apiSample(model.id, kind) : null;
 
@@ -356,6 +372,13 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
               Nexus reserva el fallback elegible más caro y liquida únicamente el modelo y host que respondió.
             </p>
           </div>
+        ) : kind === "rerank" && supported ? (
+          <div className="mt-8 rounded-xl border border-violet-200 bg-violet-50/70 px-4 py-3 text-sm text-violet-950">
+            <div className="font-medium">Tarifa por texto procesado</div>
+            <p className="mt-1 text-xs leading-relaxed text-violet-900/80">
+              El proveedor cuenta la consulta una vez por documento y suma el contenido procesado. Nexus reserva un techo conservador y liquida sólo los tokens verificados a {formatUsd(usdPerMillion(model.pricing.prompt), 3)} por millón.
+            </p>
+          </div>
         ) : isTokenPriced && supported ? (
           <div className="mt-8">
             <CostEstimator
@@ -443,8 +466,8 @@ export default async function ModelDetailPage({ params }: { params: Promise<{ sl
                   ) : null}
                   {isTokenPriced && executable ? (
                     <div className="mt-2 flex gap-4 text-xs tabular-nums text-zinc-500">
-                      <span>entrada {formatUsd(usdPerMillion(e.pricing.prompt), 2)}/1 M</span>
-                      <span>salida {formatUsd(usdPerMillion(e.pricing.completion), 2)}/1 M</span>
+                      <span>{kind === "rerank" ? "procesado" : "entrada"} {formatUsd(usdPerMillion(e.pricing.prompt), 2)}/1 M</span>
+                      {kind !== "rerank" ? <span>salida {formatUsd(usdPerMillion(e.pricing.completion), 2)}/1 M</span> : null}
                     </div>
                   ) : (
                     <div className="mt-2 text-xs text-zinc-500">

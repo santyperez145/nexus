@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useRemoteData } from "@/lib/use-remote-data";
 
-type Tab = "image" | "speech" | "transcribe" | "video" | "embeddings";
+type Tab = "image" | "speech" | "transcribe" | "video" | "embeddings" | "rerank";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "image", label: "Imagen" },
@@ -15,6 +15,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "transcribe", label: "Transcribir" },
   { id: "video", label: "Video" },
   { id: "embeddings", label: "Vectores" },
+  { id: "rerank", label: "Reranking" },
 ];
 
 const IMAGE_MODELS = [
@@ -63,6 +64,13 @@ type EmbeddingCatalogModel = {
   nexus?: { providers?: string[] };
 };
 
+type RerankPreview = {
+  id: string;
+  provider: string;
+  tokens: number;
+  results: Array<{ index: number; relevance_score: number; document?: { text: string } }>;
+};
+
 export function MediaStudio({
   initialTab = "image",
   initialModel,
@@ -93,6 +101,14 @@ export function MediaStudio({
   const [embedModel, setEmbedModel] = useState(
     initialTab === "embeddings" && requestedModel ? requestedModel : EMBED_MODELS[0],
   );
+  const [rerankQuery, setRerankQuery] = useState("¿Cuál es la capital de Francia?");
+  const [rerankDocuments, setRerankDocuments] = useState(
+    "Madrid es la capital de España.\nParís es la capital de Francia.\nRoma es la capital de Italia.",
+  );
+  const [rerankModel, setRerankModel] = useState(
+    initialTab === "rerank" && requestedModel ? requestedModel : "nexus/rerank-fast",
+  );
+  const [rerankTopN, setRerankTopN] = useState(3);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -102,12 +118,16 @@ export function MediaStudio({
   const [embedPreview, setEmbedPreview] = useState<{ dims: number; sample: number[]; id?: string } | null>(
     null,
   );
+  const [rerankPreview, setRerankPreview] = useState<RerankPreview | null>(null);
   const [genId, setGenId] = useState<string | null>(null);
   const [analytics, , analyticsError] = useRemoteData<{ recent?: Recent[]; totals?: { local_pct?: number } }>(
     "/api/v1/analytics?days=7",
   );
   const [embeddingCatalog] = useRemoteData<EmbeddingCatalogModel[]>(
     "/api/v1/models?output_modalities=embeddings&limit=200",
+  );
+  const [rerankCatalog] = useRemoteData<EmbeddingCatalogModel[]>(
+    "/api/v1/models?output_modalities=rerank&limit=200",
   );
 
   useEffect(() => {
@@ -244,12 +264,54 @@ export function MediaStudio({
     }
   }
 
+  async function runRerank() {
+    const documents = rerankDocuments.split("\n").map((value) => value.trim()).filter(Boolean);
+    if (!documents.length) {
+      setError("Agregá al menos un documento, uno por línea.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/v1/rerank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: rerankModel,
+          query: rerankQuery,
+          documents,
+          top_n: Math.min(rerankTopN, documents.length),
+          return_documents: true,
+          provider: { sort: "price", allow_fallbacks: true },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message ?? "Error reranking");
+      setRerankPreview({
+        id: json.id,
+        provider: json.provider,
+        tokens: json.usage?.total_tokens ?? 0,
+        results: json.results ?? [],
+      });
+      setGenId(json.id ?? null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const localPct = Math.round((analytics?.totals?.local_pct ?? 0) * 100);
   const embeddingOptions = embeddingCatalog?.length
     ? embeddingCatalog.some((model) => model.id === embedModel)
       ? embeddingCatalog
       : [{ id: embedModel, name: embedModel }, ...embeddingCatalog]
     : EMBED_MODELS.map((id) => ({ id, name: id }));
+  const rerankOptions = rerankCatalog?.length
+    ? rerankCatalog.some((model) => model.id === rerankModel)
+      ? rerankCatalog
+      : [{ id: rerankModel, name: rerankModel }, ...rerankCatalog]
+    : ["nexus/rerank-fast", "nexus/rerank-quality"].map((id) => ({ id, name: id }));
 
   return (
     <div className="grid gap-6">
@@ -490,6 +552,58 @@ export function MediaStudio({
         </Panel>
       ) : null}
 
+      {tab === "rerank" ? (
+        <Panel
+          title="Reranking para búsqueda y RAG"
+          hint="Ordena documentos por relevancia con routing multi-proveedor, fallback y liquidación por tokens reales."
+          onRun={() => void runRerank()}
+          busy={busy}
+          actionLabel="Ordenar"
+        >
+          <div className="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem]">
+            <select
+              value={rerankModel}
+              onChange={(e) => setRerankModel(e.target.value)}
+              className="h-9 rounded-md border border-zinc-200 bg-zinc-50 px-2 text-sm"
+              aria-label="Modelo reranking"
+            >
+              {rerankOptions.map((model) => (
+                <option key={model.id} value={model.id}>{model.name} · {model.id}</option>
+              ))}
+            </select>
+            <Input
+              type="number"
+              min={1}
+              max={1000}
+              value={rerankTopN}
+              onChange={(e) => setRerankTopN(Math.max(1, Number(e.target.value) || 1))}
+              aria-label="Cantidad de resultados"
+            />
+          </div>
+          <label className="text-xs font-medium text-zinc-600" htmlFor="rerank-query">Consulta</label>
+          <Textarea id="rerank-query" className="mt-1" value={rerankQuery} onChange={(e) => setRerankQuery(e.target.value)} rows={2} />
+          <label className="mt-3 block text-xs font-medium text-zinc-600" htmlFor="rerank-documents">Documentos · uno por línea</label>
+          <Textarea id="rerank-documents" className="mt-1" value={rerankDocuments} onChange={(e) => setRerankDocuments(e.target.value)} rows={6} />
+          {rerankPreview ? (
+            <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200">
+              <div className="flex justify-between bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
+                <span>{rerankPreview.provider}</span>
+                <span>{rerankPreview.tokens.toLocaleString()} tokens</span>
+              </div>
+              <ol className="divide-y divide-zinc-100">
+                {rerankPreview.results.map((result) => (
+                  <li key={result.index} className="grid grid-cols-[3rem_5rem_minmax(0,1fr)] gap-2 px-3 py-2 text-xs">
+                    <span className="font-mono text-zinc-400">#{result.index}</span>
+                    <span className="font-mono font-medium text-violet-700">{result.relevance_score.toFixed(4)}</span>
+                    <span className="text-zinc-700">{result.document?.text ?? "Documento sin contenido devuelto"}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+        </Panel>
+      ) : null}
+
       {genId ? (
         <p className="text-xs text-zinc-600">
           Generación{" "}
@@ -541,12 +655,14 @@ function Panel({
   children,
   onRun,
   busy,
+  actionLabel = "Generar",
 }: {
   title: string;
   hint: string;
   children: React.ReactNode;
   onRun?: () => void;
   busy?: boolean;
+  actionLabel?: string;
 }) {
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 md:p-5">
@@ -557,7 +673,7 @@ function Panel({
         </div>
         {onRun ? (
           <Button size="sm" disabled={busy} onClick={onRun}>
-            {busy ? "Generando…" : "Generar"}
+            {busy ? "Procesando…" : actionLabel}
           </Button>
         ) : null}
       </div>

@@ -27,7 +27,7 @@ export function configuredVideoRetailUsd() {
 
 export async function holdMediaCredits(opts: {
   auth: AuthContext;
-  modality: keyof typeof MEDIA_DEFAULT_USD | "embedding";
+  modality: keyof typeof MEDIA_DEFAULT_USD | "embedding" | "rerank";
   isByok: boolean;
   usd?: number;
   promptTokens?: number;
@@ -38,7 +38,7 @@ export async function holdMediaCredits(opts: {
     throw Object.assign(new Error("Guest cannot use paid media APIs"), { status: 401, code: "invalid_api_key" });
   }
   let estimated = 0;
-  if (opts.modality === "embedding" && opts.pricing) {
+  if ((opts.modality === "embedding" || opts.modality === "rerank") && opts.pricing) {
     estimated = usdToMicros(
       (opts.promptTokens ?? 0) * opts.pricing.prompt + (opts.completionTokens ?? 0) * opts.pricing.completion,
     );
@@ -61,7 +61,7 @@ export async function holdMediaCredits(opts: {
 export async function chargeAndRecordMedia(opts: {
   auth: AuthContext;
   headers?: Headers;
-  modality: keyof typeof MEDIA_DEFAULT_USD | "embedding";
+  modality: keyof typeof MEDIA_DEFAULT_USD | "embedding" | "rerank";
   model: string;
   provider: string;
   local: boolean;
@@ -82,7 +82,7 @@ export async function chargeAndRecordMedia(opts: {
 
   if (opts.local) {
     if (reservation?.reservedMicros) await releaseReserve(opts.auth, reservation);
-  } else if (opts.modality === "embedding" && opts.pricing) {
+  } else if ((opts.modality === "embedding" || opts.modality === "rerank") && opts.pricing) {
     const promptTokens = opts.promptTokens ?? 0;
     const settled = await settleUsage({
       auth: opts.auth,

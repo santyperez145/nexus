@@ -2,7 +2,7 @@ import {
   authHeaders,
   envFor,
   isWired,
-  modelsUrl,
+  probeUrl,
   type NexusProvider,
 } from "./registry";
 import { fetchPublicUrl } from "@/lib/net/public-url";
@@ -27,7 +27,7 @@ export async function probeProvider(provider: NexusProvider): Promise<ProviderPr
   if (!key) return { ok: false, detail: "Sin configurar", latencyMs: 0 };
   const started = Date.now();
   try {
-    const response = await fetchPublicUrl(modelsUrl(provider, key), {
+    const response = await fetchPublicUrl(probeUrl(provider, key), {
       headers: authHeaders(provider, key),
       cache: "no-store",
       signal: AbortSignal.timeout(8000),

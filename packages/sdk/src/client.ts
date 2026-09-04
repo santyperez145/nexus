@@ -14,6 +14,8 @@ import type {
   ModelEvaluationCreateRequest,
   ModelPromotion,
   ModelPromotionCreateRequest,
+  RerankRequest,
+  RerankResponse,
   Space,
   SpaceCreateRequest,
   NexusClientOptions,
@@ -37,6 +39,7 @@ export class Nexus {
   readonly credits: CreditsResource;
   readonly generations: GenerationsResource;
   readonly embeddings: EmbeddingsResource;
+  readonly rerank: RerankResource;
   readonly images: ImagesResource;
   readonly audio: AudioResource;
   readonly responses: ResponsesResource;
@@ -76,6 +79,7 @@ export class Nexus {
     this.credits = new CreditsResource(this);
     this.generations = new GenerationsResource(this);
     this.embeddings = new EmbeddingsResource(this);
+    this.rerank = new RerankResource(this);
     this.images = new ImagesResource(this);
     this.audio = new AudioResource(this);
     this.responses = new ResponsesResource(this);
@@ -346,6 +350,13 @@ class EmbeddingsResource {
       "/embeddings",
       { method: "POST", body },
     );
+  }
+}
+
+class RerankResource {
+  constructor(private readonly client: Nexus) {}
+  create(body: RerankRequest) {
+    return this.client.request<RerankResponse>("/rerank", { method: "POST", body });
   }
 }
 

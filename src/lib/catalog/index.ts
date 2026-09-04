@@ -9,6 +9,7 @@ export {
   isEmbeddingModel,
   isExecutableEndpoint,
   isFreeEndpoint,
+  isRerankModel,
   isTextGenerationModel,
   isTokenGatewayModel,
 } from "./pricing";

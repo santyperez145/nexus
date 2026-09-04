@@ -46,6 +46,15 @@ describe("API path policy", () => {
     assert.throws(() =>
       enforcePathPolicy(new Request("https://gateway.example/v1/embeddings", { method: "POST" }), guest),
     );
+    assert.throws(() =>
+      enforcePathPolicy(new Request("https://gateway.example/v1/rerank", { method: "POST" }), guest),
+    );
+    assert.doesNotThrow(() =>
+      enforcePathPolicy(
+        new Request("https://gateway.example/v1/rerank", { method: "POST" }),
+        { ...inferenceKey, scopes: ["inference:write"] },
+      ),
+    );
 
     assert.throws(() =>
       enforcePathPolicy(new Request("https://gateway.example/v1/responses", { method: "POST" }), mgmtKey),

@@ -6,6 +6,8 @@ export type NexusProvider = {
   kind: "openai" | "anthropic" | "google" | "mistral";
   baseURL: string;
   modelsPath: string;
+  /** Optional zero-cost authenticated endpoint used when the provider has no model-list API. */
+  probePath?: string;
   auth: "bearer" | "anthropic" | "google-query";
   /** Provider can offer ZDR under the right account agreement; not proof it is active. */
   zdr?: boolean;
@@ -252,6 +254,16 @@ export const NEXUS_PROVIDERS: NexusProvider[] = [
     auth: "bearer",
   },
   {
+    id: "voyage",
+    label: "Voyage AI",
+    env: "VOYAGE_API_KEY",
+    kind: "openai",
+    baseURL: "https://api.voyageai.com/v1",
+    modelsPath: "/models",
+    probePath: "/files?limit=1",
+    auth: "bearer",
+  },
+  {
     id: "nvidia",
     label: "NVIDIA NIM",
     env: "NVIDIA_API_KEY",
@@ -378,6 +390,15 @@ export function liveBaseURL(p: NexusProvider) {
 
 export function modelsUrl(p: NexusProvider, key: string) {
   const path = `${liveBaseURL(p)}${p.modelsPath}`;
+  if (p.auth === "google-query") {
+    const joiner = path.includes("?") ? "&" : "?";
+    return `${path}${joiner}key=${key}`;
+  }
+  return path;
+}
+
+export function probeUrl(p: NexusProvider, key: string) {
+  const path = `${liveBaseURL(p)}${p.probePath ?? p.modelsPath}`;
   if (p.auth === "google-query") {
     const joiner = path.includes("?") ? "&" : "?";
     return `${path}${joiner}key=${key}`;

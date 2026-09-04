@@ -142,6 +142,37 @@ export type NexusClientOptions = {
     fetch?: typeof fetch;
     defaultHeaders?: Record<string, string>;
 };
+export type RerankDocument = string | {
+    text: string;
+};
+export type RerankRequest = {
+    model: NexusModelId;
+    query: string;
+    documents: RerankDocument[];
+    top_n?: number;
+    return_documents?: boolean;
+    truncation?: boolean;
+    provider?: ProviderPreferences;
+};
+export type RerankResult = {
+    index: number;
+    relevance_score: number;
+    document?: {
+        text: string;
+    };
+};
+export type RerankResponse = {
+    id: string;
+    model: string;
+    provider: string;
+    results: RerankResult[];
+    usage: {
+        search_units: number;
+        total_tokens: number;
+        cost?: number;
+    };
+    is_byok?: boolean;
+};
 export type DatasetRepository = {
     id: string;
     namespace: string;

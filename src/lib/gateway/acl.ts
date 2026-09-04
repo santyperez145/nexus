@@ -30,6 +30,7 @@ const INFERENCE_PATHS = [
   "/api/v1/responses",
   "/api/v1/messages",
   "/api/v1/embeddings",
+  "/api/v1/rerank",
   "/api/v1/images/generations",
   "/api/v1/audio/speech",
   "/api/v1/audio/transcriptions",

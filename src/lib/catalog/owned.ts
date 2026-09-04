@@ -34,6 +34,7 @@ function model(opts: {
   const outputModalities = opts.outputModalities ?? ["text"];
   const usesTokenPricing =
     outputModalities.includes("embeddings") ||
+    outputModalities.includes("rerank") ||
     (inputModalities.includes("text") && outputModalities.includes("text"));
   const hosts: Host[] =
     opts.hosts ??
@@ -267,6 +268,30 @@ export const OWNED_CATALOG: CatalogModel[] = [
     completion: 0,
     outputModalities: ["embeddings"],
     params: [],
+  }),
+  model({
+    id: "nexus/rerank-fast",
+    name: "Nexus Rerank Fast",
+    description: "Reranking multilingüe de baja latencia servido por Voyage Rerank 2.5 Lite.",
+    adapter: "voyage",
+    providerModel: "rerank-2.5-lite",
+    prompt: 2e-8,
+    completion: 0,
+    context: 32_000,
+    outputModalities: ["rerank"],
+    params: ["top_n", "return_documents", "truncation", "provider"],
+  }),
+  model({
+    id: "nexus/rerank-quality",
+    name: "Nexus Rerank Quality",
+    description: "Reranking multilingüe de mayor precisión servido por Voyage Rerank 2.5.",
+    adapter: "voyage",
+    providerModel: "rerank-2.5",
+    prompt: 5e-8,
+    completion: 0,
+    context: 32_000,
+    outputModalities: ["rerank"],
+    params: ["top_n", "return_documents", "truncation", "provider"],
   }),
   model({
     id: "anthropic/claude-sonnet-4.6",

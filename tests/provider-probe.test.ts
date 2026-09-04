@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { isRecentHealthy, providerProbeResult } from "../src/lib/providers/probe";
+import { providerById, probeUrl } from "../src/lib/providers/registry";
 
 describe("provider health truth", () => {
   it("accepts only successful provider responses", () => {
@@ -18,5 +19,10 @@ describe("provider health truth", () => {
     assert.equal(isRecentHealthy({ status: "up", lastCheck: new Date(now - 31 * 60_000) }, now), false);
     assert.equal(isRecentHealthy({ status: "up", lastCheck: new Date(now + 2 * 60_000) }, now), false);
     assert.equal(isRecentHealthy({ status: "down", lastCheck: new Date(now) }, now), false);
+  });
+
+  it("uses a real zero-cost health resource for providers without model listing", () => {
+    const voyage = providerById("voyage")!;
+    assert.equal(probeUrl(voyage, "secret"), "https://api.voyageai.com/v1/files?limit=1");
   });
 });

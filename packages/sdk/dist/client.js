@@ -17,6 +17,7 @@ export class Nexus {
     credits;
     generations;
     embeddings;
+    rerank;
     images;
     audio;
     responses;
@@ -55,6 +56,7 @@ export class Nexus {
         this.credits = new CreditsResource(this);
         this.generations = new GenerationsResource(this);
         this.embeddings = new EmbeddingsResource(this);
+        this.rerank = new RerankResource(this);
         this.images = new ImagesResource(this);
         this.audio = new AudioResource(this);
         this.responses = new ResponsesResource(this);
@@ -245,6 +247,15 @@ class EmbeddingsResource {
     }
     create(body) {
         return this.client.request("/embeddings", { method: "POST", body });
+    }
+}
+class RerankResource {
+    client;
+    constructor(client) {
+        this.client = client;
+    }
+    create(body) {
+        return this.client.request("/rerank", { method: "POST", body });
     }
 }
 class ImagesResource {
