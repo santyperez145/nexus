@@ -69,18 +69,23 @@ minutos y verifica proveedores/Stripe cada quince; en Railway se deben programar
 Un proveedor sólo figura operativo tras responder 2xx durante los últimos 30 minutos; 401/403,
 timeouts y pruebas vencidas mantienen `/status` en atención.
 
-Antes del primer despliegue sobre una base nueva, ejecutá `npm run db:migrate` usando la URL directa.
-En producción `DATABASE_URL_UNPOOLED` es obligatoria y el migrador rechaza endpoints Neon `-pooler`.
-Las instancias existentes siguen recibiendo las adiciones idempotentes de `ensureDb`; adoptá las
-migraciones en una ventana controlada antes de quitar ese bootstrap. Para Stripe, configurá
+Cada despliegue ejecuta `node scripts/migrate.mjs migrate` como predeploy y no inicia la nueva versión
+si el esquema no coincide con el snapshot de Drizzle. En producción `DATABASE_URL_UNPOOLED` es
+obligatoria y el migrador rechaza endpoints Neon `-pooler`. Una base heredada sin historial debe pasar
+primero `npm run db:baseline:check`; el baseline sólo se aplica con el flag explícito `--apply`, después
+de verificar tablas, columnas, índices, claves foráneas y backfills dentro de una transacción reversible.
+Las requests productivas sólo verifican el último registro de migración y nunca ejecutan DDL; el
+bootstrap idempotente queda limitado al entorno local y a las pruebas.
+Para Stripe, configurá
 el webhook `{APP_URL}/api/webhooks/stripe` con `checkout.session.completed`,
 `checkout.session.async_payment_succeeded`, `customer.subscription.created|updated|deleted`,
 `invoice.paid`, `invoice.payment_failed` y `payment_intent.succeeded`.
 CI aplica todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build; una
 migración inválida bloquea el merge.
 
-El orquestador debe usar `GET /api/internal/health/live` sólo para liveness y
-`GET /api/internal/health/ready` para readiness. Readiness prueba una consulta real a Postgres, una
+Railway usa `GET /api/internal/health/live` para confirmar que una nueva revisión inició sin convertir
+credenciales externas pendientes en un bucle de rollback. El monitor operativo y la apertura de tráfico
+comercial deben usar `GET /api/internal/health/ready`. Readiness prueba una consulta real a Postgres, una
 escritura/lectura efímera en Redis y la configuración crítica de producción; responde `503` cuando
 alguna falla. El data plane expone los equivalentes `/healthz` y `/readyz`. Las capacidades de
 inferencia y comercio se informan por separado para que una caída upstream no provoque un bucle de

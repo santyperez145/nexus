@@ -25,6 +25,10 @@ RUN addgroup -S nexus && adduser -S nexus -G nexus \
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/scripts/migrate.mjs /app/scripts/migration-core.mjs ./scripts/
+COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=deps /app/node_modules/postgres ./node_modules/postgres
 USER nexus
 EXPOSE 3000
 CMD ["node", "server.js"]

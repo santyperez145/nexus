@@ -4,6 +4,7 @@ import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import postgres from "postgres";
 import { PGlite } from "@electric-sql/pglite";
+import migrationJournal from "../../../drizzle/meta/_journal.json";
 import * as schema from "./schema";
 import { SCHEMA_SQL } from "./bootstrap-sql";
 
@@ -71,6 +72,18 @@ export async function ensureDb() {
   if (isBuildPhase()) return;
   if (!globalForDb.nexusReady) {
     globalForDb.nexusReady = (async () => {
+      if (process.env.NODE_ENV === "production") {
+        const latestExpected = migrationJournal.entries.at(-1)?.when;
+        if (!latestExpected) throw new Error("Drizzle migration journal is empty");
+        const rows = (await getDb().execute(sql`
+          select max(created_at)::text as latest_at
+          from drizzle.__drizzle_migrations
+        `)) as unknown as Array<{ latest_at: string | null }>;
+        if (Number(rows[0]?.latest_at) !== latestExpected) {
+          throw new Error("Database migrations are not at the application revision");
+        }
+        return;
+      }
       for (const statement of SCHEMA_SQL) {
         await getDb().execute(sql.raw(statement));
       }
