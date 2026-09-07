@@ -3,8 +3,12 @@ import { after, before, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
+import { assertDatabaseMatchesSnapshot, readMigrationBundle } from "../scripts/migration-core.mjs";
 
 const client = new PGlite();
+const catalogClient = {
+  unsafe: async (statement: string) => (await client.query(statement)).rows,
+};
 
 before(async () => {
   await migrate(drizzle(client), { migrationsFolder: "drizzle" });
@@ -20,6 +24,8 @@ describe("fresh migration replay", () => {
       "select count(*)::integer as count from drizzle.__drizzle_migrations",
     );
     assert.equal(migrationResult.rows[0]?.count, 20);
+
+    await assertDatabaseMatchesSnapshot(catalogClient, readMigrationBundle().latestSnapshot);
 
     const columnResult = await client.query<{ column_name: string }>(
       "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'file' order by ordinal_position",
