@@ -24,6 +24,7 @@ const LINKS = [
 ];
 
 const MORE_LINKS = [
+  { href: "/search", label: "Buscar" },
   { href: "/compare", label: "Comparar" },
   { href: "/arena", label: "Arena" },
   { href: "/rankings", label: "Ranking" },
