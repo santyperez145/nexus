@@ -431,6 +431,30 @@ paths:
       responses:
         "200":
           description: Provider list with protocol, runtime health, verified privacy state, model count, and managed flag. A managed provider appears only after operator activation; its credential and base URL are never returned.
+  /search:
+    get:
+      summary: Unified search across the executable catalog, Hub repositories, Spaces, collections and providers
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: type
+          description: Comma-separated subset of model,dataset,space,collection,provider
+          schema: { type: string, example: model,dataset }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 50 }
+      responses:
+        "200":
+          description: |
+            Ranked hits. Private rows are returned only to the owning tenant and only for the
+            resource scopes granted to the identity; anonymous callers are throttled per IP.
+        "400": { description: Unknown search type }
+        "429": { description: Rate limited }
   /routing/preview:
     post:
       summary: Preview route hops before chat

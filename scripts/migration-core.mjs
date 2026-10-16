@@ -34,6 +34,15 @@ function normalizeType(type) {
   return type.toLowerCase();
 }
 
+/**
+ * information_schema reports every numeric column as "numeric"; the Drizzle
+ * snapshot keeps the declared precision, so rebuild it before comparing.
+ */
+function qualifiedColumnType(row) {
+  if (row.data_type !== "numeric" || row.numeric_precision == null) return row.data_type;
+  return `numeric(${row.numeric_precision}, ${row.numeric_scale ?? 0})`;
+}
+
 function normalizePredicate(value, table) {
   if (!value) return null;
   return value
@@ -282,7 +291,7 @@ export async function readDatabaseCatalog(client) {
       order by table_name
     `),
     client.unsafe(`
-      select table_name, column_name, data_type, is_nullable
+      select table_name, column_name, data_type, is_nullable, numeric_precision, numeric_scale
       from information_schema.columns
       where table_schema = 'public'
       order by table_name, ordinal_position
@@ -351,7 +360,7 @@ export async function readDatabaseCatalog(client) {
     columns: columnRows.map((row) => ({
       table: row.table_name,
       name: row.column_name,
-      type: row.data_type,
+      type: qualifiedColumnType(row),
       nullable: row.is_nullable === "YES",
     })),
     primaryKeys: primaryKeyRows.map((row) => ({ table: row.table_name, columns: row.columns })),

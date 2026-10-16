@@ -8,6 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const base = APP_URL.replace(/\/$/, "");
   const staticPaths = [
     "",
+    "/search",
     "/models",
     "/datasets",
     "/spaces",
