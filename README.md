@@ -134,8 +134,11 @@ El inbox de Stripe es idempotente y conserva estado, intentos y error sin duplic
 superadmin puede reprocesar un evento fallido desde `/admin/operations`; Nexus recupera el evento
 canónico con la API de Stripe, valida su tipo, reutiliza el mismo procesador del webhook y registra la
 acción del operador en el audit log.
-CI aplica todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build; una
-migración inválida bloquea el merge.
+CI aplica y repite todas las migraciones contra PostgreSQL 17 antes de typecheck, lint, tests y build.
+Bloquea alertas altas o críticas en el árbol de producción y prueba el build por HTTP con PostgreSQL
+y Redis aislados. El smoke verifica liveness, readiness sin integraciones externas, el rechazo de
+guest y grants en producción, los tres protocolos de inferencia, scopes, aislamiento de workspaces
+y la incompatibilidad entre ZDR y persistencia.
 GitHub mantiene alertas de vulnerabilidades y correcciones automáticas activas; Dependabot revisa
 semanalmente las dependencias npm y las acciones, agrupando actualizaciones minor y patch para evitar
 ruido sin mezclar upgrades mayores de riesgo.

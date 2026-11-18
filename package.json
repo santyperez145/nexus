@@ -51,7 +51,6 @@
     "radix-ui": "^1.6.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "shadcn": "^4.20.1",
     "sonner": "^2.0.8",
     "stripe": "^22.6.1",
     "tailwind-merge": "^3.6.0",
@@ -71,6 +70,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "railway": "^3.11.0",
+    "shadcn": "^4.20.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5"
