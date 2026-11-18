@@ -152,7 +152,7 @@ expone `/healthz` para liveness y `/readyz` para infraestructura más inferencia
 de Stripe. Las capacidades se informan por separado y Railway nunca usa estos gates para reiniciar una
 instancia cuyo proceso sigue sano.
 
-Producción: [https://web-production-ef6b3.up.railway.app](https://web-production-ef6b3.up.railway.app) (Railway + Neon + Stripe Checkout/Link).
+Producción: [Nexus](https://nexus-lake-iota.vercel.app) (Vercel, PostgreSQL y Redis). Consultá `/status` para disponibilidad de inferencia y cobros.
 
 ## SDK
 
@@ -200,6 +200,11 @@ backend: cada run pasa por el router multi‑proveedor, ZDR, guardrails, rate li
 ledger `reserve→settle`. La identidad que ejecuta paga el uso; el propietario del Space nunca se cobra
 implícitamente. Los Spaces privados de workspace exigen una API key scoped a ese workspace para
 ejecución programática.
+
+La búsqueda del encabezado, `/search`, `GET /v1/search` y `nexus.search()` recorren el mismo catálogo y
+Hub. Podés filtrar por tipo o buscar `namespace/slug`. Los resultados privados requieren acceso actual
+al workspace y el scope de lectura del recurso. La página y el API consumen la misma cuota distribuida
+de 60 búsquedas por minuto por IP y las respuestas del API usan `private, no-store`.
 
 Los artefactos no viven dentro del historial SQL: con object storage configurado, Nexus reserva cuota
 por usuario o workspace dentro de una transacción, firma un `PUT` de corta duración y sólo marca el

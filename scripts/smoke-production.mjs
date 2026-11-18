@@ -97,6 +97,14 @@ try {
   await waitForServer();
 
   await (await http("/", 200)).text();
+  const search = await http("/v1/search?q=openai&type=provider&limit=1", 200);
+  assert.match(search.headers.get("cache-control") ?? "", /no-store/);
+  const searchBody = await search.json();
+  assert.equal(searchBody.data.length, 1);
+  assert.equal(searchBody.data[0]?.path, "openai");
+  assert.equal(searchBody.data[0]?.verified, false);
+  const searchPage = await (await http("/search?q=openai&type=provider", 200)).text();
+  assert.ok(searchPage.includes('href="/providers/openai"'), "Search page renders provider results");
   assert.equal((await http("/activity", 307)).headers.get("location"), "/login");
   const ready = await (await http("/api/internal/health/ready", 503)).json();
   assert.equal(ready.ok, false);

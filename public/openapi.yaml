@@ -431,6 +431,69 @@ paths:
       responses:
         "200":
           description: Provider list with protocol, runtime health, verified privacy state, model count, and managed flag. A managed provider appears only after operator activation; its credential and base URL are never returned.
+  /search:
+    get:
+      summary: Search the model catalog, Hub repositories, Spaces, collections and providers
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 161 }
+        - in: query
+          name: type
+          description: Comma-separated subset of model,dataset,space,collection,provider
+          schema: { type: string, example: model,dataset }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, minimum: 1, maximum: 50 }
+      responses:
+        "200":
+          description: |
+            Ranked hits subject to an overall limit. Private rows require current tenant access and
+            the resource read scope. For models and Spaces, executable indicates catalog eligibility;
+            for providers it indicates a recent successful health probe. Counts cover returned hits.
+          headers:
+            Cache-Control:
+              schema: { type: string, example: 'private, no-store' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [type, path, title, description, href, scope, verified, executable, updated_at, meta]
+                      properties:
+                        type: { type: string, enum: [model, dataset, space, collection, provider] }
+                        path: { type: string }
+                        title: { type: string }
+                        description: { type: string }
+                        href: { type: string }
+                        scope: { type: string, enum: [public, tenant] }
+                        verified: { type: boolean }
+                        executable: { type: boolean }
+                        updated_at: { type: [string, 'null'], format: date-time }
+                        meta: { type: object }
+                  meta:
+                    type: object
+                    required: [query, types, counts, count, degraded, truncated]
+                    properties:
+                      query: { type: string }
+                      types: { type: array, items: { type: string } }
+                      counts: { type: object, additionalProperties: { type: integer } }
+                      count: { type: integer }
+                      degraded: { type: boolean }
+                      truncated: { type: boolean }
+        "400": { description: Invalid query, resource type or limit }
+        "401": { description: Invalid supplied credentials }
+        "429": { description: Shared search rate limit exceeded }
+        "503": { description: Distributed search rate limiter unavailable }
   /routing/preview:
     post:
       summary: Preview route hops before chat

@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { allModels, type CatalogModel } from "@/lib/catalog";
 import {
   allRuntimeModels,
@@ -7,11 +7,12 @@ import {
 } from "@/lib/catalog/runtime";
 import { isTextModelExecutionReady } from "@/lib/catalog/presentation";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
-import { resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
+import { resolveOwnedWorkspace } from "@/lib/gateway/tenant";
 import type { AuthContext } from "@/lib/gateway/types";
 import { id } from "@/lib/ids";
 import { hubSlug, hubTenantAccess } from "./datasets";
 import { ownedHubNamespace } from "./namespace-store";
+import { hubNameMatches, hubTenantScope } from "./query";
 
 type Space = typeof schema.hubSpaces.$inferSelect;
 type Namespace = typeof schema.hubNamespaces.$inferSelect;
@@ -152,21 +153,16 @@ export async function listHubSpaces(input: {
   limit?: number;
 }) {
   const limit = Math.max(1, Math.min(input.limit ?? 50, 100));
-  const search = input.query?.trim().slice(0, 120);
+  const search = input.query?.trim().slice(0, 161);
   const base = input.mine
     ? input.auth
-      ? userScope(input.auth, schema.hubSpaces.userId, schema.hubSpaces.workspaceId)
+      ? hubTenantScope(input.auth, schema.hubSpaces.userId, schema.hubSpaces.workspaceId)
       : sql`false`
     : eq(schema.hubSpaces.visibility, "public");
   const where = search
     ? and(
         base,
-        or(
-          ilike(schema.hubSpaces.title, `%${search}%`),
-          ilike(schema.hubSpaces.slug, `%${search}%`),
-          ilike(schema.hubNamespaces.slug, `%${search}%`),
-          ilike(schema.hubSpaces.model, `%${search}%`),
-        ),
+        hubNameMatches(search, schema.hubSpaces.title, schema.hubNamespaces.slug, schema.hubSpaces.slug, schema.hubSpaces.model),
       )
     : base;
   const rows = await db

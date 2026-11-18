@@ -1,4 +1,4 @@
-import type { ChatChunk, ChatCompletion, ChatRequest, Collection, CollectionCreateRequest, CollectionItemCreateRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, ModelEvaluation, ModelEvaluationCreateRequest, ModelPromotion, ModelPromotionCreateRequest, RerankRequest, RerankResponse, Space, SpaceCreateRequest, NexusClientOptions } from "./types.js";
+import type { ChatChunk, ChatCompletion, ChatRequest, Collection, CollectionCreateRequest, CollectionItemCreateRequest, DatasetCreateRequest, DatasetRepository, DatasetRevisionRequest, ModelRepository, ModelRepositoryCreateRequest, ModelRepositoryRevisionRequest, ModelEvaluation, ModelEvaluationCreateRequest, ModelPromotion, ModelPromotionCreateRequest, RerankRequest, RerankResponse, Space, SpaceCreateRequest, NexusClientOptions, HubSearchType, HubSearchResult } from "./types.js";
 export declare class Nexus {
     #private;
     readonly apiKey: string;
@@ -45,6 +45,11 @@ export declare class Nexus {
         headers?: Record<string, string>;
         raw?: boolean;
     }): Promise<T>;
+    /** Search the catalog and Hub using the client's current authorization. */
+    search(query: string, options?: {
+        types?: HubSearchType[];
+        limit?: number;
+    }): Promise<HubSearchResult>;
     /** Used by SDK resources for already-authorized, provider-hosted transfer URLs. */
     fetchSigned(url: string, init: RequestInit): Promise<Response>;
 }

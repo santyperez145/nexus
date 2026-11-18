@@ -25,6 +25,8 @@ export type {
   Space,
   SpaceCreateRequest,
   NexusClientOptions,
+  HubSearchType,
+  HubSearchResult,
   ProviderPreferences,
   RerankDocument,
   RerankRequest,

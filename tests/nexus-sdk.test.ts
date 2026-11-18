@@ -3,6 +3,24 @@ import assert from "node:assert/strict";
 import { Nexus, NexusError, NEXUS_MODEL_IDS } from "../packages/sdk/src/index";
 
 describe("nexus-sdk", () => {
+  it("encodes Hub query, resource types and the overall result limit", async () => {
+    const nexus = new Nexus({
+      apiKey: "sk-nx-mgmt-test",
+      baseURL: "https://nexus.test/api/v1",
+      fetch: async (url, init) => {
+        const requestUrl = new URL(String(url));
+        assert.equal(requestUrl.pathname, "/api/v1/search");
+        assert.equal(requestUrl.searchParams.get("q"), "atlas-labs/el corpus");
+        assert.equal(requestUrl.searchParams.get("type"), "dataset,space");
+        assert.equal(requestUrl.searchParams.get("limit"), "5");
+        assert.equal(new Headers(init?.headers).get("authorization"), "Bearer sk-nx-mgmt-test");
+        return Response.json({ data: [], meta: { count: 0, degraded: false, truncated: false } });
+      },
+    });
+    const result = await nexus.search("atlas-labs/el corpus", { types: ["dataset", "space"], limit: 5 });
+    assert.equal(result.meta.count, 0);
+  });
+
   it("exposes catalog model ids including routers", () => {
     assert.ok(NEXUS_MODEL_IDS.length >= 425, `expected >= 425, got ${NEXUS_MODEL_IDS.length}`);
     assert.ok(NEXUS_MODEL_IDS.includes("nexus/auto"));

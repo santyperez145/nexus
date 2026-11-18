@@ -1,7 +1,7 @@
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import { sha256 } from "@/lib/crypto";
-import { resolveOwnedWorkspace, userScope } from "@/lib/gateway/tenant";
+import { resolveOwnedWorkspace } from "@/lib/gateway/tenant";
 import type { AuthContext } from "@/lib/gateway/types";
 import { id } from "@/lib/ids";
 import {
@@ -15,6 +15,7 @@ import {
   parseDatasetRevision,
 } from "./datasets";
 import { ownedHubNamespace } from "./namespace-store";
+import { hubNameMatches, hubTenantScope } from "./query";
 
 type Repository = typeof schema.hubRepositories.$inferSelect;
 type Namespace = typeof schema.hubNamespaces.$inferSelect;
@@ -149,21 +150,17 @@ export async function listDatasetRepositories(input: {
   limit?: number;
 }) {
   const limit = Math.max(1, Math.min(input.limit ?? 50, 100));
-  const search = input.query?.trim().slice(0, 120);
+  const search = input.query?.trim().slice(0, 161);
   const visibility = input.mine
     ? input.auth
-      ? userScope(input.auth, schema.hubRepositories.userId, schema.hubRepositories.workspaceId)
+      ? hubTenantScope(input.auth, schema.hubRepositories.userId, schema.hubRepositories.workspaceId)
       : sql`false`
     : eq(schema.hubRepositories.visibility, "public");
   const base = and(eq(schema.hubRepositories.kind, "dataset"), visibility);
   const where = search
     ? and(
         base,
-        or(
-          ilike(schema.hubRepositories.title, `%${search}%`),
-          ilike(schema.hubRepositories.slug, `%${search}%`),
-          ilike(schema.hubNamespaces.slug, `%${search}%`),
-        ),
+        hubNameMatches(search, schema.hubRepositories.title, schema.hubNamespaces.slug, schema.hubRepositories.slug),
       )
     : base;
   const rows = await db
