@@ -1,4 +1,5 @@
 {
+  "framework": "nextjs",
   "crons": [
     {
       "path": "/api/internal/cron/webhooks",
@@ -11,6 +12,10 @@
     {
       "path": "/api/internal/cron/health",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/internal/cron/artifacts",
+      "schedule": "13,43 * * * *"
     }
   ]
 }

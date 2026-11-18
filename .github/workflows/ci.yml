@@ -27,9 +27,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-    env:
-      DATABASE_URL: postgres://nexus:nexus_ci@127.0.0.1:5432/nexus_ci
-      DATABASE_URL_UNPOOLED: postgres://nexus:nexus_ci@127.0.0.1:5432/nexus_ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -37,8 +34,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: npm run db:migrate
-      - run: npm run db:migrate
+      - name: Apply and replay migrations on PostgreSQL
+        env:
+          DATABASE_URL_UNPOOLED: postgres://nexus:nexus_ci@127.0.0.1:5432/nexus_ci
+        run: |
+          npm run db:migrate
+          npm run db:migrate
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test

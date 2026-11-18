@@ -76,12 +76,11 @@ auditar respuestas, próximos intentos y dead letters sin exponer el payload.
 Webhooks, `web_fetch`, feeds de catálogo, probes configurables y adapters runtime gestionados usan resolución DNS pública fijada al
 socket, rechazan redirects y limitan el cuerpo leído; URLs privadas, metadata, NAT64 y 6to4 hacia
 rangos reservados fallan antes de acceder a la red interna.
-Los crons fallan cerrados si `CRON_SECRET` no está configurado. En Railway, el workflow
-`Production operations` llama con un secreto de repositorio a `/api/internal/cron/webhooks` cada
-cinco minutos, `/api/internal/cron/artifacts` cada treinta para limpiar uploads vencidos,
-`/api/internal/cron/health` cada quince y `/api/internal/cron/catalog` diariamente.
-Los horarios evitan el comienzo de la hora, cuando GitHub advierte mayor probabilidad de demora. El
-gateway conserva además el primer intento inmediato de cada entrega.
+Los crons fallan cerrados si `CRON_SECRET` no está configurado. En Vercel, `vercel.json` agenda
+webhooks cada cinco minutos, limpieza de uploads cada treinta minutos, health cada quince y
+catálogo una vez al día. Para un host sin scheduler nativo, el workflow `Production operations`
+puede ejecutar esas cuatro tareas con `NEXUS_APP_URL` y `NEXUS_CRON_SECRET` apuntando al host activo.
+Habilitá un solo scheduler por entorno. El gateway conserva el primer intento inmediato de cada entrega.
 Un proveedor sólo figura operativo tras responder 2xx durante los últimos 30 minutos; 401/403,
 timeouts y pruebas vencidas mantienen `/status` en atención.
 
@@ -99,8 +98,9 @@ Los modelos gestionados verificados alimentan el mismo catálogo runtime de Chat
 Embeddings, Reranking, comparación, rankings, Spaces y promociones del Hub; una suspensión o expiración de salud los retira
 de todos esos consumidores sin dejar referencias ejecutables parciales.
 
-Cada despliegue ejecuta `node scripts/migrate.mjs migrate` como predeploy y no inicia la nueva versión
-si el esquema no coincide con el snapshot de Drizzle. En producción `DATABASE_URL_UNPOOLED` es
+Railway ejecuta `node scripts/migrate.mjs migrate` como predeploy. En Vercel, ejecutá la migración
+como paso de release contra el destino verificado antes de promover un despliegue que cambie el esquema.
+En producción `DATABASE_URL_UNPOOLED` es
 obligatoria y el migrador rechaza endpoints Neon `-pooler`. Una base heredada sin historial debe pasar
 primero `npm run db:baseline:check`; el baseline sólo se aplica con el flag explícito `--apply`, después
 de verificar tablas, columnas, índices, claves foráneas y backfills dentro de una transacción reversible.
