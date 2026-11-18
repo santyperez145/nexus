@@ -22,6 +22,8 @@ import type {
   Space,
   SpaceCreateRequest,
   NexusClientOptions,
+  HubSearchType,
+  HubSearchResult,
 } from "./types.js";
 
 const DEFAULT_BASE = "http://127.0.0.1:3000/api/v1";
@@ -154,6 +156,13 @@ export class Nexus {
       });
     }
     return json as T;
+  }
+
+  /** Search the catalog and Hub using the client's current authorization. */
+  search(query: string, options: { types?: HubSearchType[]; limit?: number } = {}) {
+    return this.request<HubSearchResult>("/search", {
+      query: { q: query, type: options.types?.join(","), limit: options.limit },
+    });
   }
 
   /** Used by SDK resources for already-authorized, provider-hosted transfer URLs. */

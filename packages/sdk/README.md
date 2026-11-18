@@ -15,7 +15,7 @@ import { Nexus } from "nexus-sdk";
 
 const nexus = new Nexus({
   apiKey: process.env.NEXUS_API_KEY,
-  baseURL: "https://web-production-ef6b3.up.railway.app/api/v1",
+  baseURL: "https://nexus-lake-iota.vercel.app/api/v1",
   httpReferer: "https://tu-app.example",
   title: "Tu App",
 });
@@ -28,6 +28,14 @@ const completion = await nexus.chat.send({
 
 console.log(completion.choices[0].message.content);
 console.log(completion.usage?.cost, completion.provider);
+```
+
+Buscá recursos del Hub y del catálogo desde la misma API. Una clave de gestión solo ve recursos
+privados de los workspaces que puede leer y para los tipos autorizados por sus scopes.
+
+```ts
+const results = await nexus.search("atlas", { types: ["dataset", "model"], limit: 12 });
+console.log(results.data.map(({ title, href }) => ({ title, href })));
 ```
 
 Stream (igual que `@openrouter/sdk`, pero `Nexus`):

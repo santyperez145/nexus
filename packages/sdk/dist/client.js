@@ -124,6 +124,12 @@ export class Nexus {
         }
         return json;
     }
+    /** Search the catalog and Hub using the client's current authorization. */
+    search(query, options = {}) {
+        return this.request("/search", {
+            query: { q: query, type: options.types?.join(","), limit: options.limit },
+        });
+    }
     /** Used by SDK resources for already-authorized, provider-hosted transfer URLs. */
     fetchSigned(url, init) {
         return this.#fetch(url, init);

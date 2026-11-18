@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { isModelExecutionReady } from "@/lib/catalog/presentation";
 import { allRuntimeModels, findModelInCatalog } from "@/lib/catalog/runtime";
 import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
@@ -6,13 +6,13 @@ import {
   assertWorkspaceManager,
   canMutateResource,
   resolveOwnedWorkspace,
-  userScope,
 } from "@/lib/gateway/tenant";
 import type { AuthContext } from "@/lib/gateway/types";
 import { id } from "@/lib/ids";
 import { hubSlug, hubTenantAccess } from "./datasets";
 import { findModelRepository, modelRepositoryAccess } from "./model-repository-store";
 import { ownedHubNamespace } from "./namespace-store";
+import { hubNameMatches, hubNameRelevance, hubTenantScope } from "./query";
 import { datasetAccess, findDatasetRepository } from "./repository-store";
 import { canReadHubSpace, findHubSpace } from "./space-store";
 import {
@@ -116,20 +116,16 @@ export async function listHubCollections(input: {
   limit?: number;
 }) {
   const limit = Math.max(1, Math.min(input.limit ?? 50, 100));
-  const search = input.query?.trim().slice(0, 120);
+  const search = input.query?.trim().slice(0, 161);
   const base = input.mine
     ? input.auth
-      ? userScope(input.auth, schema.hubCollections.userId, schema.hubCollections.workspaceId)
+      ? hubTenantScope(input.auth, schema.hubCollections.userId, schema.hubCollections.workspaceId)
       : sql`false`
     : eq(schema.hubCollections.visibility, "public");
   let where = search
     ? and(
         base,
-        or(
-          ilike(schema.hubCollections.title, `%${search}%`),
-          ilike(schema.hubCollections.slug, `%${search}%`),
-          ilike(schema.hubNamespaces.slug, `%${search}%`),
-        ),
+        hubNameMatches(search, schema.hubCollections.title, schema.hubNamespaces.slug, schema.hubCollections.slug),
       )
     : base;
   if (input.owner) where = and(where, eq(schema.hubNamespaces.slug, hubSlug(input.owner, "owner")));
@@ -138,7 +134,10 @@ export async function listHubCollections(input: {
     .from(schema.hubCollections)
     .innerJoin(schema.hubNamespaces, eq(schema.hubNamespaces.id, schema.hubCollections.namespaceId))
     .where(where)
-    .orderBy(desc(schema.hubCollections.updatedAt))
+    .orderBy(
+      ...(search ? [desc(hubNameRelevance(search, schema.hubCollections.title, schema.hubNamespaces.slug, schema.hubCollections.slug))] : []),
+      desc(schema.hubCollections.updatedAt),
+    )
     .limit(limit);
   return rows.map((row) => combine(row.collection, row.namespace));
 }

@@ -387,3 +387,26 @@ export type CollectionItemCreateRequest = {
     path: string;
     note?: string;
 };
+export type HubSearchType = "model" | "dataset" | "space" | "collection" | "provider";
+export type HubSearchResult = {
+    data: Array<{
+        type: HubSearchType;
+        path: string;
+        title: string;
+        description: string;
+        href: string;
+        scope: "public" | "tenant";
+        verified: boolean;
+        executable: boolean;
+        updated_at: string | null;
+        meta: Record<string, string | number | boolean>;
+    }>;
+    meta: {
+        query: string;
+        types: HubSearchType[];
+        counts: Record<HubSearchType, number>;
+        count: number;
+        degraded: boolean;
+        truncated: boolean;
+    };
+};
