@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
 import {
   BYOK_FEE,
   FREE_MODEL_CREDITS_THRESHOLD_USD,
@@ -6,7 +6,7 @@ import {
   FREE_MODEL_RPD_WITH_CREDITS,
   manualCreditsEnabled,
 } from "@/lib/config";
-import { db, schema, withTransaction, type DbExecutor } from "@/lib/db";
+import { db, ensureDb, schema, withTransaction, type DbExecutor } from "@/lib/db";
 import { id } from "@/lib/ids";
 import { microsToUsd, tokenCostUsd, usdToMicros } from "@/lib/money";
 import { maybeNotifyKeyLimit, maybeNotifyLowBalance } from "@/lib/notify";
@@ -244,18 +244,22 @@ export async function reserveCredits(
   return { generationId, reservedMicros: need };
 }
 
-export async function releaseReserve(auth: AuthContext, reservation: CreditReservation) {
-  if (auth.guest || reservation.reservedMicros <= 0) return;
-  const payerId = billingUserId(auth);
-  const released = await withTransaction(async (tx) => {
+// Keep expiry well past the synchronous inference deadline (5 minutes on Vercel).
+// Async video jobs are billed when submitted, so polling never extends a hold.
+const expiredCreditHold = lt(schema.creditHolds.createdAt, sql`now() - interval '1 hour'`);
+const CREDIT_HOLD_BATCH_SIZE = 25;
+
+async function releaseOpenHold(generationId: string, payerId: string, expired = false) {
+  return withTransaction(async (tx) => {
     const rows = await tx
       .update(schema.creditHolds)
-      .set({ status: "released", closedAt: new Date(), actualMicros: 0 })
+      .set({ status: "released", closedAt: sql`now()`, actualMicros: 0 })
       .where(
         and(
-          eq(schema.creditHolds.generationId, reservation.generationId),
+          eq(schema.creditHolds.generationId, generationId),
           eq(schema.creditHolds.userId, payerId),
           eq(schema.creditHolds.status, "open"),
+          expired ? expiredCreditHold : undefined,
         ),
       )
       .returning();
@@ -277,12 +281,35 @@ export async function releaseReserve(auth: AuthContext, reservation: CreditReser
       userId: payerId,
       type: "reserve_release",
       micros: hold.reservedMicros,
-      generationId: reservation.generationId,
-      note: "hold released",
+      generationId,
+      note: expired ? "expired hold released" : "hold released",
     });
     return hold.reservedMicros;
   });
+}
+
+export async function releaseReserve(auth: AuthContext, reservation: CreditReservation) {
+  if (auth.guest || reservation.reservedMicros <= 0) return;
+  const released = await releaseOpenHold(reservation.generationId, billingUserId(auth));
   auth.creditMicros += released;
+}
+
+export async function releaseExpiredCreditHolds() {
+  await ensureDb();
+  const holds = await db
+    .select({ generationId: schema.creditHolds.generationId, payerId: schema.creditHolds.userId })
+    .from(schema.creditHolds)
+    .where(and(eq(schema.creditHolds.status, "open"), expiredCreditHold))
+    .orderBy(asc(schema.creditHolds.createdAt))
+    .limit(CREDIT_HOLD_BATCH_SIZE);
+
+  let released = 0;
+  for (const { generationId, payerId } of holds) {
+    // Each transaction closes only one hold. Settlement and competing reapers
+    // share the same open-state predicate, so only one can adjust the balances.
+    if ((await releaseOpenHold(generationId, payerId, true)) > 0) released += 1;
+  }
+  return { scanned: holds.length, released };
 }
 
 export async function settleUsage(opts: {
@@ -314,7 +341,7 @@ export async function settleUsage(opts: {
     if (reserved > 0 && reservation) {
       const closed = await tx
         .update(schema.creditHolds)
-        .set({ status: "settled", actualMicros: micros, closedAt: new Date() })
+        .set({ status: "settled", actualMicros: micros, closedAt: sql`now()` })
         .where(
           and(
             eq(schema.creditHolds.generationId, reservation.generationId),

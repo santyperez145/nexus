@@ -6,6 +6,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/internal/cron/credit-holds",
+      "schedule": "2-57/5 * * * *"
+    },
+    {
       "path": "/api/internal/cron/catalog",
       "schedule": "0 4 * * *"
     },

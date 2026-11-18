@@ -18,6 +18,8 @@ const other = `smoke-other-${runId}`;
 const ownedWorkspace = `smoke-workspace-${runId}`;
 const managementKey = randomBytes(32).toString("hex");
 const inferenceKey = randomBytes(32).toString("hex");
+const inferenceKeyId = `smoke-inference-${runId}`;
+const cronSecret = randomBytes(32).toString("hex");
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 let child;
 let childExit;
@@ -71,7 +73,7 @@ try {
     await tx`insert into api_key (id, user_id, workspace_id, name, key_hash, key_prefix, is_management, scopes) values
       (${`smoke-management-${runId}`}, ${owner}, null, 'CI management',
        ${hash(managementKey)}, 'smoke', true, ${tx.json(["workspaces:read"])}),
-      (${`smoke-inference-${runId}`}, ${owner}, ${ownedWorkspace}, 'CI inference',
+      (${inferenceKeyId}, ${owner}, ${ownedWorkspace}, 'CI inference',
        ${hash(inferenceKey)}, 'smoke', false, ${tx.json(["inference:write"])})`;
   });
 
@@ -87,7 +89,7 @@ try {
       NEXT_TELEMETRY_DISABLED: "1",
       BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
       CREDENTIALS_SECRET: randomBytes(32).toString("hex"),
-      CRON_SECRET: randomBytes(32).toString("hex"),
+      CRON_SECRET: cronSecret,
       ENABLE_GUEST_PLAYGROUND: "true",
       ENABLE_MANUAL_CREDITS: "true",
     },
@@ -136,6 +138,50 @@ try {
   assert.equal(zdr.error.code, "zdr_incompatible");
   const [ledger] = await sql`select count(*) as count from credit_ledger where user_id in (${owner}, ${other})`;
   assert.equal(Number(ledger.count), 0, "Rejected requests must not change the credit ledger");
+
+  const expiredHold = `smoke-expired-${runId}`;
+  const freshHold = `smoke-fresh-${runId}`;
+  await sql.begin(async (tx) => {
+    await tx`update "user" set credit_micros = 700 where id = ${owner}`;
+    await tx`update api_key set limit_micros = 1000, usage_micros = 300 where id = ${inferenceKeyId}`;
+    await tx`insert into workspace_budget (id, workspace_id, interval, limit_micros, spent_micros)
+      values (${`smoke-budget-${runId}`}, ${ownedWorkspace}, 'monthly', 1000, 300)`;
+    await tx`insert into credit_hold (id, generation_id, user_id, api_key_id, workspace_id,
+      reserved_micros, status, created_at, budget_held, key_limit_held) values
+      (${expiredHold}, ${expiredHold}, ${owner}, ${inferenceKeyId}, ${ownedWorkspace},
+       200, 'open', now() - interval '2 hours', true, true),
+      (${freshHold}, ${freshHold}, ${owner}, ${inferenceKeyId}, ${ownedWorkspace},
+       100, 'open', now(), true, true)`;
+    await tx`insert into credit_ledger (id, generation_id, user_id, type, micros) values
+      (${expiredHold}, ${expiredHold}, ${owner}, 'reserve', -200),
+      (${freshHold}, ${freshHold}, ${owner}, 'reserve', -100)`;
+  });
+
+  const cronPath = "/api/internal/cron/credit-holds";
+  await http(cronPath, 401, { key: inferenceKey });
+  const sweep = async () => (await http(cronPath, 200, { key: cronSecret })).json();
+  const sweeps = await Promise.all([sweep(), sweep()]);
+  assert.equal(sweeps.reduce((total, run) => total + run.released, 0), 1);
+  assert.deepEqual(await sweep(), { ok: true, scanned: 0, released: 0 });
+
+  const [balances] = await sql`select u.credit_micros, k.usage_micros, b.spent_micros from "user" u
+    join api_key k on k.id = ${inferenceKeyId} join workspace_budget b on b.workspace_id = ${ownedWorkspace}
+    where u.id = ${owner}`;
+  assert.equal(Number(balances.credit_micros), 900);
+  assert.equal(Number(balances.usage_micros), 100);
+  assert.equal(Number(balances.spent_micros), 100);
+  const holds = await sql`select generation_id, status, actual_micros, closed_at from credit_hold
+    where generation_id in (${expiredHold}, ${freshHold}) order by generation_id`;
+  assert.equal(holds[0]?.status, "released");
+  assert.equal(Number(holds[0]?.actual_micros), 0);
+  assert.ok(holds[0]?.closed_at);
+  assert.equal(holds[1]?.status, "open");
+  const reversals = await sql`select generation_id, micros, note from credit_ledger
+    where user_id = ${owner} and type = 'reserve_release'`;
+  assert.equal(reversals.length, 1);
+  assert.equal(reversals[0]?.generation_id, expiredHold);
+  assert.equal(Number(reversals[0]?.micros), 200);
+  assert.equal(reversals[0]?.note, "expired hold released");
   console.log("Production HTTP smoke passed with PostgreSQL and Redis");
 } finally {
   if (child) {
