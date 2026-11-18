@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { PGlite } from "@electric-sql/pglite";
 import {
   compareCatalog,
   compareCatalogSemantics,
+  databaseColumnType,
   expectedCatalog,
   legacyDataStatements,
+  readDatabaseCatalog,
   readMigrationBundle,
   resolveMigrationDatabaseUrl,
 } from "../scripts/migration-core.mjs";
@@ -14,6 +17,47 @@ function clone<T>(value: T): T {
 }
 
 describe("production migration runner", () => {
+  it("preserves numeric precision and scale from the PostgreSQL catalog", () => {
+    assert.equal(
+      databaseColumnType({ data_type: "numeric", numeric_precision: 30, numeric_scale: 15 }),
+      "numeric(30, 15)",
+    );
+    assert.equal(
+      databaseColumnType({ data_type: "numeric", numeric_precision: null, numeric_scale: null }),
+      "numeric",
+    );
+    assert.equal(
+      databaseColumnType({ data_type: "timestamp without time zone" }),
+      "timestamp without time zone",
+    );
+  });
+
+  it("reads constrained numeric types without reporting false schema drift", async () => {
+    const database = new PGlite();
+    try {
+      await database.exec(`
+        create table public.numeric_catalog_probe (
+          id text primary key,
+          amount numeric(30, 15),
+          metric numeric(30, 12) not null
+        )
+      `);
+      const catalog = await readDatabaseCatalog({
+        unsafe: async (query: string) => (await database.query(query)).rows,
+      });
+      const columns = catalog.columns.filter(
+        (column: { table: string }) => column.table === "numeric_catalog_probe",
+      );
+      assert.deepEqual(columns, [
+        { table: "numeric_catalog_probe", name: "id", type: "text", nullable: false },
+        { table: "numeric_catalog_probe", name: "amount", type: "numeric(30, 15)", nullable: true },
+        { table: "numeric_catalog_probe", name: "metric", type: "numeric(30, 12)", nullable: false },
+      ]);
+    } finally {
+      await database.close();
+    }
+  });
+
   it("requires a direct database URL in production", () => {
     assert.throws(
       () => resolveMigrationDatabaseUrl({ NODE_ENV: "production", DATABASE_URL: "postgres://u:p@db/x" }),

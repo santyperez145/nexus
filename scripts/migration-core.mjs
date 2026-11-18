@@ -34,6 +34,18 @@ function normalizeType(type) {
   return type.toLowerCase();
 }
 
+export function databaseColumnType(row) {
+  const type = String(row.data_type).toLowerCase();
+  if (
+    (type === "numeric" || type === "decimal") &&
+    row.numeric_precision !== null &&
+    row.numeric_precision !== undefined
+  ) {
+    return `${type}(${row.numeric_precision}, ${row.numeric_scale ?? 0})`;
+  }
+  return type;
+}
+
 function normalizePredicate(value, table) {
   if (!value) return null;
   return value
@@ -282,7 +294,7 @@ export async function readDatabaseCatalog(client) {
       order by table_name
     `),
     client.unsafe(`
-      select table_name, column_name, data_type, is_nullable
+      select table_name, column_name, data_type, is_nullable, numeric_precision, numeric_scale
       from information_schema.columns
       where table_schema = 'public'
       order by table_name, ordinal_position
@@ -351,7 +363,7 @@ export async function readDatabaseCatalog(client) {
     columns: columnRows.map((row) => ({
       table: row.table_name,
       name: row.column_name,
-      type: row.data_type,
+      type: databaseColumnType(row),
       nullable: row.is_nullable === "YES",
     })),
     primaryKeys: primaryKeyRows.map((row) => ({ table: row.table_name, columns: row.columns })),

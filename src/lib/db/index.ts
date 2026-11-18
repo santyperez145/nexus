@@ -39,9 +39,12 @@ function createDb(): Db {
       "DATABASE_URL is required in production. Set ENABLE_PGLITE=true only for ephemeral demos.",
     );
   }
-  const dataDir = process.env.PGLITE_DATA_DIR ?? "./data/nexus";
-  mkdirSync(dataDir, { recursive: true });
-  const pglite = globalForDb.nexusPglite ?? new PGlite(dataDir);
+  const dataDir = process.env.PGLITE_DATA_DIR;
+  const isNodeTestWorker = Boolean(process.env.NODE_TEST_CONTEXT);
+  const defaultDataDir = isNodeTestWorker ? undefined : "./data/nexus";
+  const resolvedDataDir = dataDir ?? defaultDataDir;
+  if (resolvedDataDir) mkdirSync(resolvedDataDir, { recursive: true });
+  const pglite = globalForDb.nexusPglite ?? new PGlite(resolvedDataDir);
   globalForDb.nexusPglite = pglite;
   return drizzlePglite(pglite, { schema });
 }
