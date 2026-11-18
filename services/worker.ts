@@ -4,6 +4,7 @@
 import { syncCatalog } from "../src/lib/catalog/sync";
 import { db, ensureDb, schema } from "../src/lib/db";
 import { id } from "../src/lib/ids";
+import { releaseExpiredCreditHolds } from "../src/lib/gateway/billing";
 import { retryWebhookDeliveries } from "../src/lib/observability/dispatch";
 import { probeAndPersistPlatformHealth } from "../src/lib/providers/health-store";
 import { cleanupExpiredArtifactUploads } from "../src/lib/files/store";
@@ -11,6 +12,7 @@ import { cleanupExpiredArtifactUploads } from "../src/lib/files/store";
 const INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const WEBHOOK_RETRY_INTERVAL_MS = Number(process.env.WEBHOOK_RETRY_INTERVAL_MS ?? 60 * 1000);
 const HEALTH_PROBE_INTERVAL_MS = Number(process.env.HEALTH_PROBE_INTERVAL_MS ?? 15 * 60 * 1000);
+const CREDIT_HOLD_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 const once = process.argv.includes("--once");
 
 async function tickCatalog() {
@@ -44,8 +46,13 @@ async function tickArtifacts() {
   }
 }
 
+async function tickCreditHolds() {
+  const result = await releaseExpiredCreditHolds();
+  if (result.released) console.info("[worker:credit-holds]", result);
+}
+
 async function main() {
-  await Promise.all([tickCatalog(), tickHealth(), tickWebhooks(), tickArtifacts()]);
+  await Promise.all([tickCatalog(), tickHealth(), tickWebhooks(), tickArtifacts(), tickCreditHolds()]);
   if (once) {
     process.exit(0);
   }
@@ -61,6 +68,9 @@ async function main() {
   setInterval(() => {
     void tickArtifacts().catch((err) => console.error("[worker:artifacts]", err));
   }, WEBHOOK_RETRY_INTERVAL_MS);
+  setInterval(() => {
+    void tickCreditHolds().catch((err) => console.error("[worker:credit-holds]", err));
+  }, CREDIT_HOLD_SWEEP_INTERVAL_MS);
 }
 
 main().catch((err) => {

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { AuthContext } from "../src/lib/gateway/types";
 import { sha256 } from "../src/lib/crypto";
 
@@ -199,6 +199,42 @@ describe("transactional credit ledger", () => {
       .from(database.schema.users)
       .where(eq(database.schema.users.id, userId));
     assert.equal(user.creditMicros, beforeBalance);
+  });
+
+  it("closes expired holds once and rejects late settlement", async () => {
+    const beforeBalance = auth.creditMicros;
+    const expired = await billing.reserveCredits(auth, "gen_expired_hold", 50_000);
+    const fresh = await billing.reserveCredits(auth, "gen_fresh_hold", 25_000);
+    await database.db
+      .update(database.schema.creditHolds)
+      .set({ createdAt: sql`now() - interval '2 hours'` })
+      .where(eq(database.schema.creditHolds.generationId, expired.generationId));
+
+    assert.deepEqual(await billing.releaseExpiredCreditHolds(), { scanned: 1, released: 1 });
+    assert.deepEqual(await billing.releaseExpiredCreditHolds(), { scanned: 0, released: 0 });
+    await billing.releaseReserve(auth, expired);
+    await assert.rejects(billing.settleUsage({
+      auth,
+      generationId: expired.generationId,
+      promptTokens: 500,
+      completionTokens: 0,
+      pricing: { prompt: 0.0001, completion: 0 },
+      isFree: false,
+      isByok: false,
+      reservation: expired,
+    }), { code: "hold_closed" });
+
+    const ledger = await database.db.select().from(database.schema.creditLedger)
+      .where(eq(database.schema.creditLedger.generationId, expired.generationId));
+    assert.equal(ledger.length, 2);
+    assert.equal(ledger.find((entry) => entry.type === "reserve_release")?.note, "expired hold released");
+    assert.equal(ledger.reduce((total, entry) => total + entry.micros, 0), 0);
+
+    await billing.releaseReserve(auth, fresh);
+    const [user] = await database.db.select().from(database.schema.users)
+      .where(eq(database.schema.users.id, userId));
+    assert.equal(user.creditMicros, beforeBalance);
+    auth.creditMicros = user.creditMicros;
   });
 });
 

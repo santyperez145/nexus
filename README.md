@@ -77,9 +77,12 @@ Webhooks, `web_fetch`, feeds de catálogo, probes configurables y adapters runti
 socket, rechazan redirects y limitan el cuerpo leído; URLs privadas, metadata, NAT64 y 6to4 hacia
 rangos reservados fallan antes de acceder a la red interna.
 Los crons fallan cerrados si `CRON_SECRET` no está configurado. En Vercel, `vercel.json` agenda
-webhooks cada cinco minutos, limpieza de uploads cada treinta minutos, health cada quince y
-catálogo una vez al día. Para un host sin scheduler nativo, el workflow `Production operations`
-puede ejecutar esas cuatro tareas con `NEXUS_APP_URL` y `NEXUS_CRON_SECRET` apuntando al host activo.
+webhooks y recuperación de reservas cada cinco minutos, limpieza de uploads cada treinta minutos,
+health cada quince y catálogo una vez al día. El recuperador libera reservas de inferencia que
+siguen abiertas después de una hora. Restaura saldo y límites en la misma transacción y agrega al
+ledger un `reserve_release` con nota `expired hold released`. Para un host sin scheduler nativo,
+el workflow `Production operations` puede ejecutar esas tareas con `NEXUS_APP_URL` y
+`NEXUS_CRON_SECRET` apuntando al host activo.
 Habilitá un solo scheduler por entorno. El gateway conserva el primer intento inmediato de cada entrega.
 Un proveedor sólo figura operativo tras responder 2xx durante los últimos 30 minutos; 401/403,
 timeouts y pruebas vencidas mantienen `/status` en atención.
