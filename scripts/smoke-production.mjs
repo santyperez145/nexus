@@ -6,6 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import postgres from "postgres";
 
 const origin = "http://127.0.0.1:3910";
+const appUrl = "https://nexus-smoke.example.invalid";
 const databaseUrl = new URL(process.env.NEXUS_SMOKE_DATABASE_URL ?? "about:blank");
 assert.equal(databaseUrl.hostname, "127.0.0.1", "Smoke requires a loopback fixture database");
 assert.equal(databaseUrl.pathname, "/nexus_ci", "Smoke requires the dedicated nexus_ci database");
@@ -26,7 +27,7 @@ async function http(path, expected, { key, input, guest = false } = {}) {
     method: input === undefined ? "GET" : "POST",
     headers: {
       ...(key ? { Authorization: `Bearer ${key}` } : {}),
-      ...(input === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(input === undefined ? {} : { "Content-Type": "application/json", Origin: appUrl }),
       ...(guest ? { "X-Nexus-Guest": "1" } : {}),
     },
     body: input === undefined ? undefined : JSON.stringify(input),
@@ -68,7 +69,7 @@ try {
       (${ownedWorkspace}, ${owner}, 'Owned workspace', 'own'),
       (${`smoke-other-workspace-${runId}`}, ${other}, 'Other workspace', 'other')`;
     await tx`insert into api_key (id, user_id, workspace_id, name, key_hash, key_prefix, is_management, scopes) values
-      (${`smoke-management-${runId}`}, ${owner}, ${ownedWorkspace}, 'CI management',
+      (${`smoke-management-${runId}`}, ${owner}, null, 'CI management',
        ${hash(managementKey)}, 'smoke', true, ${tx.json(["workspaces:read"])}),
       (${`smoke-inference-${runId}`}, ${owner}, ${ownedWorkspace}, 'CI inference',
        ${hash(inferenceKey)}, 'smoke', false, ${tx.json(["inference:write"])})`;
@@ -82,7 +83,7 @@ try {
       DATABASE_URL: databaseUrl.toString(),
       DATABASE_URL_UNPOOLED: databaseUrl.toString(),
       REDIS_URL: "redis://127.0.0.1:6379",
-      NEXT_PUBLIC_APP_URL: "https://nexus-smoke.example.invalid",
+      NEXT_PUBLIC_APP_URL: appUrl,
       NEXT_TELEMETRY_DISABLED: "1",
       BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
       CREDENTIALS_SECRET: randomBytes(32).toString("hex"),
@@ -113,7 +114,8 @@ try {
     assert.equal((await response.json()).error.type, "authentication_error");
     assert.ok(response.headers.get("x-request-id"));
   }
-  await http("/api/internal/credits/grant", 403, { input: { usd: 1 } });
+  const grant = await (await http("/api/internal/credits/grant", 403, { input: { usd: 1 } })).json();
+  assert.equal(grant.error, "Manual credits disabled");
 
   const { data: workspaces } = await (await http("/v1/workspaces", 200, { key: managementKey })).json();
   assert.deepEqual(workspaces.map((workspace) => workspace.id), [ownedWorkspace]);
