@@ -12,7 +12,7 @@ import { id } from "@/lib/ids";
 import { hubSlug, hubTenantAccess } from "./datasets";
 import { findModelRepository, modelRepositoryAccess } from "./model-repository-store";
 import { ownedHubNamespace } from "./namespace-store";
-import { hubNameMatches, hubTenantScope } from "./query";
+import { hubNameMatches, hubNameRelevance, hubTenantScope } from "./query";
 import { datasetAccess, findDatasetRepository } from "./repository-store";
 import { canReadHubSpace, findHubSpace } from "./space-store";
 import {
@@ -134,7 +134,10 @@ export async function listHubCollections(input: {
     .from(schema.hubCollections)
     .innerJoin(schema.hubNamespaces, eq(schema.hubNamespaces.id, schema.hubCollections.namespaceId))
     .where(where)
-    .orderBy(desc(schema.hubCollections.updatedAt))
+    .orderBy(
+      ...(search ? [desc(hubNameRelevance(search, schema.hubCollections.title, schema.hubNamespaces.slug, schema.hubCollections.slug))] : []),
+      desc(schema.hubCollections.updatedAt),
+    )
     .limit(limit);
   return rows.map((row) => combine(row.collection, row.namespace));
 }

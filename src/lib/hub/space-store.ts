@@ -12,7 +12,7 @@ import type { AuthContext } from "@/lib/gateway/types";
 import { id } from "@/lib/ids";
 import { hubSlug, hubTenantAccess } from "./datasets";
 import { ownedHubNamespace } from "./namespace-store";
-import { hubNameMatches, hubTenantScope } from "./query";
+import { hubNameMatches, hubNameRelevance, hubTenantScope } from "./query";
 
 type Space = typeof schema.hubSpaces.$inferSelect;
 type Namespace = typeof schema.hubNamespaces.$inferSelect;
@@ -170,7 +170,10 @@ export async function listHubSpaces(input: {
     .from(schema.hubSpaces)
     .innerJoin(schema.hubNamespaces, eq(schema.hubNamespaces.id, schema.hubSpaces.namespaceId))
     .where(where)
-    .orderBy(desc(schema.hubSpaces.updatedAt))
+    .orderBy(
+      ...(search ? [desc(hubNameRelevance(search, schema.hubSpaces.title, schema.hubNamespaces.slug, schema.hubSpaces.slug))] : []),
+      desc(schema.hubSpaces.updatedAt),
+    )
     .limit(200);
   return rows
     .map((row) => combine(row.space, row.namespace))

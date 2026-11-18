@@ -51,11 +51,13 @@ function score(hit: HubSearchHit, query: string) {
   const needle = query.toLowerCase();
   const path = hit.path.toLowerCase();
   const title = hit.title.toLowerCase();
+  const slug = path.split("/").at(-1) ?? path;
+  const names = [path, title, slug];
   if (!needle) return hit.verified ? 1 : 0;
   let value = 0;
-  if (path === needle || title === needle) value += 100;
-  if (path.startsWith(needle) || title.startsWith(needle)) value += 40;
-  if (path.includes(needle) || title.includes(needle)) value += 20;
+  if (names.includes(needle)) value += 100;
+  if (names.some((name) => name.startsWith(needle))) value += 40;
+  if (names.some((name) => name.includes(needle))) value += 20;
   if (hit.verified) value += 6;
   if (hit.executable) value += 4;
   if (hit.scope === "tenant") value += 2;
@@ -116,7 +118,7 @@ async function searchCatalogModels(query: string, loadModels: typeof allRuntimeM
     }));
 }
 
-async function searchProviders(query: string, limit: number): Promise<HubSearchHit[]> {
+async function searchProviders(query: string): Promise<HubSearchHit[]> {
   const needle = query.toLowerCase();
   const wired = new Set(wiredProviders().map((provider) => provider.id));
   const [managed, operational] = await Promise.all([
@@ -148,7 +150,6 @@ async function searchProviders(query: string, limit: number): Promise<HubSearchH
         provider.id.toLowerCase().includes(needle) ||
         provider.label.toLowerCase().includes(needle),
     )
-    .slice(0, limit)
     .map((provider) => ({
       type: "provider" as const,
       path: provider.id,
@@ -303,7 +304,7 @@ export async function hubSearch(input: {
     collect("space", () => tenantRows("space", (scope) => searchSpaces(scope, executableSpaceModels))),
     collect("collection", () => searchCollections(publicInput)),
     collect("collection", () => tenantRows("collection", searchCollections)),
-    collect("provider", () => searchProviders(query, perType)),
+    collect("provider", () => searchProviders(query)),
   ]);
 
   const hits = dedupe([

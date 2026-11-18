@@ -12,7 +12,7 @@ import {
   parseModelRevision,
 } from "./model-repositories";
 import { ownedHubNamespace } from "./namespace-store";
-import { hubNameMatches, hubTenantScope } from "./query";
+import { hubNameMatches, hubNameRelevance, hubTenantScope } from "./query";
 
 type Repository = typeof schema.hubRepositories.$inferSelect;
 type Namespace = typeof schema.hubNamespaces.$inferSelect;
@@ -188,7 +188,10 @@ export async function listModelRepositories(input: {
     .from(schema.hubRepositories)
     .innerJoin(schema.hubNamespaces, eq(schema.hubNamespaces.id, schema.hubRepositories.namespaceId))
     .where(where)
-    .orderBy(desc(schema.hubRepositories.updatedAt))
+    .orderBy(
+      ...(search ? [desc(hubNameRelevance(search, schema.hubRepositories.title, schema.hubNamespaces.slug, schema.hubRepositories.slug))] : []),
+      desc(schema.hubRepositories.updatedAt),
+    )
     .limit(200);
   return rows
     .map((row) => combine(row.repository, row.namespace))

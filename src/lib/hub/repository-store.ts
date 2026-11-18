@@ -15,7 +15,7 @@ import {
   parseDatasetRevision,
 } from "./datasets";
 import { ownedHubNamespace } from "./namespace-store";
-import { hubNameMatches, hubTenantScope } from "./query";
+import { hubNameMatches, hubNameRelevance, hubTenantScope } from "./query";
 
 type Repository = typeof schema.hubRepositories.$inferSelect;
 type Namespace = typeof schema.hubNamespaces.$inferSelect;
@@ -171,7 +171,10 @@ export async function listDatasetRepositories(input: {
       eq(schema.hubNamespaces.id, schema.hubRepositories.namespaceId),
     )
     .where(where)
-    .orderBy(desc(schema.hubRepositories.updatedAt))
+    .orderBy(
+      ...(search ? [desc(hubNameRelevance(search, schema.hubRepositories.title, schema.hubNamespaces.slug, schema.hubRepositories.slug))] : []),
+      desc(schema.hubRepositories.updatedAt),
+    )
     .limit(200);
   return rows
     .map((row) => combine(row.repository, row.namespace))

@@ -146,6 +146,12 @@ before(async () => {
   );
   assert.equal((await publishModel(createRequest("models", "atlas-private-model", "private"))).status, 201);
   assert.equal((await publishCollection(createRequest("collections", "atlas-collection", "public"))).status, 201);
+  for (const slug of ["exact-ranking", "exact-ranking-new-a", "exact-ranking-new-b"]) {
+    assert.equal((await publishCollection(createRequest("collections", slug, "public"))).status, 201);
+  }
+  await database.db.update(database.schema.hubCollections)
+    .set({ updatedAt: new Date("2024-01-01T00:00:00Z") })
+    .where(eq(database.schema.hubCollections.slug, "exact-ranking"));
 });
 
 after(async () => {
@@ -169,7 +175,7 @@ describe("unified hub search", () => {
     assert.deepEqual(paths(rows, "space"), ["atlas-labs/atlas-private-space"]);
     const model = rows.find((row) => row.type === "model" && row.path === "atlas-labs/atlas-private-model");
     assert.equal(model?.href, "/settings/models/atlas-labs/atlas-private-model");
-    assert.deepEqual(paths(rows, "collection"), ["atlas-labs/atlas-collection"]);
+    assert.ok(paths(rows, "collection").includes("atlas-labs/atlas-collection"));
   });
 
   it("never leaks another tenant's private rows", async () => {
@@ -218,6 +224,11 @@ describe("unified hub search", () => {
   it("matches a qualified path literally and treats wildcards as text", async () => {
     assert.deepEqual(paths(await hits("q=atlas-labs%2Fatlas-public&type=dataset"), "dataset"), ["atlas-labs/atlas-public"]);
     assert.deepEqual(paths(await hits("q=%25%25&type=dataset", ownerToken), "dataset"), []);
+  });
+
+  it("ranks older exact names before newer prefixes at the source limit", async () => {
+    const rows = await hits("q=exact-ranking&type=collection&limit=1");
+    assert.deepEqual(paths(rows, "collection"), ["atlas-labs/exact-ranking"]);
   });
 
   it("bounds the entire result set and prevents shared caching", async () => {

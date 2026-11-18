@@ -52,7 +52,7 @@ export function SiteSearch({ models }: { models: Row[] }) {
 
   const current = remote?.query === query ? remote : null;
   const hits = current?.hits ?? (query.length < 2 ? fallback : []);
-  const searchHref = query.length >= 2 ? `/search?q=${encodeURIComponent(query)}` : "/search";
+  const searchHref = query ? `/search?q=${encodeURIComponent(query)}` : "/search";
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
